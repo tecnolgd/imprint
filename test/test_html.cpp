@@ -446,6 +446,20 @@ int test_html()
                "cyan");  // valid rule after the junk survives
     }
 
+    // C4: an unquoted value ends at whitespace or '/': value=30/> is
+    // value "30", self-closed
+    {
+        ui_node r = parse_html(
+            "<meter id=\"m\" min=\"0\" max=\"100\" value=30/>\n", nullptr);
+        EXPECT(r.children.size() == 1);
+        EXPECT(r.children[0].type == "progress_bar");
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "value")) == 30);
+
+        ui_node r2 = parse_html("<div id=x><label>y</label></div>\n", nullptr);
+        EXPECT(r2.type == "column");
+        EXPECT(r2.id == "x");
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);

@@ -382,8 +382,13 @@ namespace zb::ui
                         }
                         else
                         {
+                            // C4: an unquoted value ends at whitespace or
+                            // '/': `<meter value=30/>` means value "30",
+                            // self-closed (author intent over the letter of
+                            // HTML5, where the '/' would join the value)
                             const char *vb = attr_p;
-                            while (attr_p < attr_end && !is_space(*attr_p))
+                            while (attr_p < attr_end && !is_space(*attr_p) &&
+                                   *attr_p != '/')
                             {
                                 ++attr_p;
                             }
