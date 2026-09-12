@@ -564,6 +564,11 @@ Color Graphics::alpha_blend(const Color &front_color, const Color &back_color)
 
 void Graphics::fill_rect(int x1, int y1, int x2, int y2, const Color &colr)
 {
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_rect(x1, y1, x2, y2, colr);  // S-1: bones only
+        return;
+    }
     // the row span is normalized: y1 == y2 is a single row (the old
     // descending branch never ran and looped forever on a single row)
     const int top = y1 < y2 ? y1 : y2;
@@ -691,6 +696,11 @@ void Graphics::draw_circle(int x, int y, int radius, const Color &colr)
 
 void Graphics::fill_circle(int x, int y, int radius, const Color &colr)
 {
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_circle(x, y, radius, colr);  // S-1: bones only
+        return;
+    }
     if (radius < 0)
     {
         return;  // see draw_circle
@@ -734,6 +744,11 @@ void Graphics::draw_rect(int x1, int y1, int x2, int y2, const Color &colr)
 
 void Graphics::fill_round_rect(int x1, int y1, int x2, int y2, int radius, const Color &colr)
 {
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_round_rect(x1, y1, x2, y2, radius, colr);  // S-1: bones only
+        return;
+    }
     const int left = x1 < x2 ? x1 : x2;
     const int right = x1 < x2 ? x2 : x1;
     const int top = y1 < y2 ? y1 : y2;
@@ -808,8 +823,37 @@ void Graphics::draw_round_rect(int x1, int y1, int x2, int y2, int radius, const
     }
 }
 
+void Graphics::draw_wireframe_grid(const int spacing, const Color &colr)
+{
+    if (spacing <= 0)
+    {
+        return;
+    }
+    // 1px dots on the spacing lattice across the (closed) draw area;
+    // through draw_pixel, so clip/damage gates apply unchanged
+    for (int y = draw_area.start_y; y <= draw_area.end_y; ++y)
+    {
+        if (y % spacing != 0)
+        {
+            continue;
+        }
+        for (int x = draw_area.start_x; x <= draw_area.end_x; ++x)
+        {
+            if (x % spacing == 0)
+            {
+                draw_pixel(x, y, colr);
+            }
+        }
+    }
+}
+
 void Graphics::fill_gradient(int x1, int y1, int x2, int y2, const Color &from, const Color &to, const bool horizontal)
 {
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_rect(x1, y1, x2, y2, from);  // S-1: no gradient fill; from-outline
+        return;
+    }
     const int left = x1 < x2 ? x1 : x2;
     const int right = x1 < x2 ? x2 : x1;
     const int top = y1 < y2 ? y1 : y2;
@@ -1009,6 +1053,11 @@ void Graphics::fill_triangle(
     int x3, int y3,
     const Color &colr)
 {
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_triangle(x1, y1, x2, y2, x3, y3, colr);  // S-1: bones only
+        return;
+    }
     // sort the vertices top to bottom; the long edge (a-c) spans the
     // whole triangle, the other two edges meet at the middle vertex b
     int xa = x1, ya = y1, xb = x2, yb = y2, xc = x3, yc = y3;
@@ -1128,6 +1177,11 @@ void Graphics::draw_ellipse(int cx, int cy, int rx, int ry, const Color &colr)
 
 void Graphics::fill_ellipse(int cx, int cy, int rx, int ry, const Color &colr)
 {
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_ellipse(cx, cy, rx, ry, colr);  // S-1: bones only
+        return;
+    }
     if (rx <= 0 || ry <= 0)
     {
         return;

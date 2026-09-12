@@ -88,7 +88,11 @@ namespace zb::ui
     {
         if (background.has_value())
         {
-            area.fill(*background);
+            // S-1: through fill_rect (not fill) so a wireframe view
+            // degrades the face to an outline; pixel-identical to fill()
+            // in FULL mode. The dialog mask keeps fill() (immune).
+            const auto s = get_size();
+            area.fill_rect(0, 0, s.width - 1, s.height - 1, *background);
         }
         if (background_image.has_value())
         {

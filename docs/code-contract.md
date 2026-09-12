@@ -794,6 +794,19 @@ obligations:
   that runs regardless of the `alpha_enabled` switch. Direct drawing
   without `clip_safe` is therefore also safe in damage mode
   (`test_raster_damage` pins this).
+- **Render modes (S-1)**: `Graphics::render_mode::{full,wireframe,
+  sketch}` (`set_render_mode`, default `full` = current behavior).
+  `wireframe` turns the six shape fills (`fill_rect/circle/ellipse/
+  triangle/gradient/round_rect`) into their 1px outlines (gradient uses
+  its `from` color); strokes, AA strokes, text, images, damage regions,
+  and hit-testing are unchanged. `fill()` is the mode-immune clear
+  primitive (window clear, dialog mask); widget and pressed backgrounds
+  go through `fill_rect` so they degrade. `sketch` is reserved and
+  renders as `full` until S-2. Opt-in `draw_wireframe_grid(spacing,
+  color)` dots the draw area (mode-independent). `ListBox` rows bypass
+  the image cache in wireframe (a cached face would blit opaque):
+  glyphs write straight to the screen, so flips need no invalidation
+  and the miss counter only tracks FULL-mode cache misses.
 - **`draw_arc_aa` angular contract (V-5)**: integer degrees in the math
   convention, `start_deg` measured from +x (3 o'clock), positive
   `sweep_deg` counter-clockwise — on the raster's screen coordinates

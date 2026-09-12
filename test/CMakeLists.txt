@@ -25,6 +25,7 @@ add_executable(
     test_automation.cpp
     test_quit.cpp
     test_graphics.cpp
+    test_render_mode.cpp
     test_event.cpp
     test_text.cpp
     test_flex.cpp

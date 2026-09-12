@@ -1,7 +1,9 @@
 #include "list_box.hpp"
 
 #include "logging.hpp"
+#include "text/bitmap_provider.hpp"
 #include "text/text_image.hpp"
+#include "text/utf8.hpp"
 
 namespace zb::ui
 {
@@ -388,6 +390,24 @@ namespace zb::ui
             }
             if (text_fn != nullptr)
             {
+                // S-1: wireframe rows bypass the image cache -- a cached
+                // face would blit opaque over the bones. Glyphs go
+                // straight onto the screen (text skeleton, no face, no
+                // cache activity), so mode flips need no invalidation.
+                if (area.get_render_mode() ==
+                    core::Graphics::render_mode::wireframe)
+                {
+                    const std::string text = text_fn(text_arg, r);
+                    const auto u16 = utf8_to_utf16(text.c_str());
+                    const BitmapProvider provider;
+                    const auto m = provider.measure(
+                        u16.data(), static_cast<int>(u16.size()));
+                    const int tx = (text_w - m.width) / 2;
+                    const int ty = y0 + (row_height - m.height) / 2 + m.ascent;
+                    provider.write(area, u16.data(),
+                                   static_cast<int>(u16.size()), tx, ty, fg);
+                    continue;
+                }
                 core::image_t row;
                 if (const auto *hit = find_row_cache(r, sel, text_w, row_height, fg, bg))
                 {

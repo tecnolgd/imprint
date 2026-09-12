@@ -82,7 +82,11 @@ namespace zb::ui
             }
             else
             {
-                area.fill(pressed_color.value_or(theme().accent));
+                // S-1: through fill_rect so the pressed face degrades in
+                // wireframe views (pixel-identical to fill() in FULL)
+                const auto ps = get_size();
+                area.fill_rect(0, 0, ps.width - 1, ps.height - 1,
+                               pressed_color.value_or(theme().accent));
             }
         }
         if (show_border)

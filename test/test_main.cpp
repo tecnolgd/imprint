@@ -17,6 +17,7 @@ int test_app_flow();
 int test_automation();
 int test_quit();
 int test_graphics();
+int test_render_mode();
 int test_event();
 int test_text();
 int test_flex();
@@ -87,6 +88,7 @@ int main()
     total += test_automation();
     total += test_quit();
     total += test_graphics();
+    total += test_render_mode();
     total += test_event();
     total += test_text();
     total += test_flex();

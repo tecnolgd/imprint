@@ -286,7 +286,7 @@ per the A-23 precedent the `html` translation unit stays in imui (STATIC);
 unreferenced on targets that don't use it, dropped by the static linker at
 image build. Consumer-side, not a new C-ABI surface at this stage.
 
-### Batch S — Render Modes: Sketch & Wireframe (Unscheduled; S-1 is execution order step 5; added 2026-09-09)
+### Batch S — Render Modes: Sketch & Wireframe (S-2 still unscheduled; S-1 landed as execution order step 5)
 
 Alternative rendering modes for the same widget tree. Not new widget
 classes — these are `Graphics`-layer `RenderMode` switches (~150 lines
@@ -295,8 +295,13 @@ rendered in WIREFRAME mode shows only structural bones; in SKETCH mode
 it looks hand-drawn. The widget tree, dispatcher, damage tracking, and
 Widget hit-testing are all unchanged.
 
-- **S-1. WIREFRAME mode** (execution order step 5):跳过填充，只画 1px 边框和文字骨架；
-  grid/spacing 可选显示。Use cases:
+- **S-1. WIREFRAME mode** (landed, execution order step 5):跳过填充，只画 1px 边框和文字骨架；
+  grid/spacing 可选显示。Render-mode switch on `Graphics`
+  (`set_render_mode`, default FULL); shape fills degrade to 1px
+  outlines, `fill()` stays the immune clear primitive, `ListBox` row
+  images follow the screen mode; `sketch` reserved for S-2. Contracts in
+  ARCHITECTURE §4.4 + code-contract raster section, locked by
+  `test_render_mode`. Use cases:
   - **Layout debug view**：开发者查看界面布局结构，隐藏视觉噪音。
   - **e-ink / low-power mode**：减少像素翻转量，延长 e-ink 屏幕
     寿命；低带宽远程监控只传骨架（省 90%+ 帧数据）。

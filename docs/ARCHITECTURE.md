@@ -287,6 +287,12 @@ satisfies. Changing any of these is an architecture change.
   widgets. API-level detail is in code-contract.md.
 - `clip_safe()` returns a stack RAII `ClipGuard` (zero allocation per widget
   per frame); off-screen widgets get an invalid guard and draw nothing.
+- **Render modes (S-1).** `Graphics` carries a `render_mode` (default
+  `full`, zero behavior change): `wireframe` degrades shape fills to
+  1px outlines for layout-debug/low-power views; text, strokes, images,
+  damage, and hit-testing are untouched. The branches sit above the
+  pixel gates, so the pixel model, depth matrix, and determinism rules
+  are unaffected on every target (NDS-safe, no float).
 - **Presentation seam (A-1).** The kernel renders exactly one internal
   format per build (the `COLOR_DEPTH` matrix above); conversion to a panel
   format happens only at the presentation edge (a shell's blit), as a row

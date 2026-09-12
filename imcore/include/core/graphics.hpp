@@ -133,6 +133,32 @@ namespace zb::ui::core
             return alpha_enabled;
         }
 
+        /*
+         * Render mode (S-1): FULL draws everything (the default, current
+         * behavior); WIREFRAME degrades the shape fills to 1px outlines
+         * for layout-debug/low-power views (strokes, text, images,
+         * damage, and hit-testing are untouched); SKETCH is reserved and
+         * renders as FULL until S-2. Per-Graphics state, set once per
+         * frame/window; the rasterizer branches above the pixel gates so
+         * clipping, damage, and the pixel model are unaffected.
+         */
+        enum class render_mode
+        {
+            full,
+            wireframe,
+            sketch,  // reserved (S-2): currently renders as full
+        };
+
+        inline void set_render_mode(const render_mode mode)
+        {
+            render_mode_ = mode;
+        }
+
+        [[nodiscard]] inline render_mode get_render_mode() const
+        {
+            return render_mode_;
+        }
+
 #pragma region draw and fill
 
         void fill(const Color &colr);
@@ -306,6 +332,14 @@ namespace zb::ui::core
             int start_y,
             const Color &tint);
 
+        /*
+         * WIREFRAME companion (S-1, opt-in): 1px dots every `spacing`
+         * pixels across the draw area. Mode-independent (the app calls
+         * it when wireframing); spacing <= 0 draws nothing. Plots
+         * through draw_pixel, so clip/damage gates apply unchanged.
+         */
+        void draw_wireframe_grid(int spacing, const Color &colr);
+
 #pragma endregion
 
     private:
@@ -321,6 +355,7 @@ namespace zb::ui::core
         Color *pixels = nullptr;
         bool is_wrapper_mode{};
         bool alpha_enabled{};
+        render_mode render_mode_ = render_mode::full;
         bool draw_area_offset_enabled{};
         impoint_t draw_area_offset{};
         imsize_t imsize{};

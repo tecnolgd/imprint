@@ -134,7 +134,9 @@ namespace zb::ui
         static constexpr size_t row_cache_budget = 32 * 1024;
 
         // one cached row image; the key is everything that can change the
-        // rendered pixels (row index, selection, geometry, colors)
+        // rendered pixels (row index, selection, geometry, colors).
+        // Wireframe rows bypass the cache (a cached face would blit
+        // opaque over the bones), so the mode is not part of the key.
         struct row_cache_entry
         {
             size_t row;
