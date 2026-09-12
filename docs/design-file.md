@@ -71,10 +71,18 @@ widgets (`label`, `button`, `checkbox`, `radio`, `slider`,
 `text_input`), with properties including
 `id`, `text`, `size`, `pos`, `named`, `checked`, `group`, `step`,
 `min`, `max`, `value`, `rows`, `spacing`, `padding`, `wrap`, `flex`,
-`visible`. A `width`/`height` value of the form `N%` (1..100) declares
+`visible`, `background`, `color`. A `width`/`height` value of the form
+`N%` (1..100) declares
 that axis as a percentage of the FlexPanel parent's content box,
 resolved at layout time — it never becomes an explicit size, and outside
-a FlexPanel it stays unresolved. Both the fluent builder and the
+a FlexPanel it stays unresolved. `background` and `color` carry color
+values as quoted strings in the forms `#rgb`, `#rrggbb`, the named
+subset (`transparent`, `black`, `white`, `red`, `green`, `blue`,
+`yellow`, `gray`/`grey`, `cyan`, `magenta`); a malformed color is
+silently dropped (nothing is set — the tolerated-value rule).
+`background` sets the widget's background color, `color` its text color;
+`transparent` for either is a no-op (the default "no background / theme
+text" stays). Both the fluent builder and the
 parser feed the same tables, so anything expressible in C++ builder
 form parses identically from text.
 

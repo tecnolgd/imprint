@@ -536,10 +536,16 @@ system (standing non-goals):
   (column/row/panel/label/button/checkbox/radio/slider/progress_bar/
   list_box/text_input
   + .size/.pos/.text/.named/.checked/.group/.step/.value/.rows/.spacing/
-  .padding/.wrap/.flex/.visible/.width_pct/.height_pct) and the future
-  design-file deserializer
+  .padding/.wrap/.flex/.visible/.width_pct/.height_pct/.background/.color)
+  and the design-file deserializers
   (G6) share one intermediate representation — the props produced by
   either must be consumable by the same property-resolution table.
+- Two parsing front-ends feed that representation: `parse_ui_text`
+  (the `.ui` text format, batch G) and `parse_html` (the HTML/CSS
+  subset, batch H; grammar and whitelist in `docs/html-path.md`). Both
+  are init-path only, never the frame path. The tag/property table in
+  ui_builder.cpp is the single mapping for both — an HTML-what-in-css
+  property set lands on the same table rows.
 - `build(host, root)`: the root node itself is the document (the host is
   the real container; the root tag does not instantiate a widget); root's
   spacing/padding/wrap apply when the host is a FlexPanel, spacing/padding

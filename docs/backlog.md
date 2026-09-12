@@ -190,15 +190,13 @@ powerful for industrial instrument pages.
 - Styling via inline `style=` and an optional `<style>` block; **no** CSS
   selectors beyond tag/type and simple `#id` matching.
 
-**Hard support boundary (documented, do-not-creep):**
-- No JS or dynamic behavior — HTML/CSS only as a static declarative front-end;
-  event wiring stays in C++ via `find_by_id` (same as `.ui`).
-- No CSS cascade engine, no inheritance model, no pseudo-classes/elements, no
-  media queries, no CSS variables, no responsive reflow beyond `N%`.
-- No `position: absolute/fixed` (no offset/z-index/overlap layout).
-- No `margin` in the initial version (only parent `padding`/`spacing`).
-- No `overflow: scroll` (no scroll container) in the initial version.
-- No CSS grid, no multi-column, no RTL/bidi.
+**Hard support boundary — the whitelist is the contract (rewritten 2026-09-12).**
+The element/attribute/CSS-property whitelists in `docs/html-path.md` are
+the single source of the boundary: **anything not in the table constructs
+nothing** (LW + content dropped) — no blacklist to maintain. This doc holds
+only the genuinely behavioral decisions, which are layout-engine scope, not
+parser scope:
+
 - **`div` block semantics are deliberately simplified**: `div` maps to a
   flex container (content-measuring FlexPanel), not HTML block layout; a
   "block" div does **not** stretch to fill its parent's main axis (flex
@@ -206,12 +204,23 @@ powerful for industrial instrument pages.
   as equivalent in the initial core. (Waiving full block layout keeps the
   parser from growing a second layout engine; FlexPanel is the one
   layout backbone.)
+- **No second layout engine**: no `position: absolute/fixed`
+  (no offset/z-index/overlap), no `overflow: scroll` (H-4), no grid /
+  multi-column / RTL / bidi — each is a container/scroller enhancement,
+  not parser work.
 - **CSS flex features beyond FlexPanel's layout()**: `justify-content`
   (main-axis end/center/space-between), `align-items`/`align-self`
   (cross-axis alignment — FlexPanel cross-axis is not stretched),
   `flex-basis`, `flex-shrink`, and `flex` min/max constraints are
   **out of scope** for the initial core. They map to FlexPanel
   enhancements, not parser work — see H-7.
+
+**Status (2026-09-12):** core work in progress, contract landed first:
+`docs/html-path.md` (the whitelist single source) added; shared
+`background`/`color` properties added to `docs/design-file.md` /
+`docs/code-contract.md` §4; `parse_html` recorded in ARCHITECTURE
+§2/§4.10. Work steps: (1) contract docs — (2) property tables — (3)
+parser + tests — (4) preview consumer + NDS cross-compile.
 
 **Phased follow-ups (each a later, independently-reviewable increment — add
 support "a little at a time" as the boundary demands):**
@@ -261,13 +270,14 @@ support "a little at a time" as the boundary demands):**
 which the text-wrapping engine (H-1) is the prerequisite piece; a minimal
 flex-only core without H-1 is ~800 lines and covers display-only pages. Main
 risk is not code volume but **semantic drift** — users hit "why isn't this CSS
-attribute supported", so the boundary above must stay explicit in the released
-docs.
+attribute supported", so the whitelist in `docs/html-path.md` is the released
+boundary (off-table constructs warn and render nothing, never a wrong
+structure).
 
-**Placement note:** toggle-position in-tree (a library module under an
-`IMPRINT_WITH_*`-style switch per A-23 precedent) is undecided — decide when
-the first shipped consumer appears. Consumer-side, not a new C-ABI surface at
-this stage.
+**Placement note (decided 2026-09-12):** no `IMPRINT_WITH_*` switch needed —
+per the A-23 precedent the `html` translation unit stays in imui (STATIC);
+unreferenced on targets that don't use it, dropped by the static linker at
+image build. Consumer-side, not a new C-ABI surface at this stage.
 
 ### Batch S — Render Modes: Sketch & Wireframe (Unscheduled; S-1 is execution order step 5; added 2026-09-09)
 
