@@ -515,6 +515,208 @@ int test_graphics()
         EXPECT(test::pixel_at(*g, 4, 0) != core::colors::White.pixel);
     }
 
+    // fill_circle_aa: solid interior and axis extremes, fractional edge
+    // pixels on the other rows (r=7: row +4 has half=5, rem=8, frac=185,
+    // so (4,14)/(16,14) blend to 185 while 5..15 stay solid)
+    {
+        auto g = core::Graphics::make_ptr(21, 21);
+        g->fill(core::colors::Black);
+        g->fill_circle_aa(10, 10, 7, core::colors::White);
+        EXPECT(test::pixel_at(*g, 10, 10) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 17, 10) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 3, 10) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 10, 3) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 10, 17) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 10, 14) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 18, 10) != core::colors::White.pixel);
+        if (core::ImColor_Depth == 32)
+        {
+            EXPECT(test::pixel_at(*g, 4, 14) == core::Color::from(185, 185, 185).pixel);
+            EXPECT(test::pixel_at(*g, 16, 14) == core::Color::from(185, 185, 185).pixel);
+            EXPECT(test::pixel_at(*g, 5, 14) == core::colors::White.pixel);
+        }
+        // quadrants mirror exactly (no double-plotted blend stacking)
+        bool symmetric = true;
+        for (int y = 0; y < 21 && symmetric; ++y)
+        {
+            for (int x = 0; x < 21; ++x)
+            {
+                symmetric = symmetric &&
+                    (test::pixel_at(*g, x, y) == test::pixel_at(*g, 20 - x, y)) &&
+                    (test::pixel_at(*g, x, y) == test::pixel_at(*g, x, 20 - y));
+            }
+        }
+        EXPECT(symmetric);
+        // two separate draws are identical (deterministic, no stacking:
+        // each pixel plots once per call)
+        auto g2 = core::Graphics::make_ptr(21, 21);
+        g2->fill(core::colors::Black);
+        g2->fill_circle_aa(10, 10, 7, core::colors::White);
+        bool same = true;
+        for (int y = 0; y < 21 && same; ++y)
+        {
+            for (int x = 0; x < 21; ++x)
+            {
+                same = same && (test::pixel_at(*g, x, y) == test::pixel_at(*g2, x, y));
+            }
+        }
+        EXPECT(same);
+    }
+
+    // fill_circle_aa at 16bpp: the 78-coverage fringe stays out while
+    // the 145-coverage one plots (row +3 vs +6)
+    if (core::ImColor_Depth == 16)
+    {
+        auto g = core::Graphics::make_ptr(21, 21);
+        g->fill(core::colors::Black);
+        g->fill_circle_aa(10, 10, 7, core::colors::White);
+        EXPECT(test::pixel_at(*g, 10, 10) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 4, 13) == core::colors::White.pixel);   // solid span
+        EXPECT(test::pixel_at(*g, 3, 13) != core::colors::White.pixel);   // fringe skipped
+        EXPECT(test::pixel_at(*g, 6, 16) == core::colors::White.pixel);   // fringe plotted
+    }
+
+    // fill_round_rect_aa: solid middle spans and straight edges, blended
+    // corner fringes (r=4 rect 1,1,20,10: row 2 has dy=3, frac=153)
+    {
+        auto g = core::Graphics::make_ptr(22, 12);
+        g->fill(core::colors::Black);
+        g->fill_round_rect_aa(1, 1, 20, 10, 4, core::colors::White);
+        EXPECT(test::pixel_at(*g, 11, 5) == core::colors::White.pixel);   // middle span
+        EXPECT(test::pixel_at(*g, 11, 1) == core::colors::White.pixel);   // top edge
+        EXPECT(test::pixel_at(*g, 5, 1) == core::colors::White.pixel);    // edge start
+        EXPECT(test::pixel_at(*g, 1, 1) != core::colors::White.pixel);    // corner cut
+        EXPECT(test::pixel_at(*g, 3, 2) == core::colors::White.pixel);    // corner span
+        if (core::ImColor_Depth == 32)
+        {
+            EXPECT(test::pixel_at(*g, 2, 2) == core::Color::from(153, 153, 153).pixel);
+            EXPECT(test::pixel_at(*g, 19, 2) == core::Color::from(153, 153, 153).pixel);
+            EXPECT(test::pixel_at(*g, 1, 2) != core::colors::White.pixel);
+        }
+        // zero radius is the plain fill_rect
+        auto gz = core::Graphics::make_ptr(22, 12);
+        gz->fill(core::colors::Black);
+        gz->fill_round_rect_aa(1, 1, 20, 10, 0, core::colors::White);
+        auto gr = core::Graphics::make_ptr(22, 12);
+        gr->fill(core::colors::Black);
+        gr->fill_rect(1, 1, 20, 10, core::colors::White);
+        bool same = true;
+        for (int y = 0; y < 12 && same; ++y)
+        {
+            for (int x = 0; x < 22; ++x)
+            {
+                same = same && (test::pixel_at(*gz, x, y) == test::pixel_at(*gr, x, y));
+            }
+        }
+        EXPECT(same);
+    }
+
+    // fill_round_rect_aa at 16bpp: the 109-coverage fringe stays out
+    // (row 3) while the 218-coverage one plots (row 4)
+    if (core::ImColor_Depth == 16)
+    {
+        auto g = core::Graphics::make_ptr(22, 12);
+        g->fill(core::colors::Black);
+        g->fill_round_rect_aa(1, 1, 20, 10, 4, core::colors::White);
+        EXPECT(test::pixel_at(*g, 2, 3) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 1, 3) != core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 1, 4) == core::colors::White.pixel);
+    }
+
+    // draw_round_rect_aa: solid edge extremes and tangents (arc sample
+    // points, path-neutral), a hollow middle, a populated corner band,
+    // and zero radius falling back to draw_rect. Corner blend values
+    // are trig-path dependent, so the band is locked by count range
+    // (11 nominal at r=8), not by value.
+    {
+        auto g = core::Graphics::make_ptr(34, 24);
+        g->fill(core::colors::Black);
+        g->draw_round_rect_aa(1, 1, 32, 22, 8, core::colors::White);
+        EXPECT(test::pixel_at(*g, 16, 1) == core::colors::White.pixel);   // top edge
+        EXPECT(test::pixel_at(*g, 9, 1) == core::colors::White.pixel);    // corner tangent
+        EXPECT(test::pixel_at(*g, 1, 9) == core::colors::White.pixel);    // corner tangent
+        EXPECT(test::pixel_at(*g, 16, 11) != core::colors::White.pixel);  // hollow
+        if (core::ImColor_Depth == 32)
+        {
+            int band = 0;
+            for (int y = 0; y <= 8; ++y)
+            {
+                for (int x = 0; x <= 8; ++x)
+                {
+                    if (test::pixel_at(*g, x, y) != core::colors::Black.pixel)
+                    {
+                        ++band;
+                    }
+                }
+            }
+            EXPECT(band >= 7 && band <= 15);
+        }
+        // redrawing on a fresh surface matches exactly (deterministic)
+        auto g2 = core::Graphics::make_ptr(34, 24);
+        g2->fill(core::colors::Black);
+        g2->draw_round_rect_aa(1, 1, 32, 22, 8, core::colors::White);
+        bool same2 = true;
+        for (int y = 0; y < 24 && same2; ++y)
+        {
+            for (int x = 0; x < 34; ++x)
+            {
+                same2 = same2 && (test::pixel_at(*g, x, y) == test::pixel_at(*g2, x, y));
+            }
+        }
+        EXPECT(same2);
+        auto gz = core::Graphics::make_ptr(34, 24);
+        gz->fill(core::colors::Black);
+        gz->draw_round_rect_aa(1, 1, 32, 22, 0, core::colors::White);
+        auto gr = core::Graphics::make_ptr(34, 24);
+        gr->fill(core::colors::Black);
+        gr->draw_rect(1, 1, 32, 22, core::colors::White);
+        bool same = true;
+        for (int y = 0; y < 24 && same; ++y)
+        {
+            for (int x = 0; x < 34; ++x)
+            {
+                same = same && (test::pixel_at(*gz, x, y) == test::pixel_at(*gr, x, y));
+            }
+        }
+        EXPECT(same);
+    }
+
+    // wireframe: the AA fills degrade to their AA outlines
+    {
+        auto gf = core::Graphics::make_ptr(22, 12);
+        auto go = core::Graphics::make_ptr(22, 12);
+        gf->fill(core::colors::Black);
+        go->fill(core::colors::Black);
+        gf->set_render_mode(core::Graphics::render_mode::wireframe);
+        gf->fill_circle_aa(11, 6, 5, core::colors::White);
+        go->draw_circle_aa(11, 6, 5, core::colors::White);
+        bool same = true;
+        for (int y = 0; y < 12 && same; ++y)
+        {
+            for (int x = 0; x < 22; ++x)
+            {
+                same = same && (test::pixel_at(*gf, x, y) == test::pixel_at(*go, x, y));
+            }
+        }
+        EXPECT(same);
+        auto rf = core::Graphics::make_ptr(22, 12);
+        auto ro = core::Graphics::make_ptr(22, 12);
+        rf->fill(core::colors::Black);
+        ro->fill(core::colors::Black);
+        rf->set_render_mode(core::Graphics::render_mode::wireframe);
+        rf->fill_round_rect_aa(1, 1, 20, 10, 4, core::colors::White);
+        ro->draw_round_rect_aa(1, 1, 20, 10, 4, core::colors::White);
+        same = true;
+        for (int y = 0; y < 12 && same; ++y)
+        {
+            for (int x = 0; x < 22; ++x)
+            {
+                same = same && (test::pixel_at(*rf, x, y) == test::pixel_at(*ro, x, y));
+            }
+        }
+        EXPECT(same);
+    }
+
     // draw_arc_aa: shape, endpoints and sample points are path-neutral
     // (both trig paths agree there); the interior and the unswept half
     // stay untouched. Angles are the math convention measured from +x;

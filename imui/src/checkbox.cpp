@@ -98,9 +98,9 @@ namespace zb::ui
         }
         if (checked_)
         {
-            // a simple two-stroke check mark
-            area.draw_line(2, box_size * 5 / 8, box_size * 4 / 8, box_size - 3, check);
-            area.draw_line(box_size * 4 / 8, box_size - 3, box_size - 3, 2, check);
+            // a simple two-stroke check mark (AA adoption)
+            area.draw_line_aa(2, box_size * 5 / 8, box_size * 4 / 8, box_size - 3, check);
+            area.draw_line_aa(box_size * 4 / 8, box_size - 3, box_size - 3, 2, check);
         }
         // the label to the right of the box (the offset is a layout-time
         // value, kept current by the ctor and the box_size/text_gap setters)

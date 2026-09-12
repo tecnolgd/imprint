@@ -143,8 +143,20 @@ int test_checkbox()
         d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::space)));
         core::Graphics g2(100, 100, nullptr);
         t.root.draw(g2);
-        // the first check stroke crosses local (4,9) -> global (14,19)
-        EXPECT(core::colors::Blue.pixel == test::pixel_at(g2, 14, 19));
+        // the first check stroke crosses local (4,9) -> global (14,19).
+        // AA adoption: at 32bpp the stroke interior blends (neither
+        // background nor solid); at 16bpp the binary-quantize policy
+        // plots it solid. Endpoints plot solid on every depth.
+        if (core::ImColor_Depth == 32)
+        {
+            EXPECT(core::colors::Blue.pixel != test::pixel_at(g2, 14, 19));
+            EXPECT(core::colors::Black.pixel != test::pixel_at(g2, 14, 19));
+        }
+        else
+        {
+            EXPECT(core::colors::Blue.pixel == test::pixel_at(g2, 14, 19));
+        }
+        EXPECT(core::colors::Blue.pixel == test::pixel_at(g2, 12, 18));
     }
 
     return test::report("checkbox");

@@ -108,9 +108,10 @@ namespace zb::ui
         const core::Color tick_c   = tick_color.value_or(border_c);
         const core::Color face_c   = face_color.value_or(theme().background);
 
-        // face disc
+        // face disc + rim (AA adoption: the rim blends its edge; the
+        // face edge hides underneath it)
         area.fill_circle(cx, cy, radius - 1, face_c);
-        area.draw_circle(cx, cy, radius - 1, border_c);
+        area.draw_circle_aa(cx, cy, radius - 1, border_c);
 
         const int arc_r = radius - 10; // ticks live between arc and rim
 
@@ -124,20 +125,20 @@ namespace zb::ui
             area.draw_arc_aa(cx, cy, arc_r, start_deg, vd - start_deg, accent);
         }
 
-        // radial ticks every 30° over the sweep
+        // radial ticks every 30° over the sweep (AA adoption)
         for (int d = 0; d <= sweep_deg; d += 30)
         {
             const int deg = start_deg + d;
             int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
             core::point_on_circle(cx, cy, radius - 3, deg, &x1, &y1);
             core::point_on_circle(cx, cy, radius - 9, deg, &x2, &y2);
-            area.draw_line(x1, y1, x2, y2, tick_c);
+            area.draw_line_aa(x1, y1, x2, y2, tick_c);
         }
 
-        // needle
+        // needle (AA adoption)
         int nx = 0, ny = 0;
         core::point_on_circle(cx, cy, radius - 6, vd, &nx, &ny);
-        area.draw_line(cx, cy, nx, ny, needle_c);
+        area.draw_line_aa(cx, cy, nx, ny, needle_c);
 
         // hub
         area.fill_circle(cx, cy, 2, needle_c);

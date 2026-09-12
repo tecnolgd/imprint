@@ -73,9 +73,9 @@ namespace zb::ui
         const core::Color line = line_color.value_or(theme().accent);
         const core::Color brd  = theme().border;
 
-        // card background
-        area.fill_round_rect(0, 0, w - 1, h - 1, 2, bg);
-        area.draw_round_rect(0, 0, w - 1, h - 1, 2, brd);
+        // card background (AA adoption)
+        area.fill_round_rect_aa(0, 0, w - 1, h - 1, 2, bg);
+        area.draw_round_rect_aa(0, 0, w - 1, h - 1, 2, brd);
 
         const std::size_t n = samples_.size();
         if (n < 2)

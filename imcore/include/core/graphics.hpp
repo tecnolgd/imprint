@@ -263,6 +263,31 @@ namespace zb::ui::core
         void draw_circle_aa(int x, int y, int radius, const Color &colr);
 
         /*
+         * Anti-aliased disc fill (AA adoption): the same shape
+         * fill_circle fills, but the two edge pixels of every chord span
+         * blend by the exact fractional coverage (the draw_circle_aa
+         * chord formula), so a filled disc meets its background without
+         * stairs. Interior spans stay solid single writes. In wireframe
+         * mode degrades to draw_circle_aa (bones stay smooth).
+         */
+        void fill_circle_aa(int x, int y, int radius, const Color &colr);
+
+        /*
+         * Anti-aliased round-rect pair (AA adoption): fill_round_rect_aa
+         * keeps the solid middle spans and blends only the fractional
+         * corner-chord edges; draw_round_rect_aa joins four draw_line_aa
+         * edges with four 90-degree draw_arc_aa corners (the arc
+         * extremes coincide with the edge endpoints, so no pixel plots
+         * twice). In wireframe mode the fill degrades to the AA outline.
+         * A non-positive radius falls back to the plain rect, like the
+         * aliased pair.
+         */
+        void draw_round_rect_aa(int x1, int y1, int x2, int y2, int radius,
+                                const Color &colr);
+        void fill_round_rect_aa(int x1, int y1, int x2, int y2, int radius,
+                                const Color &colr);
+
+        /*
          * Anti-aliased circular arc (Batch V-5). Integer degrees in the
          * math convention: start_deg measured from +x (3 o'clock),
          * positive sweep_deg runs counter-clockwise (on the raster's

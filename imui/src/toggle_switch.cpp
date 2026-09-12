@@ -92,25 +92,26 @@ namespace zb::ui
         const core::Color dot = dot_color.value_or(theme().text_inverted);
 
         // track: checked or pressed fills accent immediately (visual
-        // feedback mirrors the checkbox pressed-fill)
+        // feedback mirrors the checkbox pressed-fill). AA adoption: the
+        // pill blends its edge through the new round-rect AA pair.
         if (checked_ || pressed_)
         {
-            area.fill_round_rect(0, 0, w - 1, h - 1, r, on);
+            area.fill_round_rect_aa(0, 0, w - 1, h - 1, r, on);
         }
         else
         {
-            area.fill_round_rect(0, 0, w - 1, h - 1, r, off);
-            area.draw_round_rect(0, 0, w - 1, h - 1, r, theme().border);
+            area.fill_round_rect_aa(0, 0, w - 1, h - 1, r, off);
+            area.draw_round_rect_aa(0, 0, w - 1, h - 1, r, theme().border);
         }
         if (is_focused())
         {
-            area.draw_round_rect(0, 0, w - 1, h - 1, r, theme().focus_mark);
+            area.draw_round_rect_aa(0, 0, w - 1, h - 1, r, theme().focus_mark);
         }
 
         // knob
         const int dot_r = (h - 6) / 2;
         const int cx = checked_ ? (w - 1 - 2 - dot_r) : (2 + dot_r);
         const int cy = h / 2;
-        area.fill_circle(cx, cy, dot_r, dot);
+        area.fill_circle_aa(cx, cy, dot_r, dot);
     }
 }

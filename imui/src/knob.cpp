@@ -191,14 +191,15 @@ namespace zb::ui
         const core::Color ring_c = ring_color.value_or(theme().border);
         const core::Color ptr_c  = pointer_color.value_or(theme().accent);
 
-        // face disc + ring outline
+        // face disc + ring outline (AA adoption: the ring blends its
+        // edge; the face edge hides underneath it)
         area.fill_circle(cx, cy, radius, face_c);
-        area.draw_circle(cx, cy, radius, ring_c);
+        area.draw_circle_aa(cx, cy, radius, ring_c);
 
         // pointer line from centre to the arc rim
         int px = 0, py = 0;
         core::point_on_circle(cx, cy, radius - 4, value_deg(), &px, &py);
-        area.draw_line(cx, cy, px, py, ptr_c);
+        area.draw_line_aa(cx, cy, px, py, ptr_c);
 
         // hub dot
         area.fill_circle(cx, cy, 2, ring_c);
@@ -206,7 +207,7 @@ namespace zb::ui
         // keyboard focus ring
         if (is_focused())
         {
-            area.draw_circle(cx, cy, radius, theme().focus_mark);
+            area.draw_circle_aa(cx, cy, radius, theme().focus_mark);
         }
     }
 }

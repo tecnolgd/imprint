@@ -734,6 +734,41 @@ void Graphics::fill_circle(int x, int y, int radius, const Color &colr)
     }
 }
 
+void Graphics::fill_circle_aa(int x, int y, int radius, const Color &colr)
+{
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_circle_aa(x, y, radius, colr);  // S-1: bones stay smooth
+        return;
+    }
+    if (radius < 0)
+    {
+        return;  // see draw_circle
+    }
+    if (radius == 0)
+    {
+        draw_pixel(x, y, colr);
+        return;
+    }
+    // one chord span per row: the solid interior writes once, the two
+    // fractional edge pixels blend through plot_aa. The chord fraction
+    // is the draw_circle_aa formula (exact boundary between py and
+    // py+1 splits by the remainder's share), so fills meet outlines.
+    for (int dy = -radius; dy <= radius; ++dy)
+    {
+        const int64_t t = 1LL * radius * radius - 1LL * dy * dy;
+        const int half = static_cast<int>(isqrt_floor(t));
+        const int64_t rem = t - 1LL * half * half;
+        const int frac8 = static_cast<int>(rem * 255 / (2LL * half + 1));
+        draw_line(x - half, y + dy, x + half, y + dy, colr);
+        if (frac8 > 0)
+        {
+            plot_aa(x - half - 1, y + dy, frac8, colr);
+            plot_aa(x + half + 1, y + dy, frac8, colr);
+        }
+    }
+}
+
 void Graphics::draw_rect(int x1, int y1, int x2, int y2, const Color &colr)
 {
     draw_line(x1, y1, x1, y2, colr);
@@ -820,6 +855,102 @@ void Graphics::draw_round_rect(int x1, int y1, int x2, int y2, int radius, const
         draw_pixel(right - r + dx, top + r - i, colr);
         draw_pixel(left + r - dx, bottom - r + i, colr);
         draw_pixel(right - r + dx, bottom - r + i, colr);
+    }
+}
+
+void Graphics::draw_round_rect_aa(int x1, int y1, int x2, int y2, int radius,
+                                  const Color &colr)
+{
+    const int left = x1 < x2 ? x1 : x2;
+    const int right = x1 < x2 ? x2 : x1;
+    const int top = y1 < y2 ? y1 : y2;
+    const int bottom = y1 < y2 ? y2 : y1;
+
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+    if (r == 0)
+    {
+        draw_rect(left, top, right, bottom, colr);
+        return;
+    }
+
+    // four straight edges (axis-aligned, so draw_line_aa stays solid)
+    // plus four quarter-arc corners. Angles are the draw_arc_aa
+    // convention (0 = +x, positive sweep visually clockwise, y down):
+    // each corner runs from one edge tangent to the other, and the arc
+    // extremes coincide with the edge endpoints, so no pixel plots twice.
+    draw_line_aa(left + r, top, right - r, top, colr);
+    draw_line_aa(left + r, bottom, right - r, bottom, colr);
+    draw_line_aa(left, top + r, left, bottom - r, colr);
+    draw_line_aa(right, top + r, right, bottom - r, colr);
+    draw_arc_aa(left + r, top + r, r, 180, 90, colr);      // TL: west -> north
+    draw_arc_aa(right - r, top + r, r, 270, 90, colr);     // TR: north -> east
+    draw_arc_aa(right - r, bottom - r, r, 0, 90, colr);    // BR: east -> south
+    draw_arc_aa(left + r, bottom - r, r, 90, 90, colr);    // BL: south -> west
+}
+
+void Graphics::fill_round_rect_aa(int x1, int y1, int x2, int y2, int radius,
+                                  const Color &colr)
+{
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_round_rect_aa(x1, y1, x2, y2, radius, colr);  // S-1: smooth bones
+        return;
+    }
+    const int left = x1 < x2 ? x1 : x2;
+    const int right = x1 < x2 ? x2 : x1;
+    const int top = y1 < y2 ? y1 : y2;
+    const int bottom = y1 < y2 ? y2 : y1;
+
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+    if (r == 0)
+    {
+        fill_rect(left, top, right, bottom, colr);
+        return;
+    }
+
+    // the fill_round_rect row layout, but corner rows blend their two
+    // fractional edge pixels (the fill_circle_aa chord formula); middle
+    // rows stay solid full-width spans
+    for (int row = top; row <= bottom; ++row)
+    {
+        int dy;
+        if (row < top + r)
+        {
+            dy = top + r - row;
+        }
+        else if (row > bottom - r)
+        {
+            dy = row - (bottom - r);
+        }
+        else
+        {
+            dy = 0;
+        }
+        if (dy == 0)
+        {
+            draw_line(left, row, right, row, colr);
+            continue;
+        }
+        const int64_t t = 1LL * r * r - 1LL * dy * dy;
+        const int dx = static_cast<int>(isqrt_floor(t));
+        const int64_t rem = t - 1LL * dx * dx;
+        const int frac8 = static_cast<int>(rem * 255 / (2LL * dx + 1));
+        draw_line(left + r - dx, row, right - r + dx, row, colr);
+        if (frac8 > 0)
+        {
+            plot_aa(left + r - dx - 1, row, frac8, colr);
+            plot_aa(right - r + dx + 1, row, frac8, colr);
+        }
     }
 }
 
