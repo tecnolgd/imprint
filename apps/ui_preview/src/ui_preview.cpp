@@ -5,6 +5,7 @@
 #include <sstream>
 #include <utility>
 
+#include "html.hpp"
 #include "logging.hpp"
 
 namespace zb::app::ui_preview
@@ -73,7 +74,21 @@ namespace zb::app::ui_preview
             const std::string text = ss.str();
 
             bool ok = false;
-            zb::ui::ui_node doc = zb::ui::parse_ui_text(text.c_str(), &ok);
+            // the preview consumer selects the parser by extension:
+            // .html/.htm run the HTML/CSS subset path, everything else the
+            // design-file path (batch H / D5)
+            const std::string &name = files_[i];
+            bool is_html =
+                name.size() >= 5 &&
+                name.compare(name.size() - 5, 5, ".html") == 0;
+            if (!is_html && name.size() >= 4 &&
+                name.compare(name.size() - 4, 4, ".htm") == 0)
+            {
+                is_html = true;
+            }
+            zb::ui::ui_node doc = is_html
+                                      ? zb::ui::parse_html(text.c_str(), &ok)
+                                      : zb::ui::parse_ui_text(text.c_str(), &ok);
             if (!ok)
             {
                 LW << "ui_preview: '" << files_[i] << "' yields no widget; skipped";
