@@ -1,0 +1,284 @@
+#include "test.hpp"
+
+#include "html.hpp"
+#include "imui.hpp"
+
+using namespace zb::ui;
+
+namespace
+{
+    // index of the first prop named `name`, or -1
+    int find_prop(const ui_node &n, const char *name)
+    {
+        for (std::size_t i = 0; i < n.props.size(); ++i)
+        {
+            if (n.props[i].first == name)
+            {
+                return static_cast<int>(i);
+            }
+        }
+        return -1;
+    }
+
+    // the value of the first prop named `name`; a missing prop records a
+    // failure and returns a static monostate instead of indexing [-1]
+    const prop_value &node_prop_v(const ui_node &n, const char *name)
+    {
+        static const prop_value kNone{};
+        const int i = find_prop(n, name);
+        if (i >= 0)
+        {
+            return n.props[i].second;
+        }
+        ++test::failures;
+        std::printf("FAIL (node_prop_v): missing prop '%s'\n", name);
+        return kNone;
+    }
+}  // namespace
+
+int test_html()
+{
+    // single top-level container becomes the document root; the CSS gap
+    // lands as the .ui spacing prop on the root
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body>\n"
+            "  <div style=\"gap:4\">\n"
+            "    <button id=\"go\">GO</button>\n"
+            "    <label>Status</label>\n"
+            "  </div>\n"
+            "</body>\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(root.type == "column");
+        EXPECT(root.children.size() == 2);
+        EXPECT(test::vget<long long>(node_prop_v(root, "spacing")) == 4);
+        EXPECT(root.children[0].type == "button");
+        EXPECT(root.children[0].id == "go");
+        EXPECT(test::vget<std::string>(node_prop_v(root.children[0], "text")) == "GO");
+        EXPECT(root.children[1].type == "label");
+        EXPECT(test::vget<std::string>(node_prop_v(root.children[1], "text")) == "Status");
+    }
+
+    // multiple top-level widgets -> pseudo root
+    {
+        ui_node r = parse_html("<body><label>a</label><button>b</button></body>", nullptr);
+        EXPECT(r.type == "root");
+        EXPECT(r.children.size() == 2);
+        EXPECT(r.children[0].type == "label");
+        EXPECT(r.children[1].type == "button");
+
+        // a single non-container top-level widget stays under the root
+        ui_node r2 = parse_html("<body><button>x</button></body>", nullptr);
+        EXPECT(r2.type == "root");
+        EXPECT(r2.children.size() == 1);
+        EXPECT(r2.children[0].type == "button");
+    }
+
+    // text normalization: whitespace collapse + entity subset; unknown
+    // entities stay literal
+    {
+        ui_node r = parse_html(
+            "<label>  A &amp;&lt;B&gt;&quot;C&#39;  </label>", nullptr);
+        EXPECT(r.children.size() == 1);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) ==
+               "A &<B>\"C'");
+
+        ui_node r2 = parse_html("<label>R &copy; C</label>", nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r2.children[0], "text")) ==
+               "R &copy; C");
+    }
+
+    // an off-whitelist element is skipped and drops its whole subtree;
+    // checked + text on buttons/labels parse
+    {
+        ui_node r = parse_html(
+            "<label>a</label>\n"
+            "<widget><button>x</button></widget>\n"
+            "<checkbox checked>On</checkbox>\n",
+            nullptr);
+        EXPECT(r.type == "root");
+        EXPECT(r.children.size() == 2);
+        EXPECT(r.children[0].type == "label");
+        EXPECT(r.children[1].type == "checkbox");
+        EXPECT(test::vget<bool>(node_prop_v(r.children[1], "checked")) == true);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[1], "text")) == "On");
+    }
+
+    // br is a blank-line label spacer (height = one text line)
+    {
+        ui_node r = parse_html("<div>a<br/>b</div>", nullptr);
+        EXPECT(r.type == "column");
+        EXPECT(r.children.size() == 3);
+        EXPECT(r.children[0].type == "label");  // anonymous "a"
+        EXPECT(r.children[1].type == "label");  // the br spacer
+        EXPECT(r.children[2].type == "label");  // anonymous "b"
+        EXPECT(test::vget<long long>(node_prop_v(r.children[1], "height")) == 7);
+        const int h0 = find_prop(r.children[0], "height");
+        const int h2 = find_prop(r.children[2], "height");
+        EXPECT(h0 < 0 && h2 < 0);  // only the spacer carries the height
+    }
+
+    // style rules: #id beats tag, inline beats #id, document order within
+    // a bucket, unknown properties are ignored
+    {
+        bool ok = false;
+        ui_node r = parse_html(
+            "<style>\n"
+            "  label { color: red; border-right: 2px; }\n"
+            "  #hot { color: green; background-color: #0000ff; }\n"
+            "  #hot2 { color: green; }\n"
+            "</style>\n"
+            "<label id=\"hot\" style=\"color:yellow\">H</label>\n"
+            "<label id=\"hot2\">N</label>\n"
+            "<label>P</label>\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(r.children.size() == 3);
+
+        const auto &hot = r.children[0];
+        EXPECT(test::vget<std::string>(node_prop_v(hot, "color")) == "yellow");
+        EXPECT(test::vget<std::string>(node_prop_v(hot, "background")) == "#0000ff");
+        EXPECT(find_prop(hot, "border-right") < 0);  // ignored, not stored
+
+        const auto &hot2 = r.children[1];
+        EXPECT(test::vget<std::string>(node_prop_v(hot2, "color")) == "green");
+
+        const auto &plain = r.children[2];
+        EXPECT(test::vget<std::string>(node_prop_v(plain, "color")) == "red");
+
+        // same-property document order within the id bucket: last wins
+        ui_node r2 = parse_html(
+            "<style>#x { height:10px; } #x { height:20px; }</style>\n"
+            "<label id=\"x\">X</label>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r2.children[0], "height")) == 20);
+    }
+
+    // container props and flex direction; display:none hides a column
+    {
+        ui_node r = parse_html(
+            "<div style=\"flex-direction: row; gap: 3; padding: 2; flex-wrap: wrap\">\n"
+            "  <div style=\"flex: 1\"><label>x</label></div>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(r.type == "row");
+        EXPECT(test::vget<long long>(node_prop_v(r, "spacing")) == 3);
+        EXPECT(test::vget<long long>(node_prop_v(r, "padding")) == 2);
+        EXPECT(test::vget<bool>(node_prop_v(r, "wrap")) == true);
+        EXPECT(r.children[0].flex_grow == 1);
+
+        ui_node r2 = parse_html(
+            "<div style=\"display: none\"><label>x</label></div>\n", nullptr);
+        EXPECT(r2.type == "column");  // single container unwraps to the root
+        EXPECT(r2.children.size() == 1);
+        EXPECT(r2.children[0].type == "label");
+        EXPECT(test::vget<bool>(node_prop_v(r2, "visible")) == false);
+    }
+
+    // lengths: px and percent; bad values silently unset
+    {
+        ui_node r = parse_html(
+            "<label style=\"width:120px; height:40px\">w</label>\n"
+            "<label style=\"width: 50%\">p</label>\n"
+            "<label style=\"height: auto\">a</label>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "width")) == 120);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "height")) == 40);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[1], "width")) == "50%");
+        EXPECT(find_prop(r.children[2], "height") < 0);  // auto -> unset
+        EXPECT(find_prop(r.children[2], "width") < 0);
+    }
+
+    // meter degrades to progress_bar with its numeric attributes
+    {
+        ui_node r = parse_html(
+            "<meter id=\"m\" min=\"0\" max=\"200\" value=\"50\"></meter>\n", nullptr);
+        EXPECT(r.children[0].type == "progress_bar");
+        EXPECT(r.children[0].id == "m");
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "min")) == 0);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "max")) == 200);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "value")) == 50);
+    }
+
+    // <html>/<head> never construct but <style> still collects; <title>
+    // is silently ignored; attribute entities decode
+    {
+        ui_node r = parse_html(
+            "<html>\n"
+            "  <head>\n"
+            "    <title>ignored</title>\n"
+            "    <style>button { color: red; }</style>\n"
+            "  </head>\n"
+            "  <body>\n"
+            "    <button id=\"a&amp;b\">X</button>\n"
+            "  </body>\n"
+            "</html>\n",
+            nullptr);
+        EXPECT(r.children.size() == 1);
+        EXPECT(r.children[0].type == "button");
+        EXPECT(r.children[0].id == "a&b");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "color")) == "red");
+    }
+
+    // nested inline tags merge their text into the enclosing leaf
+    {
+        ui_node r = parse_html("<span>a<span>b</span>c</span>\n", nullptr);
+        EXPECT(r.children.size() == 1);
+        EXPECT(r.children[0].type == "label");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "abc");
+    }
+
+    // top-level bare text becomes an anonymous label
+    {
+        ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);
+        EXPECT(r.type == "root");
+        EXPECT(r.children.size() == 2);
+        EXPECT(r.children[0].type == "label");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "hello");
+    }
+
+    // comments and doctype are skipped; an empty document yields ok=false
+    {
+        bool ok = true;
+        ui_node r = parse_html(
+            "<!-- a comment -->\n"
+            "<!DOCTYPE html>\n",
+            &ok);
+        EXPECT(!ok);
+        EXPECT(r.children.empty());
+
+        bool ok2 = true;
+        ui_node r2 = parse_html("", &ok2);
+        EXPECT(!ok2);
+        EXPECT(r2.children.empty());
+    }
+
+    // end-to-end: parse and materialize into a live tree
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body>\n"
+            "  <div style=\"gap:4\">\n"
+            "    <checkbox id=\"cb\" checked>On</checkbox>\n"
+            "    <meter id=\"p\" min=\"0\" max=\"100\" value=\"30\"/>\n"
+            "  </div>\n"
+            "</body>\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(root.type == "column");
+
+        FlexPanel host;
+        host.set_size(200, 60);
+        build(host, root);
+        host.layout();
+        auto *cb = static_cast<Checkbox *>(host.find_by_id("cb"));
+        auto *p = static_cast<ProgressBar *>(host.find_by_id("p"));
+        EXPECT(cb != nullptr && p != nullptr);
+        EXPECT(cb->is_checked());
+        EXPECT(p->get_value() == 30);
+    }
+
+    return test::report("html");
+}

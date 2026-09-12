@@ -39,6 +39,7 @@ add_executable(
     test_list_box.cpp
     test_measure.cpp
     test_ui_file.cpp
+    test_html.cpp
     test_widget_size.cpp
     test_remove.cpp
     test_layout_dirty.cpp

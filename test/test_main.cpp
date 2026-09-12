@@ -34,6 +34,7 @@ int test_builder();
 int test_measure();
 int test_dirty();
 int test_ui_file();
+int test_html();
 
 int test_widget_size();
 int test_remove();
@@ -102,6 +103,7 @@ int main()
     total += test_measure();
     total += test_dirty();
     total += test_ui_file();
+    total += test_html();
     total += test_widget_size();
     total += test_remove();
     total += test_layout_dirty();

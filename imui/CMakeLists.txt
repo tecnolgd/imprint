@@ -13,6 +13,7 @@ add_library(
     src/theme.cpp
     src/ui_builder.cpp
     src/ui_file.cpp
+    src/html.cpp
     src/text_input.cpp
     src/dialog.cpp
     src/dispatcher.cpp
