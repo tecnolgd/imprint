@@ -389,6 +389,26 @@ int test_html()
         EXPECT(test::vget<std::string>(node_prop_v(r4.children[0], "text")) == "a b");
     }
 
+    // C1/C5: rejected selectors are inert AND consume their bodies, so
+    // following rules still apply; a bare '#' matches nothing
+    {
+        ui_node r = parse_html(
+            "<style>\n"
+            "  label, button { color: red; }\n"
+            "  label:hover { color: green; }\n"
+            "  @media x { label { color: blue; } }\n"
+            "  # { color: yellow; }\n"
+            "  { color: magenta; }\n"
+            "  span { color: cyan; }\n"
+            "</style>\n"
+            "<label>L</label><span>S</span>\n",
+            nullptr);
+        EXPECT(r.children.size() == 2);
+        EXPECT(find_prop(r.children[0], "color") < 0);  // label: no rule hit
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[1], "color")) ==
+               "cyan");  // valid rule after the junk survives
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);

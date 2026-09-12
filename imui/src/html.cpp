@@ -560,6 +560,61 @@ namespace zb::ui
             }
         }
 
+        // consumes a rule body starting just past '{': nested blocks
+        // (at-rules), /* comments */, and "..." strings are honored so a
+        // rejected rule cannot swallow the rules after it (C1). Returns
+        // just past the matching '}' (or end on unterminated input).
+        const char *skip_rule_body(const char *p, const char *end)
+        {
+            int depth = 1;
+            while (p < end && depth > 0)
+            {
+                if (p + 1 < end && p[0] == '/' && p[1] == '*')
+                {
+                    p += 2;
+                    while (p + 1 < end && !(p[0] == '*' && p[1] == '/'))
+                    {
+                        ++p;
+                    }
+                    if (p + 1 < end)
+                    {
+                        p += 2;
+                    }
+                    continue;
+                }
+                if (*p == '"')
+                {
+                    ++p;
+                    while (p < end && *p != '"')
+                    {
+                        if (*p == '\\' && p + 1 < end)
+                        {
+                            p += 2;
+                        }
+                        else
+                        {
+                            ++p;
+                        }
+                    }
+                    if (p < end)
+                    {
+                        ++p;
+                    }
+                    continue;
+                }
+                if (*p == '{')
+                {
+                    ++depth;
+                }
+                else if (*p == '}')
+                {
+                    --depth;
+                }
+                ++p;
+            }
+            return p;
+        }
+
         // parses the concatenated <style> text: selectors are exactly a tag
         // name or an id; anything else is inert (never matches)
         void parse_css(const std::string &css, Rules &rules)
@@ -589,6 +644,7 @@ namespace zb::ui
                 ++p;  // '{'
                 if (sel.empty())
                 {
+                    p = skip_rule_body(p, end);
                     continue;
                 }
                 Rule r;
@@ -596,6 +652,11 @@ namespace zb::ui
                 {
                     r.by_id = true;
                     r.name = sel.substr(1);
+                    if (r.name.empty())
+                    {
+                        p = skip_rule_body(p, end);
+                        continue;  // C5: a bare '#' is inert, not match-all
+                    }
                 }
                 else
                 {
@@ -611,7 +672,10 @@ namespace zb::ui
                     }
                     if (!ok)
                     {
-                        continue;  // compound/class selectors are inert
+                        // compound/class selectors are inert -- and their
+                        // bodies are consumed so following rules survive
+                        p = skip_rule_body(p, end);
+                        continue;
                     }
                     r.name = sel;
                     for (char &c : r.name)
