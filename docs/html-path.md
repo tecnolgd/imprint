@@ -116,7 +116,7 @@ applies unchanged.
 
 | Element | `ui_node` tag | Notes |
 |---|---|---|
-| `div` | `column` / `row` | default `column` (block reading order); `flex-direction: row` → `row`. `display: block` and `display: flex` are equivalent — the div is a content-measuring flex container, **not** HTML block layout; it never stretches to fill a parent's main axis. `flex:` markup drives fill |
+| `div` | `column` / `row` | default `column` (block reading order); `flex-direction: row` → `row`, and a bare `display: flex` also selects `row` (the CSS flex default — stylesheets that lay out with `display: flex` alone depend on it). `display: block` (or anything else) keeps `column`. The div is a content-measuring flex container, **not** HTML block layout; it never stretches to fill a parent's main axis. `flex:` markup drives fill |
 | `p`, `span`, `label`, `small` | `label` | single-line labels; no wrapping until H-1 (`small` keeps no size distinction — `font-size` has no widget seam yet) |
 | `button` | `button` | `text` = element text content |
 | `checkbox` | `checkbox` | `text` = content; `checked` = **attribute presence** (HTML semantics) |
@@ -145,7 +145,7 @@ applies unchanged.
 
 | Property | Values | Mapping |
 |---|---|---|
-| `display` | `flex`, `block`, `none` | `none` → `visible=false`; any other value leaves the element's table type unchanged (`block` ≡ `flex` for `div`, which is always a content-measuring flex container) |
+| `display` | `flex`, `block`, `none` | `none` → `visible=false`; `flex` on a `div` selects the `row` direction (see above); any other value leaves the element's table type unchanged |
 | `flex-direction` | `row`, `column` | container type of a `div` |
 | `width` / `height` | `Npx`, `N%` (1..100), `auto` | `Npx` → existing pixel size; `N%` → the `"N%"` percent form (FlexPanel parent content box); `auto` → absent (measured) |
 | `flex` | `N` (integer) | `flex_grow` |
@@ -221,6 +221,9 @@ backlog H-6):
   falls into the leaf-children rule (dropped with a warning).
 
 ## Deliberate deviations from HTML
+- `div` is a content-measuring flex container, not a block box; its
+  direction defaults to `column`, with `flex-direction: row` or a bare
+  `display: flex` (the CSS flex default) selecting `row`.
 - No text flow: `p`/`span` are single-line labels, `br` is a one-line
   spacer — real paragraph reflow waits for H-1.
 - Entities are only the five named above.

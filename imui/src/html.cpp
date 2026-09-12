@@ -1372,6 +1372,16 @@ namespace zb::ui
                     {
                         return "row";
                     }
+                    return "column";
+                }
+                // no direction: a bare display:flex takes the CSS flex
+                // default (row); display:block and anything else stay column
+                if (const std::string *disp = fold_lookup(folded, "display"))
+                {
+                    if (ascii_lower(*disp) == "flex")
+                    {
+                        return "row";
+                    }
                 }
                 return "column";
             }

@@ -502,6 +502,19 @@ int test_html()
         EXPECT(test::vget<std::string>(node_prop_v(r4, "color")) == "green");
     }
 
+    // H-5 follow-up: a bare display:flex takes the CSS flex default
+    // (row); an explicit flex-direction still wins; block stays column
+    {
+        ui_node r = parse_html("<div style=\"display: flex\"><label>x</label></div>\n", nullptr);
+        EXPECT(r.type == "row");
+        ui_node r2 = parse_html("<div style=\"display: block\"><label>x</label></div>\n", nullptr);
+        EXPECT(r2.type == "column");
+        ui_node r3 = parse_html(
+            "<div style=\"display: flex; flex-direction: column\"><label>x</label></div>\n",
+            nullptr);
+        EXPECT(r3.type == "column");
+    }
+
     // H-5 variables: :root map, substitution, fallback, silent drop
     {
         ui_node r = parse_html(
