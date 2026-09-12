@@ -125,6 +125,7 @@ applies unchanged.
 | `knob` | `knob` | `min` / `max` / `step` / `value` |
 | `trend` | `trend` | sized with `width` / `height` |
 | `meter` | `progress_bar` | degraded stand-in (HTML meter is a horizontal scalar); `min` / `max` / `value` |
+| `svg`, `vectordial` | `svg` | vector-dial subset (§SVG subset): `viewBox` + `line`/`text` children; `g` folds its presentation attributes onto them; `vectordial` is the same widget under an instrument name (the alias costs one table row, the implementation is shared) |
 
 ## Whitelist — attributes
 
@@ -136,6 +137,7 @@ applies unchanged.
 | `min` / `max` / `step` / `value` | gauge / knob / meter | range/value properties (full integers, negatives accepted; the widget clamps `value` into [`min`, `max`] and collapses a reversed range to a point; `step` stays a non-negative magnitude) |
 | `checked` | checkbox / radio / toggle | boolean, by presence |
 | `group` | radio | radio group id (integer, any sign — equality-matched, never indexed) |
+| `viewBox` | svg / vectordial | four viewBox units (`minx miny w h`, space/comma separated, decimals round half away from zero); malformed, absent, or non-positive size = pixel units (coordinates map 1:1) |
 
 ## Whitelist — CSS properties (inline `style=` and `<style>` rules)
 
@@ -167,10 +169,41 @@ applies unchanged.
   tag, document order, last wins) applies. Unknown properties stay
   ignored (with the LW warning) even when marked important.
 
-## Deliberate deviations from HTML
+## SVG subset (`svg` / `vectordial`)
 
-- `div` is a flex container, not a block box; `display: block` and
-  `display: flex` are identical.
+Only the instrument-dial shapes the demo documents use — everything
+else in SVG is out of scope (full path/fill/stroke model stays in
+backlog H-6):
+
+- `viewBox="minx miny w h"` maps the viewBox onto the widget bounds by
+  stretch (integer truncation toward zero; `preserveAspectRatio` is
+  accepted but only `none` is honored — any other value warns and
+  still stretches). Coordinates accept decimals, rounded half away
+  from zero (SVG authors write `2.5`); malformed numbers drop their
+  line/text.
+- `line x1 y1 x2 y2`: drawn through `draw_line_aa`. `stroke` takes the
+  shared color forms (absent = no stroke = the line is dropped, per
+  SVG); `stroke-width` is parsed but rendered 1px (no thick-stroke
+  primitive yet — accepted for forward compatibility, `0` drops the
+  line); `stroke-linecap` accepted and ignored; `opacity="0..1"`
+  scales the stroke alpha (at 16bpp any non-zero alpha plots per the
+  binary policy, so ghost strokes stay visible).
+- `text x y`: the element content drawn with the widget text seam
+  (provider fallback chain included); `x/y` is the baseline start,
+  `fill` defaults to the theme text, `text-anchor` selects
+  start/middle/end, `font-size`/`font-family` are accepted and ignored
+  (no per-widget size seam yet).
+- `g` never builds: inside `svg` it is transparent and folds
+  `stroke`/`stroke-width`/`stroke-linecap`/`opacity`/`fill`/
+  `text-anchor` onto its descendant `line`/`text` (nearest ancestor
+  wins, the element's own attribute wins over all). Outside `svg`,
+  `g`/`line`/`text` are off-whitelist elements (skipped with content
+  dropped, like every non-table tag).
+- `svg` is meaningful as a container child (it sizes through the
+  shared `width`/`height` lengths); nested inside a text element it
+  falls into the leaf-children rule (dropped with a warning).
+
+## Deliberate deviations from HTML
 - No text flow: `p`/`span` are single-line labels, `br` is a one-line
   spacer — real paragraph reflow waits for H-1.
 - Entities are only the five named above.
