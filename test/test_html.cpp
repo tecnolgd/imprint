@@ -578,6 +578,33 @@ int test_html()
                    node_prop_v(r4.children[0], "color")) == "green");
     }
 
+    // E: lexical doc-claims -- unclosed frames finalize at EOF, a
+    // general stray close pops to the match, single-quoted entities
+    // decode, a lone '<' consumes through the next '>'
+    {
+        ui_node r = parse_html("<div><label>x", nullptr);
+        EXPECT(r.type == "column");
+        EXPECT(r.children.size() == 1);
+        EXPECT(test::vget<std::string>(
+                   node_prop_v(r.children[0], "text")) == "x");
+
+        ui_node r2 = parse_html(
+            "<div><label>a</label></span><button>b</button></div>\n", nullptr);
+        EXPECT(r2.type == "root");
+        EXPECT(r2.children.size() == 2);
+        EXPECT(r2.children[0].type == "column");
+        EXPECT(r2.children[1].type == "button");
+
+        ui_node r3 = parse_html("<label id='a&amp;b'>x</label>\n", nullptr);
+        EXPECT(r3.children[0].id == "a&b");
+
+        ui_node r4 = parse_html("<div>a < b</div>\n", nullptr);
+        EXPECT(r4.type == "column");
+        EXPECT(r4.children.size() == 1);
+        EXPECT(test::vget<std::string>(
+                   node_prop_v(r4.children[0], "text")) == "a");
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);

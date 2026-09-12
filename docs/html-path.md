@@ -79,6 +79,26 @@ applies unchanged.
   apply to the build host (only spacing/padding/wrap do) — the page box
   above is the only channel for document-level size/background.
 
+## Lexical rules
+
+- Attribute values come double-quoted (`id="x"`), single-quoted
+  (`id='x'`), or unquoted (`id=x`). Inside quotes the other quote stays
+  literal; an unquoted value ends at whitespace or `/` (so `value=30/>`
+  is value `30`, self-closed). Entities decode in both quoted forms.
+  Valueless attributes (`checked`) take their name as the value.
+- `br` is void: `<br>`, `<br/>`, `<br />`, `<br></br>` are equivalent
+  and it never takes a close; `</br>` is purely ignored. Every other
+  whitelisted element needs its close; unclosed frames are finalized
+  at EOF.
+- `<!-- ... -->` and `<!DOCTYPE ...>` are consumed silently. A `<`
+  that does not start a tag consumes through the next `>` (or EOF), so
+  a bare `<` in text swallows up to the next tag end.
+- Case: tags, attribute names, and CSS property names fold to
+  lower-case; CSS keyword values and color names are ASCII
+  case-insensitive; `id`s (and `#id` selectors) stay case-sensitive.
+- Error recovery: a closing tag pops open elements up to the match
+  (see Tolerance); text outside any element becomes top-level labels.
+
 ## Tolerance (how an off-whitelist construct is handled)
 
 | Construct | Handling |
