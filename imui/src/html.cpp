@@ -1300,7 +1300,11 @@ namespace zb::ui
                     }
                 }
 
-                if (t.self_closing)
+                // C2: br is void (HTML semantics): <br>, <br/>, <br />
+                // are equivalent and it never takes a close; a stray
+                // </br> then finds no frame and is ignored
+                const bool closed = t.self_closing || name == "br";
+                if (closed)
                 {
                     // no frame is pushed for a self-closing tag
                     if (mode == k_build && !pushed)

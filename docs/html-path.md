@@ -99,7 +99,7 @@ applies unchanged.
 | `button` | `button` | `text` = element text content |
 | `checkbox` | `checkbox` | `text` = content; `checked` = **attribute presence** (HTML semantics) |
 | `radio` | `radio` | `text` = content; `checked` = presence; `group` |
-| `br` | an empty label | blank-line spacer, height = one text line; meaningful as a child of a column |
+| `br` | an empty label | blank-line spacer, height = one text line; meaningful as a child of a column. Void element: `<br>`, `<br/>`, `<br />` are equivalent and it never takes a close; a stray `</br>` is ignored |
 | `toggle` | `toggle` | `checked` = presence |
 | `gauge` | `gauge` | `min` / `max` / `value` |
 | `knob` | `knob` | `min` / `max` / `step` / `value` |
