@@ -676,6 +676,63 @@ namespace zb::ui
         }
 
         // -------------------------------------------------------------------
+        // the page box (B2): the <body> style feeds document-level
+        // size/background. Sizes are pixels per axis and independent: %
+        // has no parent box to resolve against and auto means "ask the
+        // shell", so only Npx values > 0 land in the page (everything
+        // else stays absent and falls back downstream, silently).
+        // -------------------------------------------------------------------
+
+        void extract_page(const Elem &body, html_page &page)
+        {
+            const std::string &bs = body.attr("style");
+            if (bs.empty())
+            {
+                return;
+            }
+            std::vector<Decl> decls;
+            parse_declarations(bs.data(), bs.data() + bs.size(), decls);
+            for (const Decl &d : decls)
+            {
+                if (d.prop == "width" || d.prop == "height")
+                {
+                    const std::string v = ascii_lower(d.value);
+                    if (v.size() >= 2 && v.back() == 'x' &&
+                        v[v.size() - 2] == 'p')
+                    {
+                        long long px = 0;
+                        if (parse_int_value(
+                                v.substr(0, v.size() - 2), px) &&
+                            px > 0)
+                        {
+                            const int clamped = static_cast<int>(
+                                std::min<long long>(px, 2147483647LL));
+                            if (d.prop == "width")
+                            {
+                                page.has_width = true;
+                                page.width = clamped;
+                            }
+                            else
+                            {
+                                page.has_height = true;
+                                page.height = clamped;
+                            }
+                        }
+                    }
+                }
+                else if (d.prop == "background-color")
+                {
+                    core::Color c{};
+                    if (parse_color(d.value, c))
+                    {
+                        page.has_background = true;
+                        page.background = c;
+                    }
+                }
+            }
+        }
+
+        // -------------------------------------------------------------------
         // the streaming parser
         // -------------------------------------------------------------------
 
@@ -829,7 +886,7 @@ namespace zb::ui
         };
     }  // namespace
 
-    ui_node parse_html(const char *html, bool *ok)
+    ui_node parse_html(const char *html, bool *ok, html_page *page)
     {
         if (ok != nullptr)
         {
@@ -1108,6 +1165,14 @@ namespace zb::ui
 
         // parse the collected <style> text (rules are global)
         parse_css(ps.css, ps.rules);
+
+        // the page box travels beside the tree (B2); the root Elem is
+        // the body container, so its style is the page style
+        if (page != nullptr)
+        {
+            *page = html_page{};
+            extract_page(*ps.root, *page);
+        }
 
         // convert: the root's children are the top-level widgets
         ui_node doc;

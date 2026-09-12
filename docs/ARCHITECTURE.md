@@ -401,6 +401,11 @@ it needs, and there is no runtime backend switching.
   share the same `ui_node` shape and the same tag/property table in
   `ui_builder.cpp`; `tools/ui_embed` packs documents as C byte arrays at
   build time; `apps/ui_preview` is the desktop-only previewer.
+- Page box (HTML, B2 review): the `<body>` style yields an `html_page`
+  beside the tree; consumers resolve the initial screen size document →
+  shell → app default (warn on default) before materializing —
+  creation-time only, so the fixed-buffer presentation contract is
+  untouched. Fixed-size host buffers (NDS) win over the page.
 - The layer is deliberately **static**: no dynamic models (ListBox `ItemText`
   callbacks), no event wiring, no font/glyph content in the description.
 

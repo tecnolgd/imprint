@@ -21,6 +21,26 @@ namespace zb::app::ui_preview
                path.compare(path.size() - 4, 4, ".htm") == 0;
     }
 
+    std::pair<int, int> resolve_page_size(const zb::ui::html_page &page,
+                                          int shell_w, int shell_h)
+    {
+        int w = (page.has_width && page.width > 0) ? page.width : shell_w;
+        int h = (page.has_height && page.height > 0) ? page.height : shell_h;
+        if (w <= 0)
+        {
+            LW << "ui_preview: no page/shell width; using default "
+               << kDefaultScreenWidth;
+            w = kDefaultScreenWidth;
+        }
+        if (h <= 0)
+        {
+            LW << "ui_preview: no page/shell height; using default "
+               << kDefaultScreenHeight;
+            h = kDefaultScreenHeight;
+        }
+        return {w, h};
+    }
+
     UiPreview::UiPreview()
     {
         const char *files = std::getenv("UI_PREVIEW_FILES");
@@ -54,24 +74,35 @@ namespace zb::app::ui_preview
     }
 
     void UiPreview::make_window(uint32_t max_client_width,
-                                uint32_t max_client_height, void *buffer)
+                                 uint32_t max_client_height, void *buffer)
     {
         _width = static_cast<int32_t>(max_client_width);
         _height = static_cast<int32_t>(max_client_height);
+        // B2: parse before creating, so the first usable document's page
+        // can size the window. An externally supplied buffer is a
+        // fixed-size host constraint (the NDS shape) and wins over the
+        // page; otherwise the page wins over the shell dims.
+        parse_documents();
+        zb::ui::html_page first;
+        if (!pages_.empty() && buffer == nullptr)
+        {
+            first = pages_.front();
+        }
+        const auto window_size = resolve_page_size(first, _width, _height);
         window_ = zb::make_shared<CanvasWindow>();
-        window_->create(max_client_width, max_client_height, buffer);
+        window_->create(static_cast<uint32_t>(window_size.first),
+                        static_cast<uint32_t>(window_size.second), buffer);
         // design-file host: layout is driven by the window (batch J5)
         window_->set_auto_layout(true);
-        load_documents();
+        build_screens(window_size.first, window_size.second);
         if (!screens_.empty())
         {
             show_screen(0);
         }
     }
 
-    void UiPreview::load_documents()
+    void UiPreview::parse_documents()
     {
-        zb::ui::Panel &root = window_->root();
         for (std::size_t i = 0; i < files_.size(); ++i)
         {
             std::ifstream f(files_[i], std::ios::binary);
@@ -85,27 +116,48 @@ namespace zb::app::ui_preview
             const std::string text = ss.str();
 
             bool ok = false;
-            // the preview consumer selects the parser by extension (D5);
-            // the routing itself is test-locked, the parse result flows
-            // into the shared screen machinery below
-            const bool is_html = is_html_path(files_[i]);
-            zb::ui::ui_node doc = is_html
-                                      ? zb::ui::parse_html(text.c_str(), &ok)
-                                      : zb::ui::parse_ui_text(text.c_str(), &ok);
+            zb::ui::ui_node doc;
+            zb::ui::html_page pg;
+            if (is_html_path(files_[i]))
+            {
+                doc = zb::ui::parse_html(text.c_str(), &ok, &pg);
+            }
+            else
+            {
+                doc = zb::ui::parse_ui_text(text.c_str(), &ok);
+            }
             if (!ok)
             {
                 LW << "ui_preview: '" << files_[i] << "' yields no widget; skipped";
                 continue;
             }
 
+            docs_.push_back(std::move(doc));
+            pages_.push_back(pg);
+            used_.push_back(files_[i]);
+            LD << "ui_preview: loaded '" << files_[i] << "'";
+        }
+    }
+
+    void UiPreview::build_screens(int window_width, int window_height)
+    {
+        zb::ui::Panel &root = window_->root();
+        for (std::size_t i = 0; i < docs_.size(); ++i)
+        {
+            // B2: each screen resolves its own page against the window
+            // box; a page background paints the screen when set
+            const auto screen_size =
+                resolve_page_size(pages_[i], window_width, window_height);
             auto screen = std::make_unique<zb::ui::FlexPanel>();
-            screen->set_size(_width, _height);
+            screen->set_size(screen_size.first, screen_size.second);
+            if (pages_[i].has_background)
+            {
+                screen->set_background_color(pages_[i].background);
+            }
             zb::ui::FlexPanel *raw = screen.get();
-            zb::ui::build(*screen, doc);
+            zb::ui::build(*screen, docs_[i]);
             root.add_child(std::move(screen));
             screens_.push_back(raw);
-            docs_.push_back(std::move(doc));
-            LD << "ui_preview: loaded '" << files_[i] << "'";
         }
         if (screens_.empty())
         {
@@ -121,7 +173,7 @@ namespace zb::app::ui_preview
         }
         current_ = index;
         window_->root().layout();
-        LD << "ui_preview: showing '" << files_[index] << "'";
+        LD << "ui_preview: showing '" << used_[index] << "'";
     }
 
     zb::SharedPtr<IWindow> UiPreview::window() noexcept

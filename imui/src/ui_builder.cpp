@@ -19,6 +19,10 @@
 
 namespace zb::ui
 {
+    // the shared color resolver (declared in html.hpp, defined below at
+    // this scope so the header stays light for the ui_embed tool)
+    bool parse_color(const std::string &s, core::Color &out);
+
     namespace
     {
         // --- tolerant value extraction (never throws) -------------------
@@ -238,123 +242,8 @@ namespace zb::ui
             return static_cast<int>(n);
         }
 
-        // --- color value parsing (shared by background/color props) -----
-
-        // accepts "#rgb", "#rrggbb", the named subset, or "transparent";
-        // malformed strings and "transparent" yield false (nothing set --
-        // default background / theme text stays). Returns false also for
-        // an empty string (absent prop). B4: names and "transparent" are
-        // ASCII case-insensitive (HTML semantics; hex digits already were);
-        // shared with the HTML front-end, so the .ui path gains it too.
-        bool parse_color(const std::string &s, core::Color &out)
-        {
-            if (s.empty())
-            {
-                return false;
-            }
-            std::string name = s;
-            for (char &c : name)
-            {
-                if (c >= 'A' && c <= 'Z')
-                {
-                    c = static_cast<char>(c - 'A' + 'a');
-                }
-            }
-            if (name == "transparent")
-            {
-                return false;
-            }
-            if (s[0] == '#')
-            {
-                auto hex = [](const char c) -> int {
-                    if (c >= '0' && c <= '9')
-                    {
-                        return c - '0';
-                    }
-                    if (c >= 'a' && c <= 'f')
-                    {
-                        return c - 'a' + 10;
-                    }
-                    if (c >= 'A' && c <= 'F')
-                    {
-                        return c - 'A' + 10;
-                    }
-                    return -1;
-                };
-                const std::size_t len = s.size() - 1;
-                if (len == 3)
-                {
-                    const int r = hex(s[1]);
-                    const int g = hex(s[2]);
-                    const int b = hex(s[3]);
-                    if (r < 0 || g < 0 || b < 0)
-                    {
-                        return false;
-                    }
-                    out = core::Color::from(r * 17, g * 17, b * 17);
-                    return true;
-                }
-                if (len == 6)
-                {
-                    const int r0 = hex(s[1]);
-                    const int r1 = hex(s[2]);
-                    const int g0 = hex(s[3]);
-                    const int g1 = hex(s[4]);
-                    const int b0 = hex(s[5]);
-                    const int b1 = hex(s[6]);
-                    if (r0 < 0 || r1 < 0 || g0 < 0 || g1 < 0 ||
-                        b0 < 0 || b1 < 0)
-                    {
-                        return false;
-                    }
-                    out = core::Color::from(r0 * 16 + r1, g0 * 16 + g1,
-                                            b0 * 16 + b1);
-                    return true;
-                }
-                return false;
-            }
-            if (name == "black")
-            {
-                out = core::colors::Black;
-            }
-            else if (name == "white")
-            {
-                out = core::colors::White;
-            }
-            else if (name == "red")
-            {
-                out = core::colors::Red;
-            }
-            else if (name == "green")
-            {
-                out = core::colors::Green;
-            }
-            else if (name == "blue")
-            {
-                out = core::colors::Blue;
-            }
-            else if (name == "yellow")
-            {
-                out = core::Color::from(255, 255, 0);
-            }
-            else if (name == "gray" || name == "grey")
-            {
-                out = core::Color::from(128, 128, 128);
-            }
-            else if (name == "cyan")
-            {
-                out = core::Color::from(0, 255, 255);
-            }
-            else if (name == "magenta")
-            {
-                out = core::Color::from(255, 0, 255);
-            }
-            else
-            {
-                return false;
-            }
-            return true;
-        }
+        // color value parsing lives at zb::ui scope below (parse_color,
+        // shared by the background/color props and the HTML page box).
 
         // --- common properties (every widget) ---------------------------
 
@@ -563,6 +452,123 @@ namespace zb::ui
             }
         }
     }  // namespace
+
+    // --- shared color value parsing (B2 export) -----------------------
+    // accepts "#rgb", "#rrggbb", the named subset, or "transparent";
+    // malformed strings and "transparent" yield false (nothing set --
+    // default background / theme text stays). Returns false also for
+    // an empty string (absent prop). Names and "transparent" are ASCII
+    // case-insensitive (B4, HTML semantics; hex digits already were).
+
+    bool parse_color(const std::string &s, core::Color &out)
+    {
+        if (s.empty())
+        {
+            return false;
+        }
+        std::string name = s;
+        for (char &c : name)
+        {
+            if (c >= 'A' && c <= 'Z')
+            {
+                c = static_cast<char>(c - 'A' + 'a');
+            }
+        }
+        if (name == "transparent")
+        {
+            return false;
+        }
+        if (s[0] == '#')
+        {
+            auto hex = [](const char c) -> int {
+                if (c >= '0' && c <= '9')
+                {
+                    return c - '0';
+                }
+                if (c >= 'a' && c <= 'f')
+                {
+                    return c - 'a' + 10;
+                }
+                if (c >= 'A' && c <= 'F')
+                {
+                    return c - 'A' + 10;
+                }
+                return -1;
+            };
+            const std::size_t len = s.size() - 1;
+            if (len == 3)
+            {
+                const int r = hex(s[1]);
+                const int g = hex(s[2]);
+                const int b = hex(s[3]);
+                if (r < 0 || g < 0 || b < 0)
+                {
+                    return false;
+                }
+                out = core::Color::from(r * 17, g * 17, b * 17);
+                return true;
+            }
+            if (len == 6)
+            {
+                const int r0 = hex(s[1]);
+                const int r1 = hex(s[2]);
+                const int g0 = hex(s[3]);
+                const int g1 = hex(s[4]);
+                const int b0 = hex(s[5]);
+                const int b1 = hex(s[6]);
+                if (r0 < 0 || r1 < 0 || g0 < 0 || g1 < 0 ||
+                    b0 < 0 || b1 < 0)
+                {
+                    return false;
+                }
+                out = core::Color::from(r0 * 16 + r1, g0 * 16 + g1,
+                                        b0 * 16 + b1);
+                return true;
+            }
+            return false;
+        }
+        if (name == "black")
+        {
+            out = core::colors::Black;
+        }
+        else if (name == "white")
+        {
+            out = core::colors::White;
+        }
+        else if (name == "red")
+        {
+            out = core::colors::Red;
+        }
+        else if (name == "green")
+        {
+            out = core::colors::Green;
+        }
+        else if (name == "blue")
+        {
+            out = core::colors::Blue;
+        }
+        else if (name == "yellow")
+        {
+            out = core::Color::from(255, 255, 0);
+        }
+        else if (name == "gray" || name == "grey")
+        {
+            out = core::Color::from(128, 128, 128);
+        }
+        else if (name == "cyan")
+        {
+            out = core::Color::from(0, 255, 255);
+        }
+        else if (name == "magenta")
+        {
+            out = core::Color::from(255, 0, 255);
+        }
+        else
+        {
+            return false;
+        }
+        return true;
+    }
 
     Widget &build(Widget &host, const ui_node &root)
     {

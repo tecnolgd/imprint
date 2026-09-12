@@ -398,6 +398,51 @@ int test_html()
         EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "hello");
     }
 
+    // B2: the <body> style feeds the page box (pixels only, per axis);
+    // %/auto/malformed stay absent; a null page pointer is tolerated
+    {
+        html_page pg;
+        bool ok = false;
+        ui_node r = parse_html(
+            "<body style=\"width: 320px; height: 240px; "
+            "background-color: #112233\"><label>x</label></body>\n",
+            &ok, &pg);
+        EXPECT(ok);
+        EXPECT(pg.has_width && pg.width == 320);
+        EXPECT(pg.has_height && pg.height == 240);
+        EXPECT(pg.has_background);
+        EXPECT(pg.background.pixel ==
+               core::Color::from(0x11, 0x22, 0x33).pixel);
+        EXPECT(r.children.size() == 1);
+
+        html_page pg2;
+        parse_html("<div><label>x</label></div>\n", nullptr, &pg2);
+        EXPECT(!pg2.has_width && !pg2.has_height && !pg2.has_background);
+
+        html_page pg3;
+        parse_html(
+            "<body style=\"width: 50%; height: auto\"><label>x</label></body>\n",
+            nullptr, &pg3);
+        EXPECT(!pg3.has_width && !pg3.has_height);
+
+        html_page pg4;
+        parse_html(
+            "<body style=\"width: 0px; height: -5px; background-color: nope\">"
+            "<label>x</label></body>\n",
+            nullptr, &pg4);
+        EXPECT(!pg4.has_width && !pg4.has_height && !pg4.has_background);
+
+        // last declaration wins within the inline list, like everywhere
+        html_page pg5;
+        parse_html(
+            "<body style=\"width: 100px; width: 200px\"><label>x</label></body>\n",
+            nullptr, &pg5);
+        EXPECT(pg5.has_width && pg5.width == 200);
+
+        ui_node r6 = parse_html("<label>x</label>\n", nullptr, nullptr);
+        EXPECT(r6.children.size() == 1);
+    }
+
     // comments and doctype are skipped; an empty document yields ok=false
     {
         bool ok = true;

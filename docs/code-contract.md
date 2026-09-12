@@ -546,6 +546,15 @@ system (standing non-goals):
   are init-path only, never the frame path. The tag/property table in
   ui_builder.cpp is the single mapping for both — an HTML-what-in-css
   property set lands on the same table rows.
+- Shared color resolution: `parse_color` (declared in `html.hpp` so
+  `ui_builder.hpp` stays light for the ui_embed host tool) resolves
+  `#rgb` / `#rrggbb` / the named subset / `transparent` (names
+  case-insensitive; false = malformed, transparent, or absent) for the
+  background/color props and the HTML page box alike.
+- HTML page box: `html_page` (per-axis width/height/background presence)
+  is filled by `parse_html(text, ok, page)`; the consumer resolves the
+  initial screen size document → shell → app default (warn on default)
+  before materializing. Init-path only, like the parse itself.
 - `build(host, root)`: the root node itself is the document (the host is
   the real container; the root tag does not instantiate a widget); root's
   spacing/padding/wrap apply when the host is a FlexPanel, spacing/padding

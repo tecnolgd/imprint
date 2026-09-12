@@ -55,6 +55,27 @@ applies unchanged.
   document nothing can build (mirrors `parse_ui_text`). Violations are
   reported per the Tolerance table below.
 
+## Page box
+
+- The `<body>` `style` feeds the document-level page box (size and
+  background): `width` / `height` accept `Npx` values > 0, independently
+  per axis; `background-color` accepts the color forms. `%` has no parent
+  box to resolve against and `auto` means "ask the shell", so both stay
+  absent — as do non-positive/malformed values (silently, per the
+  Tolerance table).
+- The page travels *beside* the widget tree (`html_page`, filled by the
+  three-argument `parse_html`): the consumer resolves the initial
+  screen/buffer size from it *before* materializing. Sizing at creation
+  never touches the "buffer never resizes" presentation contract.
+- Resolution order, per axis: document page, then the shell/platform
+  size, then the app default. The consumer warns whenever it falls back
+  to the default, so a missing size is loud during bug-chasing.
+- A fixed-size host buffer (NDS framebuffer, an externally supplied
+  buffer) wins over the page; a conflicting page size is ignored with
+  an LW warning.
+- Multi-document hosts size the window from the first usable document;
+  each screen resolves its own page against the window box.
+
 ## Tolerance (how an off-whitelist construct is handled)
 
 | Construct | Handling |

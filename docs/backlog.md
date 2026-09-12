@@ -265,6 +265,13 @@ support "a little at a time" as the boundary demands):**
   cross-axis), so existing tests and `.ui` files stay green when a
   parameter lands. Sized individually; gated by a real page that needs
   them (see §0 step 6: not now).
+- H-8. Page-level box (landed 2026-09-12, B2 review): the `<body>` style
+  feeds an `html_page` (per-axis Npx size + background) beside the tree;
+  `parse_html(text, ok, page)` fills it; consumers resolve document →
+  shell → app default (warn on default) before materializing; fixed host
+  buffers win on conflict. `parse_color` is the shared resolver
+  (declared in `html.hpp` to keep `ui_builder.hpp` light for the
+  ui_embed host tool).
 
 **Cost estimate (discussion):** core version ≈ 1500–2000 lines C++ total, of
 which the text-wrapping engine (H-1) is the prerequisite piece; a minimal
