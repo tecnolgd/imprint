@@ -465,13 +465,36 @@ namespace zb::ui
             std::string value;
             bool important = false;  // B5: trailing "!important" tier
         };
+        // one compound of a selector chain: optional tag plus #id and
+        // .class parts (tag lowercased, id/classes case-sensitive)
+        struct Compound
+        {
+            std::string tag;
+            std::string id;
+            std::vector<std::string> classes;
+        };
+        // a selector chain in descendant order (last part = subject);
+        // vars_only (exact ":root") collects --* and never matches
+        struct Selector
+        {
+            std::vector<Compound> parts;
+            bool vars_only = false;
+            int ids = 0, classes = 0, tags = 0;  // specificity sums
+        };
         struct Rule
         {
-            bool by_id = false;
-            std::string name;
+            std::vector<Selector> selectors;  // comma group
             std::vector<Decl> decls;
         };
         using Rules = std::vector<Rule>;
+        // an element's matchable face for descendant chains
+        struct Ancestor
+        {
+            std::string tag;
+            std::string id;
+            std::vector<std::string> classes;
+        };
+        using VarMap = std::vector<std::pair<std::string, std::string>>;
 
         // B5: a trailing "!important" (ASCII case-insensitive,
         // whitespace tolerated around it) lifts the declaration into the
@@ -645,8 +668,411 @@ namespace zb::ui
             return p;
         }
 
-        // parses the concatenated <style> text: selectors are exactly a tag
-        // name or an id; anything else is inert (never matches)
+        // the class attribute as a kept-case list (HTML classes are
+        // case-sensitive; empties skipped)
+        std::vector<std::string> class_list(const std::string &attr)
+        {
+            std::vector<std::string> out;
+            std::size_t i = 0;
+            while (i < attr.size())
+            {
+                while (i < attr.size() && (attr[i] == ' ' || attr[i] == '\t' ||
+                                           attr[i] == '\n' || attr[i] == '\r' ||
+                                           attr[i] == '\f'))
+                {
+                    ++i;
+                }
+                std::size_t j = i;
+                while (j < attr.size() && attr[j] != ' ' && attr[j] != '\t' &&
+                       attr[j] != '\n' && attr[j] != '\r' && attr[j] != '\f')
+                {
+                    ++j;
+                }
+                if (j > i)
+                {
+                    out.push_back(attr.substr(i, j - i));
+                }
+                i = j;
+            }
+            return out;
+        }
+
+        static bool is_sel_name(char c)
+        {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                   (c >= '0' && c <= '9') || c == '-' || c == '_';
+        }
+
+        std::string ascii_lower(std::string s);  // defined with the B4 helpers below
+
+        // one compound: [tag][#id][.class]* in any order. ':'/'['/'>'
+        // and friends fail it (pseudo/attribute/combinators stay out).
+        bool parse_compound(const std::string &s, Compound &out)
+        {
+            std::size_t i = 0;
+            if (i < s.size() &&
+                ((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= 'A' && s[i] <= 'Z')))
+            {
+                std::size_t j = i + 1;
+                while (j < s.size() && is_sel_name(s[j]))
+                {
+                    ++j;
+                }
+                out.tag = ascii_lower(s.substr(i, j - i));
+                i = j;
+            }
+            while (i < s.size())
+            {
+                const char kind = s[i];
+                if (kind != '#' && kind != '.')
+                {
+                    return false;
+                }
+                ++i;
+                std::size_t j = i;
+                while (j < s.size() && is_sel_name(s[j]))
+                {
+                    ++j;
+                }
+                if (j == i)
+                {
+                    return false;  // C5: a bare '#' or '.' matches nothing
+                }
+                if (kind == '#')
+                {
+                    if (!out.id.empty())
+                    {
+                        return false;  // one id per compound
+                    }
+                    out.id = s.substr(i, j - i);
+                }
+                else
+                {
+                    out.classes.push_back(s.substr(i, j - i));
+                }
+                i = j;
+            }
+            return !out.tag.empty() || !out.id.empty() || !out.classes.empty();
+        }
+
+        // a comma group into selectors; pseudo parts are reported through
+        // saw_pseudo (one LW per rule at the call site), every other
+        // failure is silent. At-rules (@media) never reach here.
+        bool parse_selector_group(const std::string &sel,
+                                  std::vector<Selector> &out, bool &saw_pseudo)
+        {
+            saw_pseudo = false;
+            std::size_t i = 0;
+            while (i < sel.size())
+            {
+                while (i < sel.size() && (sel[i] == ' ' || sel[i] == '\t' ||
+                                          sel[i] == '\n' || sel[i] == '\r'))
+                {
+                    ++i;
+                }
+                std::size_t j = i;
+                while (j < sel.size() && sel[j] != ',')
+                {
+                    ++j;
+                }
+                std::string part = sel.substr(i, j - i);
+                part.erase(0, part.find_first_not_of(" \t\n\r"));
+                const std::size_t tail = part.find_last_not_of(" \t\n\r");
+                if (tail == std::string::npos)
+                {
+                    i = j + 1;  // empty part: skipped silently
+                    continue;
+                }
+                part.erase(tail + 1);
+                if (ascii_lower(part) == ":root")
+                {
+                    Selector s;
+                    s.vars_only = true;
+                    out.push_back(std::move(s));
+                    i = j + 1;
+                    continue;
+                }
+                if (part.find(':') != std::string::npos ||
+                    part.find('[') != std::string::npos ||
+                    part.find('(') != std::string::npos)
+                {
+                    if (part.find(':') != std::string::npos)
+                    {
+                        saw_pseudo = true;
+                    }
+                    i = j + 1;  // pseudo/attribute/function: inert part
+                    continue;
+                }
+                // descendant chain: compounds separated by whitespace
+                Selector s;
+                bool ok = true;
+                std::size_t k = 0;
+                while (k < part.size() && ok)
+                {
+                    while (k < part.size() && (part[k] == ' ' || part[k] == '\t' ||
+                                               part[k] == '\n' || part[k] == '\r'))
+                    {
+                        ++k;
+                    }
+                    if (k >= part.size())
+                    {
+                        break;
+                    }
+                    std::size_t m = k;
+                    while (m < part.size() && part[m] != ' ' && part[m] != '\t' &&
+                           part[m] != '\n' && part[m] != '\r')
+                    {
+                        ++m;
+                    }
+                    Compound c;
+                    if (!parse_compound(part.substr(k, m - k), c))
+                    {
+                        ok = false;  // '>'/'*'/junk: the part is inert
+                        break;
+                    }
+                    if (!c.id.empty())
+                    {
+                        ++s.ids;
+                    }
+                    s.classes += static_cast<int>(c.classes.size());
+                    if (!c.tag.empty())
+                    {
+                        ++s.tags;
+                    }
+                    s.parts.push_back(std::move(c));
+                    k = m;
+                }
+                if (ok && !s.parts.empty())
+                {
+                    out.push_back(std::move(s));
+                }
+                i = j + 1;
+            }
+            return !out.empty();
+        }
+
+        bool compound_matches(const Compound &c, const std::string &tag,
+                              const std::string &id,
+                              const std::vector<std::string> &classes)
+        {
+            if (!c.tag.empty() && c.tag != tag)
+            {
+                return false;
+            }
+            if (!c.id.empty() && c.id != id)
+            {
+                return false;
+            }
+            for (const std::string &k : c.classes)
+            {
+                bool found = false;
+                for (const std::string &have : classes)
+                {
+                    if (have == k)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // ancestors root-first; preceding parts match in order (not
+        // necessarily adjacent)
+        bool selector_matches(const Selector &s, const std::string &tag,
+                               const std::string &id,
+                               const std::vector<std::string> &classes,
+                               const std::vector<Ancestor> &ancestors)
+        {
+            if (s.vars_only || s.parts.empty())
+            {
+                return false;
+            }
+            if (!compound_matches(s.parts.back(), tag, id, classes))
+            {
+                return false;
+            }
+            std::size_t a = ancestors.size();
+            for (std::size_t k = s.parts.size() - 1; k-- > 0;)
+            {
+                bool found = false;
+                while (a > 0)
+                {
+                    --a;
+                    if (compound_matches(s.parts[k], ancestors[a].tag,
+                                         ancestors[a].id, ancestors[a].classes))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        void collect_vars(const Rules &rules, VarMap &vars)
+        {
+            for (const Rule &r : rules)
+            {
+                bool root_rule = false;
+                for (const Selector &s : r.selectors)
+                {
+                    if (s.vars_only)
+                    {
+                        root_rule = true;
+                        break;
+                    }
+                }
+                if (!root_rule)
+                {
+                    continue;
+                }
+                for (const Decl &d : r.decls)
+                {
+                    if (d.prop.size() > 2 && d.prop[0] == '-' && d.prop[1] == '-')
+                    {
+                        bool found = false;
+                        for (auto &v : vars)
+                        {
+                            if (v.first == d.prop)
+                            {
+                                v.second = d.value;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found)
+                        {
+                            vars.emplace_back(d.prop, d.value);
+                        }
+                    }
+                }
+            }
+        }
+
+        // textual var() substitution (one nesting level through fallbacks
+        // and chained variables, depth-capped); false = unknown name
+        // without fallback or unbalanced input: the declaration drops
+        bool subst_vars(const std::string &s, const VarMap &vars,
+                        std::string &out, int depth = 0)
+        {
+            if (depth > 8)
+            {
+                return false;
+            }
+            std::string res;
+            std::size_t i = 0;
+            while (i < s.size())
+            {
+                const std::size_t v = s.find("var(", i);
+                if (v == std::string::npos)
+                {
+                    res.append(s, i, std::string::npos);
+                    break;
+                }
+                res.append(s, i, v - i);
+                std::size_t j = v + 4;
+                int nested = 1;
+                while (j < s.size() && nested > 0)
+                {
+                    if (s[j] == '(')
+                    {
+                        ++nested;
+                    }
+                    else if (s[j] == ')')
+                    {
+                        --nested;
+                    }
+                    ++j;
+                }
+                if (nested != 0)
+                {
+                    return false;
+                }
+                const std::string inner = s.substr(v + 4, j - v - 5);
+                // split name/fallback at the top-level comma
+                int lvl = 0;
+                std::size_t comma = std::string::npos;
+                for (std::size_t k = 0; k < inner.size(); ++k)
+                {
+                    if (inner[k] == '(')
+                    {
+                        ++lvl;
+                    }
+                    else if (inner[k] == ')')
+                    {
+                        --lvl;
+                    }
+                    else if (inner[k] == ',' && lvl == 0)
+                    {
+                        comma = k;
+                        break;
+                    }
+                }
+                std::string name = comma == std::string::npos
+                                       ? inner
+                                       : inner.substr(0, comma);
+                name.erase(0, name.find_first_not_of(" \t\n\r"));
+                const std::size_t ntail = name.find_last_not_of(" \t\n\r");
+                if (ntail == std::string::npos)
+                {
+                    return false;
+                }
+                name.erase(ntail + 1);
+                const std::string *found = nullptr;
+                for (const auto &entry : vars)
+                {
+                    if (entry.first == name)
+                    {
+                        found = &entry.second;
+                        break;
+                    }
+                }
+                std::string replacement;
+                if (found != nullptr)
+                {
+                    if (!subst_vars(*found, vars, replacement, depth + 1))
+                    {
+                        return false;
+                    }
+                }
+                else if (comma != std::string::npos)
+                {
+                    std::string fb = inner.substr(comma + 1);
+                    fb.erase(0, fb.find_first_not_of(" \t\n\r"));
+                    const std::size_t fbtail = fb.find_last_not_of(" \t\n\r");
+                    if (fbtail == std::string::npos ||
+                        !subst_vars(fb.erase(fbtail + 1), vars, replacement,
+                                    depth + 1))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+                res += replacement;
+                i = j;
+            }
+            out = res;
+            return true;
+        }
+
+        // parses the concatenated <style> text into selector groups
+        // (parse_selector_group above; the contract lives in
+        // docs/html-path.md). At-rules and wholly-invalid groups are
+        // consumed silently so following rules survive (C1); only
+        // pseudo selectors warn, once per skipped part.
         void parse_css(const std::string &css, Rules &rules)
         {
             const char *begin = css.data();
@@ -678,43 +1104,21 @@ namespace zb::ui
                     continue;
                 }
                 Rule r;
-                if (sel[0] == '#')
+                bool saw_pseudo = false;
+                if (sel[0] == '@')
                 {
-                    r.by_id = true;
-                    r.name = sel.substr(1);
-                    if (r.name.empty())
-                    {
-                        p = skip_rule_body(p, end);
-                        continue;  // C5: a bare '#' is inert, not match-all
-                    }
+                    p = skip_rule_body(p, end);
+                    continue;  // at-rules (@media): inert, never match
                 }
-                else
+                if (!parse_selector_group(sel, r.selectors, saw_pseudo))
                 {
-                    bool ok = !sel.empty();
-                    for (const char c : sel)
-                    {
-                        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                              (c >= '0' && c <= '9') || c == '-'))
-                        {
-                            ok = false;
-                            break;
-                        }
-                    }
-                    if (!ok)
-                    {
-                        // compound/class selectors are inert -- and their
-                        // bodies are consumed so following rules survive
-                        p = skip_rule_body(p, end);
-                        continue;
-                    }
-                    r.name = sel;
-                    for (char &c : r.name)
-                    {
-                        if (c >= 'A' && c <= 'Z')
-                        {
-                            c = static_cast<char>(c - 'A' + 'a');
-                        }
-                    }
+                    p = skip_rule_body(p, end);
+                    continue;  // wholly invalid: inert, body consumed (C1)
+                }
+                if (saw_pseudo)
+                {
+                    LW << "html: pseudo-selectors in '" << sel
+                       << "' are not supported; those parts were ignored";
                 }
                 const char *d_b = p;
                 while (p < end && *p != '}')
@@ -730,34 +1134,100 @@ namespace zb::ui
             }
         }
 
-        // style resolution: tag rules first, then #id rules, then inline;
-        // each bucket in document order. The last matching declaration of a
-        // property wins, which yields the documented precedence
-        // (inline > #id > tag; no cascade, no inheritance, no specificity)
-        void fold_style(const Elem &e, const Rules &rules,
+        // style resolution (H-5 cascade): every matching rule contributes
+        // its declarations ordered by specificity (ids, classes, tags)
+        // then document order; the inline style crowns the list. Custom
+        // properties (--*) never enter the folded list; values substitute
+        // var() first, and a failed substitution drops its declaration.
+        void fold_style(const Elem &e, const Rules &rules, const VarMap &vars,
+                        const std::vector<Ancestor> &ancestors,
                         std::vector<Decl> &folded)
         {
             const std::string &id = e.attr("id");
-            for (const Rule &r : rules)
+            const std::vector<std::string> classes = class_list(e.attr("class"));
+            struct Hit
             {
-                if (!r.by_id && r.name == e.tag)
+                int ids = 0, classes = 0, tags = 0;
+                std::size_t order = 0;
+                const Rule *rule = nullptr;
+            };
+            std::vector<Hit> hits;
+            for (std::size_t i = 0; i < rules.size(); ++i)
+            {
+                int bi = -1, bc = 0, bt = 0;
+                bool any = false;
+                for (const Selector &s : rules[i].selectors)
                 {
-                    folded.insert(folded.end(), r.decls.begin(), r.decls.end());
+                    if (!selector_matches(s, e.tag, id, classes, ancestors))
+                    {
+                        continue;
+                    }
+                    any = true;
+                    if (s.ids > bi ||
+                        (s.ids == bi && (s.classes > bc ||
+                                         (s.classes == bc && s.tags > bt))))
+                    {
+                        bi = s.ids;
+                        bc = s.classes;
+                        bt = s.tags;
+                    }
+                }
+                if (any)
+                {
+                    hits.push_back({bi, bc, bt, i, &rules[i]});
                 }
             }
-            for (const Rule &r : rules)
-            {
-                if (r.by_id && r.name == id)
+            std::sort(hits.begin(), hits.end(), [](const Hit &a, const Hit &b) {
+                if (a.ids != b.ids)
                 {
-                    folded.insert(folded.end(), r.decls.begin(), r.decls.end());
+                    return a.ids < b.ids;
+                }
+                if (a.classes != b.classes)
+                {
+                    return a.classes < b.classes;
+                }
+                if (a.tags != b.tags)
+                {
+                    return a.tags < b.tags;
+                }
+                return a.order < b.order;
+            });
+            for (const Hit &h : hits)
+            {
+                for (const Decl &d : h.rule->decls)
+                {
+                    if (d.prop.size() > 2 && d.prop[0] == '-' && d.prop[1] == '-')
+                    {
+                        continue;  // custom properties live in the VarMap only
+                    }
+                    std::string value;
+                    if (!subst_vars(d.value, vars, value))
+                    {
+                        continue;  // unknown var without fallback: dropped
+                    }
+                    folded.push_back({d.prop, value, d.important});
                 }
             }
             const std::string &inline_style = e.attr("style");
             if (!inline_style.empty())
             {
+                std::vector<Decl> inline_decls;
                 parse_declarations(inline_style.data(),
                                    inline_style.data() + inline_style.size(),
-                                   folded);
+                                   inline_decls);
+                for (const Decl &d : inline_decls)
+                {
+                    if (d.prop.size() > 2 && d.prop[0] == '-' && d.prop[1] == '-')
+                    {
+                        continue;
+                    }
+                    std::string value;
+                    if (!subst_vars(d.value, vars, value))
+                    {
+                        continue;
+                    }
+                    folded.push_back({d.prop, value, d.important});
+                }
             }
         }
 
@@ -1193,11 +1663,13 @@ namespace zb::ui
             n.children.push_back(std::move(t));
         }
 
-        ui_node convert_elem(const Elem &e, const Rules &rules)
+        ui_node convert_elem(const Elem &e, const Rules &rules,
+                             const VarMap &vars,
+                             const std::vector<Ancestor> &ancestors)
         {
             ui_node n;
             std::vector<Decl> folded;
-            fold_style(e, rules, folded);
+            fold_style(e, rules, vars, ancestors, folded);
             n.type = widget_type(e, folded);
 
             // element attributes (the whitelist in docs/html-path.md)
@@ -1373,9 +1845,15 @@ namespace zb::ui
                 return n;
             }
 
+            // descendant context for the children: this element's tag,
+            // id and classes join the chain (svg internals take no
+            // stylesheet rules, so the svg branch above returns early)
+            Ancestor self{e.tag, e.attr("id"), class_list(e.attr("class"))};
+            std::vector<Ancestor> below = ancestors;
+            below.push_back(std::move(self));
             for (const auto &c : e.children)
             {
-                n.children.push_back(convert_elem(*c, rules));
+                n.children.push_back(convert_elem(*c, rules, vars, below));
             }
             return n;
         }
@@ -1929,9 +2407,12 @@ namespace zb::ui
         // convert: the root's children are the top-level widgets
         ui_node doc;
         doc.type = "root";
+        VarMap vars;
+        collect_vars(ps.rules, vars);
+        const std::vector<Ancestor> no_ancestors;
         for (const auto &c : ps.root->children)
         {
-            doc.children.push_back(convert_elem(*c, ps.rules));
+            doc.children.push_back(convert_elem(*c, ps.rules, vars, no_ancestors));
         }
 
         if (ok != nullptr)

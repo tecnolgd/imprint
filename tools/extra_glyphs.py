@@ -19,4 +19,14 @@ EXTRA_GLYPHS = {
         0b10001,
         0b10001,
     ],
+    # middle dot (model500 subtitles: "MODEL 500 · STEREO")
+    u'\u00b7': [
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00100,
+        0b00000,
+        0b00000,
+        0b00000,
+    ],
 }

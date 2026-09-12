@@ -400,11 +400,14 @@ int test_html()
         EXPECT(r.children[0].type == "label");
         EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "abc");
         ui_node r2 = parse_html(
-            "<div>IMPRINT<small>MODEL 500</small></div>\n", nullptr);
+            "<div>IMPRINT<small>MODEL 500 · STEREO</small></div>\n", nullptr);
         EXPECT(r2.type == "column");
         EXPECT(r2.children.size() == 2);
         EXPECT(r2.children[1].type == "label");
-        EXPECT(test::vget<std::string>(node_prop_v(r2.children[1], "text")) == "MODEL 500");
+        // the middle dot rides along (and feeds the glyph-subset
+        // scanner, so the dot renders instead of skipping)
+        EXPECT(test::vget<std::string>(node_prop_v(r2.children[1], "text")) ==
+               "MODEL 500 · STEREO");
     }
 
     // B1: br inside a leaf warns (no line breaking until H-1) and
@@ -425,8 +428,9 @@ int test_html()
         EXPECT(test::vget<std::string>(node_prop_v(r4.children[0], "text")) == "a b");
     }
 
-    // C1/C5: rejected selectors are inert AND consume their bodies, so
-    // following rules still apply; a bare '#' matches nothing
+    // C1/C5: still-inert selectors are consumed with their bodies, so
+    // following rules still apply; a bare '#' matches nothing. Comma
+    // groups split (label,button both live now).
     {
         ui_node r = parse_html(
             "<style>\n"
@@ -437,12 +441,82 @@ int test_html()
             "  { color: magenta; }\n"
             "  span { color: cyan; }\n"
             "</style>\n"
-            "<label>L</label><span>S</span>\n",
+            "<label>L</label><span>S</span><button>B</button>\n",
             nullptr);
-        EXPECT(r.children.size() == 2);
-        EXPECT(find_prop(r.children[0], "color") < 0);  // label: no rule hit
+        EXPECT(r.children.size() == 3);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "color")) ==
+               "red");  // comma group reaches label, pseudo stays dead
         EXPECT(test::vget<std::string>(node_prop_v(r.children[1], "color")) ==
                "cyan");  // valid rule after the junk survives
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[2], "color")) ==
+               "red");  // comma group reaches button
+    }
+
+    // H-5: class, multi-class, descendant and specificity cascade
+    {
+        ui_node r = parse_html(
+            "<style>\n"
+            "  div { color: red; }\n"
+            "  .amp { color: green; }\n"
+            "  div.amp { color: blue; }\n"
+            "  #one { color: magenta; }\n"
+            "</style>\n"
+            "<div class=\"amp\" id=\"one\">x</div>\n",
+            nullptr);
+        // id beats tag.class beats class beats tag
+        EXPECT(test::vget<std::string>(node_prop_v(r, "color")) == "magenta");
+        ui_node rd = parse_html(
+            "<style>\n"
+            "  div { color: red; }\n"
+            "  .outer .inner { color: cyan; }\n"
+            "</style>\n"
+            "<div class=\"outer\"><div class=\"inner\">x</div></div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(rd, "color")) == "red");
+        EXPECT(rd.children.size() == 1);
+        // inner: descendant beats the tag rule (div would say red)
+        EXPECT(test::vget<std::string>(node_prop_v(rd.children[0], "color")) == "cyan");
+        // multi-class needs every class
+        ui_node r2 = parse_html(
+            "<style>.a.b { color: yellow; }</style>\n"
+            "<div class=\"a\">x</div><div class=\"a b\">y</div>\n",
+            nullptr);
+        EXPECT(find_prop(r2.children[0], "color") < 0);
+        EXPECT(test::vget<std::string>(node_prop_v(r2.children[1], "color")) == "yellow");
+        // specificity beats document order, order breaks ties
+        ui_node r3 = parse_html(
+            "<style>\n"
+            "  .x { color: red; }\n"
+            "  div { color: green; }\n"
+            "  .y { color: blue; }\n"
+            "  .y { color: cyan; }\n"
+            "</style>\n"
+            "<div class=\"x y\">z</div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r3, "color")) == "cyan");
+        // classes keep their case, tags fold it
+        ui_node r4 = parse_html(
+            "<style>.Amp { color: red; } DIV { color: green; }</style>\n"
+            "<div class=\"amp\">x</div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r4, "color")) == "green");
+    }
+
+    // H-5 variables: :root map, substitution, fallback, silent drop
+    {
+        ui_node r = parse_html(
+            "<style>\n"
+            "  :root { --ink: #112233; --gap: 7px; }\n"
+            "  div { color: var(--ink); gap: var(--gap); }\n"
+            "  label { color: var(--missing, blue); }\n"
+            "  span { color: var(--missing); }\n"
+            "</style>\n"
+            "<div><label>L</label><span>S</span></div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r, "color")) == "#112233");
+        EXPECT(test::vget<long long>(node_prop_v(r, "spacing")) == 7);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "color")) == "blue");
+        EXPECT(find_prop(r.children[1], "color") < 0);  // no fallback: dropped
     }
 
     // C4: an unquoted value ends at whitespace or '/': value=30/> is
