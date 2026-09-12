@@ -3,6 +3,8 @@
 #include <vector>
 
 #include "iapp.hpp"
+#include "imui.hpp"
+#include "shell/device_overlay.hpp"
 #include "shell/input_source.hpp"
 #include "shell/presentation.hpp"
 #include "shell/presenter.hpp"
@@ -232,6 +234,106 @@ int test_shell_presenter()
         EXPECT(zb::shell::maps_pointer(zb::input::input_type::mouse_wheel));
         EXPECT(!zb::shell::maps_pointer(zb::input::input_type::key_down));
         EXPECT(!zb::shell::maps_pointer(zb::input::input_type::none));
+    }
+
+    // --- I-2b device overlay ------------------------------------------
+    // chrome around a 1:1 present: nothing to frame
+    {
+        const zb::shell::presentation p =
+            zb::shell::presentation_fit(320, 240, 320, 240);
+        const zb::shell::chrome_bars b = zb::shell::chrome_around(p, 320, 240);
+        EXPECT(b.top.w == 0 && b.bottom.w == 0);
+        EXPECT(b.left.w == 0 && b.right.w == 0);
+    }
+
+    // chrome around a letterboxed present: full-width bars top/bottom
+    {
+        const zb::shell::presentation p =
+            zb::shell::presentation_fit(640, 640, 320, 240);
+        EXPECT(p.y == 80 && p.h == 480);  // I-2a geometry, for the record
+        const zb::shell::chrome_bars b = zb::shell::chrome_around(p, 640, 640);
+        EXPECT(b.top.x == 0 && b.top.y == 0);
+        EXPECT(b.top.w == 640 && b.top.h == 80);
+        EXPECT(b.bottom.x == 0 && b.bottom.y == 560);
+        EXPECT(b.bottom.w == 640 && b.bottom.h == 80);
+        EXPECT(b.left.w == 0 && b.right.w == 0);
+    }
+
+    // chrome around a height-constrained present: side bars only
+    {
+        const zb::shell::presentation p =
+            zb::shell::presentation_fit(400, 200, 320, 240);
+        EXPECT(p.w == 266 && p.x == 67);  // I-2a geometry, for the record
+        const zb::shell::chrome_bars b = zb::shell::chrome_around(p, 400, 200);
+        EXPECT(b.top.w == 0 && b.bottom.w == 0);
+        EXPECT(b.left.x == 0 && b.left.y == 0);
+        EXPECT(b.left.w == 67 && b.left.h == 200);
+        EXPECT(b.right.x == 333 && b.right.y == 0);
+        EXPECT(b.right.w == 67 && b.right.h == 200);
+    }
+
+    // degenerate present: the whole window is chrome (one top bar)
+    {
+        const zb::shell::presentation p =
+            zb::shell::presentation_fit(320, 240, 0, 0);
+        EXPECT(p.w == 0 && p.h == 0);
+        const zb::shell::chrome_bars b = zb::shell::chrome_around(p, 320, 240);
+        EXPECT(b.top.x == 0 && b.top.y == 0);
+        EXPECT(b.top.w == 320 && b.top.h == 240);
+        EXPECT(b.bottom.w == 0 && b.left.w == 0 && b.right.w == 0);
+    }
+
+    // NDS-style hinge: buffer rows map to a chrome bar inside content;
+    // the composed input rule swallows hinge points, passes the rest
+    {
+        const zb::shell::presentation p =
+            zb::shell::presentation_fit(256, 400, 256, 384);
+        EXPECT(p.y == 8 && p.h == 384);  // 1:1, centered
+        const zb::shell::present_rect hinge =
+            zb::shell::hinge_bar(p, 192, 16);
+        EXPECT(hinge.x == 0 && hinge.y == 200);
+        EXPECT(hinge.w == 256 && hinge.h == 16);
+
+        int bx = -1;
+        int by = -1;
+        // on the hinge: to_buffer succeeds but the shell must swallow
+        EXPECT(p.to_buffer(20, 205, bx, by));
+        EXPECT(zb::shell::contains_rect(hinge, 20, 205));
+        // in content: app input with the exact inverse map
+        EXPECT(p.to_buffer(20, 100, bx, by));
+        EXPECT(!zb::shell::contains_rect(hinge, 20, 100));
+        EXPECT(bx == 20 && by == 92);
+        // on the letterbox: rejected before chrome is even consulted
+        EXPECT(!p.to_buffer(20, 2, bx, by));
+
+        // empty hinge contains nothing
+        EXPECT(!zb::shell::contains_rect(zb::shell::hinge_bar(p, 0, 0), 0, 8));
+    }
+
+    // chrome bars paint where the math says (shells fill these natively;
+    // the test paints them the same way)
+    {
+        const zb::shell::presentation p =
+            zb::shell::presentation_fit(40, 30, 20, 10);
+        const zb::shell::chrome_bars b = zb::shell::chrome_around(p, 40, 30);
+        zb::ui::core::Graphics g(40, 30, nullptr);
+        g.fill(zb::ui::core::colors::White);
+        const auto bezel = zb::ui::core::Color::from(32, 32, 32);
+        const auto paint = [&](const zb::shell::present_rect &r)
+        {
+            if (r.w > 0 && r.h > 0)
+            {
+                g.fill_rect(r.x, r.y, r.x + r.w - 1, r.y + r.h - 1, bezel);
+            }
+        };
+        paint(b.top);
+        paint(b.bottom);
+        paint(b.left);
+        paint(b.right);
+        EXPECT(test::pixel_at(g, 20, 2) == bezel.pixel);   // top bar
+        EXPECT(test::pixel_at(g, 20, 27) == bezel.pixel);  // bottom bar
+        EXPECT(test::pixel_at(g, 20, 15) ==
+               zb::ui::core::colors::White.pixel);  // content untouched
     }
 
     return test::report("shell_presenter");

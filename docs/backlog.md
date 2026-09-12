@@ -326,9 +326,14 @@ Orthogonal to Widget hit-test/shape (A-24) and to theme (colors/tokens)
 
 - **I-1. Hot reload for design file previewer (`apps/ui_preview`)**:
   - Watch `.ui` file changes on disk and reload in-place without restarting the previewer.
-- **I-2b. Device overlay** (execution order step 5): bezel/chrome around the presented buffer
-  matching target screen constraints (e.g., dual NDS 256x192 screens,
-  framebuffer 320x240).
+- **I-2b. Device overlay** (landed, execution order step 5): bezel/chrome around the presented buffer
+  matching target screen constraints (dual NDS 256x192 screens,
+  framebuffer 320x240) — pure layout math in
+  `shell/device_overlay.hpp` (chrome bars, hinge bar via the region
+  ceil mapping, half-open contains + documented input composition);
+  shells paint natively, no shell rewired (per-shell adoption needs
+  maintainer eyes). Contracts in code-contract §3, locked by
+  `test_shell_presenter`.
 
 ### Batch F — Event Loop Extension & Frame Automation (Long-term)
 

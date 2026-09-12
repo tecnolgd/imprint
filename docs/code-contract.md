@@ -510,6 +510,18 @@ system (standing non-goals):
   unaffected. NDS/FB shells stay 1:1; wasm/python hosts scale
   host-side. The scaling algorithm is user-facing documented (README
   "Window & presentation"); the seam is locked by `test_shell_presenter`.
+- **Device overlay (I-2b, `shell/device_overlay.hpp`)**: bezel/chrome
+  around the presented buffer from target screen constraints, as pure
+  integer layout math beside the I-2a seam — `chrome_around(p, win)`
+  bars (a degenerate present yields one full-window bar), `hinge_bar`
+  reusing the `presentation_region` ceil mapping for buffer rows shown
+  as chrome (NDS `nds_screen_w/h` constants), `contains_rect`
+  half-open like `to_buffer`. Shells paint the bars natively and
+  swallow pointer events on chrome/hinge (`to_buffer` success AND NOT
+  contained); no shell is rewired here — per-shell adoption needs
+  maintainer eyes on the verified present paths. Single-buffer rule: a
+  hinge covers rows of the presented buffer itself. Locked by the I-2b
+  section of `test_shell_presenter`.
 - **Module consumption paths (A-22)**: `imapp` (`IApp`/`IWindow`/`IGui` +
   `make_app`) has no widget dependency — a graphics-only app links
   `imapp` plus a shell backend and implements `IApp` directly on
