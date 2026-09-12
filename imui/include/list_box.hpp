@@ -49,7 +49,10 @@ namespace zb::ui
         // clamps to >= 1 (a zero height divided by zero on the next
         // click) and re-derives the widget height from the visible rows
         void set_row_height(const int h);
-        // re-sizes the widget: width stays, height = rows * row_height
+        // re-sizes the widget: width stays, height = rows * row_height.
+        // A width that was never explicit stays measured (L-3): a
+        // declarative list without a width keeps its natural 100px
+        // instead of freezing the pre-layout 0 as explicit.
         void set_visible_rows(const size_t rows);
         void set_item_count(const size_t n);
 

@@ -377,5 +377,68 @@ int test_list_box()
             EXPECT(same());
         }
 
+        // L-3: a declarative list without a width stays measured (100
+        // wide) instead of freezing the pre-layout 0 as explicit
+        {
+            ui_node doc;
+            doc.type = "column";
+            ui_node lb;
+            lb.type = "list_box";
+            lb.prop("rows", 3LL);
+            lb.named("l");
+            doc.children.push_back(std::move(lb));
+
+            FlexPanel host;
+            host.set_size(200, 200);
+            build(host, doc);
+            host.layout();
+            auto *l = static_cast<ListBox *>(host.find_by_id("l"));
+            EXPECT(l != nullptr);
+            EXPECT(l->get_size().width == 100);
+            EXPECT(l->get_size().height == 48);
+            EXPECT(!l->is_width_explicit());
+        }
+
+        // L-3: an explicit width survives rows changes, declarative or
+        // programmatic
+        {
+            ui_node doc;
+            doc.type = "column";
+            ui_node lb;
+            lb.type = "list_box";
+            lb.prop("rows", 3LL);
+            lb.prop("width", 120LL);
+            lb.named("l");
+            doc.children.push_back(std::move(lb));
+
+            FlexPanel host;
+            host.set_size(200, 200);
+            build(host, doc);
+            host.layout();
+            auto *l = static_cast<ListBox *>(host.find_by_id("l"));
+            EXPECT(l != nullptr);
+            EXPECT(l->get_size().width == 120);
+            EXPECT(l->get_size().height == 48);
+            EXPECT(l->is_width_explicit());
+
+            l->set_visible_rows(2);
+            EXPECT(l->get_size().width == 120);
+            EXPECT(l->get_size().height == 32);
+            EXPECT(l->is_width_explicit());
+        }
+
+        // L-3: programmatic rows/row-height keep an auto width auto
+        {
+            ListBox l;
+            l.set_visible_rows(3);
+            EXPECT(!l.is_width_explicit());
+            EXPECT(l.is_height_explicit());
+            EXPECT(l.get_size().height == 48);
+
+            l.set_row_height(20);
+            EXPECT(!l.is_width_explicit());
+            EXPECT(l.get_size().height == 60);  // 3 rows * 20
+        }
+
         return test::report("list_box");
 }

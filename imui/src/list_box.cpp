@@ -28,10 +28,18 @@ namespace zb::ui
         }
         invalidate_row_cache();
         // the widget height is derived from the row height: keep it
-        // consistent (set_size also invalidates the layout)
+        // consistent (set_size also invalidates the layout). The width
+        // axis keeps its explicitness (L-3): a declarative list without
+        // a width must stay measured instead of freezing the pre-layout
+        // 0 that set_size would otherwise mark explicit.
+        const bool w_auto = !is_width_explicit();
         auto s = get_size();
         s.height = static_cast<int>(visible) * row_height;
         set_size(s.width, s.height);
+        if (w_auto)
+        {
+            set_width_auto(s.width);
+        }
         mark_dirty();
         clamp_top();
     }
@@ -48,9 +56,17 @@ namespace zb::ui
             visible = rows;
         }
         invalidate_row_cache();
+        // L-3: keep the width axis explicitness (see set_row_height):
+        // rows re-derives the height; a width that was never explicit
+        // stays measured instead of freezing the pre-layout 0.
+        const bool w_auto = !is_width_explicit();
         auto s = get_size();
         s.height = static_cast<int>(visible) * row_height;
         set_size(s.width, s.height);
+        if (w_auto)
+        {
+            set_width_auto(s.width);
+        }
         mark_dirty();
         clamp_top();
     }
