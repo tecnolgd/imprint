@@ -232,8 +232,11 @@ support "a little at a time" as the boundary demands):**
 - H-2. `BorderWidget` wrapper (~100 lines) + `border` shorthand.
 - H-3. `margin` support (or spacer-widget mapping).
 - H-4. `ScrollPanel` + `overflow` (moderate — needs a scroll container).
-- H-5. Widened selector support (class/descendant) if a real use case demands
-  it.
+- H-5. Widened selector support — **landed 2026-09-12 (model500 demo
+  demanded it)**: tag/`.class`/`#id` compounds, descendant chains,
+  comma groups, specificity cascade, `:root` variables + `var()`.
+  Remainder stays out: child/sibling/attribute selectors,
+  pseudo-elements, inheritance, `var()` inside `@media` (no at-rules).
 - H-6. `SvgWidget` — SVG as a widget subclass (recorded 2026-09-10,
   **unscheduled — note only, no priority**):
   - `SvgWidget : Widget` (imui, beside Button/Label). Parses an SVG text

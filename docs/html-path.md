@@ -105,7 +105,9 @@ applies unchanged.
 |---|---|
 | Element not in the whitelist | **LW warning + skipped**; its content is dropped. "Not in the table = not built" — the honest signal, so mistyped customs (`<metter>`) or unsupported HTML (`<table>`, `<input>`, `<form>`) never render a wrong structure |
 | `<br>` inside an inline element (`<span>`) | the parser warns (no line breaking until H-1) and degrades the break to a word space in the single-line label; the spacer child is dropped by leaf materialization with a warning (the same rule as `.ui` leaf children); place `br` as a child of a container |
-| Attribute not in the whitelist | silently tolerated; `class=` is accepted but inert (no selector support until H-5) |
+| Attribute not in the whitelist | silently tolerated (`class=` drives selector matching) |
+| Selector beyond tag/`.class`/`#id`/descendant/comma (child/sibling/attribute/pseudo) | silently inert, body consumed (pseudo-element selectors log one LW per rule — they usually carry visible content intent) |
+| Unknown `var(--name)` without fallback | declaration dropped silently (malformed-value tolerance) |
 | Style declaration not in the whitelist | **LW warning + ignored** (the element keeps its default presentation) |
 | Malformed value (bad color, bad number, bad percent) | silently defaulted (the shared property table's tolerance) |
 | Stray/mismatched closing tag | closes open ancestors up to the match (unbalanced intermediates are finalized along the way); ignored when no open frame matches. HTML5 would ignore the stray tag instead — tolerated deviation, silent |
@@ -156,18 +158,33 @@ applies unchanged.
 
 ## `<style>` rule matching
 
-- A rule set is a flat list of `selector { declarations }`. Selectors are
-  exactly a tag name (`button { … }`) or an id (`#status { … }`) —
-  nothing else.
-- Application: inline `style=`, then `#id` rules, then tag rules, each
-  bucket in document order (the last matching declaration wins). No
-  cascade, no inheritance, no specificity — a child never inherits a
-  parent's `color`.
+- A rule set is a flat list of `selector { declarations }`. A selector
+  is a comma group of chains; each chain is one or more compounds in
+  descendant order (`A B` = a B inside an A). A compound is an optional
+  tag name plus `#id` and `.class` parts in any order (`div.model`,
+  `.knob.a`, `#status`). Tags fold case (HTML), ids and classes keep
+  theirs. `*`, `>`, `+`, `~`, `[…]`, and anything with `:` or `::`
+  (pseudo-classes/elements) keep the whole rule inert — except exact
+  `:root`, which only collects `--*` variables (below) and never
+  matches an element. Structural tags (`html`, `head`, `body`) match
+  nothing: no widget is ever built for them.
+- Application is a real cascade, then inline: every matching rule
+  contributes its declarations ordered by specificity `(ids, classes,
+  tags)` and then document order (later wins ties); the inline
+  `style=` attribute crowns everything. No inheritance — a child never
+  inherits a parent's `color` (a descendant selector still has to match
+  it explicitly).
 - `!important` (ASCII case-insensitive, whitespace tolerated:
   `color: red !important`) lifts a declaration above every normal one;
-  among important declarations the same bucket order (inline > `#id` >
-  tag, document order, last wins) applies. Unknown properties stay
-  ignored (with the LW warning) even when marked important.
+  among important declarations the same specificity-then-order applies.
+  Unknown properties stay ignored (with the LW warning) even when
+  marked important.
+- Custom properties: a `:root` rule's `--name: value` entries form the
+  document's variable map (`--name` keeps its case; later rules win).
+  `var(--name)` / `var(--name, fallback)` substitute textually in any
+  declaration value (stylesheet and inline alike; one nesting level
+  through fallbacks and chained variables). An unknown name without a
+  fallback drops its declaration silently (malformed-value tolerance).
 
 ## SVG subset (`svg` / `vectordial`)
 
