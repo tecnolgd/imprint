@@ -71,6 +71,11 @@ namespace zb::ui
         }
         ui_node &text(std::string t) { return prop("text", std::move(t)); }
         ui_node &visible(const bool v) { return prop("visible", v); }
+        // color props (batch H): color value strings in the resolution
+        // table's accepted forms (see docs/design-file.md); malformed or
+        // "transparent" values are no-ops at materialize time
+        ui_node &background(std::string c) { return prop("background", std::move(c)); }
+        ui_node &color(std::string c) { return prop("color", std::move(c)); }
 
         // control properties
         ui_node &checked(const bool c) { return prop("checked", c); }

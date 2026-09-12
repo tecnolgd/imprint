@@ -327,5 +327,72 @@ int test_builder()
     }
 
     // host root node is documentation only... panel() children flow
+    // color props (batch H step 2): background and color land on the
+    // widget and actually paint; malformed/transparent values are no-ops
+    {
+        auto doc = column({
+            label("Af").size(24, 24).named("mark").background("#ff0000").color("#00ff00"),
+            label("Af").size(24, 24).named("plain"),
+        });
+        Panel host;
+        host.set_size(80, 60);
+        build(host, doc);
+        host.layout();
+
+        auto *mark = static_cast<Label *>(host.find_by_id("mark"));
+        auto *plain = static_cast<Label *>(host.find_by_id("plain"));
+        EXPECT(mark != nullptr && plain != nullptr);
+
+        core::Graphics g(80, 60, nullptr);
+        host.draw(g);
+
+        const auto mp = mark->get_position();
+        const auto ms = mark->get_size();
+        // the label's far corner is background, not glyph: #ff0000
+        EXPECT(test::pixel_at(g, mp.x + ms.width - 1, mp.y + ms.height - 1) ==
+               core::Color::from(255, 0, 0).pixel);
+        // the parent's default area under the plain label stays clear
+        const auto pp = plain->get_position();
+        EXPECT(!plain->has_background());
+
+        // text color override: the tinted label paints its glyphs green,
+        // the plain label black (text is vertically centered, so scan the
+        // whole box rather than assuming a fixed row)
+        int green = 0;
+        int black = 0;
+        for (int y = 0; y < ms.height; ++y)
+        {
+            for (int x = 0; x < ms.width; ++x)
+            {
+                if (test::pixel_at(g, mp.x + x, mp.y + y) ==
+                    core::Color::from(0, 255, 0).pixel)
+                {
+                    ++green;
+                }
+                if (test::pixel_at(g, pp.x + x, pp.y + y) ==
+                    core::Color::from(0, 0, 0).pixel)
+                {
+                    ++black;
+                }
+            }
+        }
+        EXPECT(green > 0);  // the override really painted
+        EXPECT(black > 0);  // the plain label stayed theme text
+    }
+
+    // transparent / malformed color values are silent no-ops
+    {
+        auto doc = column({
+            label("x").size(20, 20).named("a").background("transparent").color("transparent"),
+            label("x").size(20, 20).named("b").background("#12345").color("neon"),
+        });
+        Panel host;
+        host.set_size(60, 50);
+        build(host, doc);
+        host.layout();
+        EXPECT(!host.find_by_id("a")->has_background());
+        EXPECT(!host.find_by_id("b")->has_background());
+    }
+
     return test::report("builder");
 }

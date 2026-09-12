@@ -238,6 +238,110 @@ namespace zb::ui
             return static_cast<int>(n);
         }
 
+        // --- color value parsing (shared by background/color props) -----
+
+        // accepts "#rgb", "#rrggbb", the named subset, or "transparent";
+        // malformed strings and "transparent" yield false (nothing set --
+        // default background / theme text stays). Returns false also for
+        // an empty string (absent prop).
+        bool parse_color(const std::string &s, core::Color &out)
+        {
+            if (s.empty() || s == "transparent")
+            {
+                return false;
+            }
+            if (s[0] == '#')
+            {
+                auto hex = [](const char c) -> int {
+                    if (c >= '0' && c <= '9')
+                    {
+                        return c - '0';
+                    }
+                    if (c >= 'a' && c <= 'f')
+                    {
+                        return c - 'a' + 10;
+                    }
+                    if (c >= 'A' && c <= 'F')
+                    {
+                        return c - 'A' + 10;
+                    }
+                    return -1;
+                };
+                const std::size_t len = s.size() - 1;
+                if (len == 3)
+                {
+                    const int r = hex(s[1]);
+                    const int g = hex(s[2]);
+                    const int b = hex(s[3]);
+                    if (r < 0 || g < 0 || b < 0)
+                    {
+                        return false;
+                    }
+                    out = core::Color::from(r * 17, g * 17, b * 17);
+                    return true;
+                }
+                if (len == 6)
+                {
+                    const int r0 = hex(s[1]);
+                    const int r1 = hex(s[2]);
+                    const int g0 = hex(s[3]);
+                    const int g1 = hex(s[4]);
+                    const int b0 = hex(s[5]);
+                    const int b1 = hex(s[6]);
+                    if (r0 < 0 || r1 < 0 || g0 < 0 || g1 < 0 ||
+                        b0 < 0 || b1 < 0)
+                    {
+                        return false;
+                    }
+                    out = core::Color::from(r0 * 16 + r1, g0 * 16 + g1,
+                                            b0 * 16 + b1);
+                    return true;
+                }
+                return false;
+            }
+            if (s == "black")
+            {
+                out = core::colors::Black;
+            }
+            else if (s == "white")
+            {
+                out = core::colors::White;
+            }
+            else if (s == "red")
+            {
+                out = core::colors::Red;
+            }
+            else if (s == "green")
+            {
+                out = core::colors::Green;
+            }
+            else if (s == "blue")
+            {
+                out = core::colors::Blue;
+            }
+            else if (s == "yellow")
+            {
+                out = core::Color::from(255, 255, 0);
+            }
+            else if (s == "gray" || s == "grey")
+            {
+                out = core::Color::from(128, 128, 128);
+            }
+            else if (s == "cyan")
+            {
+                out = core::Color::from(0, 255, 255);
+            }
+            else if (s == "magenta")
+            {
+                out = core::Color::from(255, 0, 255);
+            }
+            else
+            {
+                return false;
+            }
+            return true;
+        }
+
         // --- common properties (every widget) ---------------------------
 
         void apply_common(Widget &w, const ui_node &n)
@@ -304,6 +408,15 @@ namespace zb::ui
             if (!prop_of(n, "visible", true))
             {
                 w.set_visible(false);
+            }
+            core::Color c;
+            if (parse_color(prop_of(n, "background", std::string{}), c))
+            {
+                w.set_background_color(c);
+            }
+            if (parse_color(prop_of(n, "color", std::string{}), c))
+            {
+                w.set_text_color(c);
             }
         }
 

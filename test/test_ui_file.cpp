@@ -301,5 +301,44 @@ column id="main" spacing=4 padding=8
         EXPECT(find_ui_file("no_such.ui") == nullptr);
     }
 
+    // batch H step 2: background/color parse from a .ui document as
+    // string props and materialize into painted overrides; the design
+    // file shares the property table with the fluent builders
+    {
+        bool ok = false;
+        ui_node root = parse_ui_text(
+            "column spacing=4\n"
+            "  label id=\"desc\" text=\"Status\" width=60 height=20 background=\"#102030\" color=\"yellow\"\n"
+            "  button id=\"go\" text=\"GO\" background=\"#c00000\"\n",
+            &ok);
+        EXPECT(ok);
+        const auto &desc = root.children[0];
+        EXPECT(desc.type == "label");
+        EXPECT(test::vget<std::string>(desc.props[3].second) == "#102030");
+        EXPECT(test::vget<std::string>(desc.props[4].second) == "yellow");
+
+        FlexPanel host;
+        host.set_size(200, 60);
+        build(host, root);
+        host.layout();
+        auto *d = static_cast<Label *>(host.find_by_id("desc"));
+        auto *go = static_cast<Button *>(host.find_by_id("go"));
+        EXPECT(d != nullptr && go != nullptr);
+        EXPECT(d->has_background());
+        EXPECT(go->has_background());
+
+        core::Graphics g(200, 60, nullptr);
+        host.draw(g);
+        const auto dp = d->get_position();
+        const auto gp = go->get_position();
+        const auto gs = go->get_size();
+        // background faces: "#102030" (0x10,0x20,0x30) and "#c00000";
+        // sampled away from the 5x7 text / the 1px button border
+        EXPECT(test::pixel_at(g, dp.x + 59, dp.y + 19) ==
+               core::Color::from(0x10, 0x20, 0x30).pixel);
+        EXPECT(test::pixel_at(g, gp.x + gs.width - 2, gp.y + gs.height - 2) ==
+               core::Color::from(0xc0, 0, 0).pixel);
+    }
+
     return test::report("ui_file");
 }
