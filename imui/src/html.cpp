@@ -1368,7 +1368,10 @@ namespace zb::ui
                     flush_text();
                     break;
                 case Token::Kind::close:
-                    if (!t.name.empty())
+                    // C2 follow-up: </br> never matches (void br opens no
+                    // frame), so it is purely ignored instead of triggering
+                    // the stray-close recovery -- the HTML5 rule
+                    if (!t.name.empty() && t.name != "br")
                     {
                         close_to(t.name);
                     }

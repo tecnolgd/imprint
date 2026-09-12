@@ -106,14 +106,14 @@ int test_html()
         EXPECT(test::vget<std::string>(node_prop_v(r.children[1], "text")) == "On");
     }
 
-    // C2: br is void -- bare, slashed, and spaced forms are equivalent;
-    // a stray </br> is ignored (and, having no open frame, follows the
-    // documented stray-close recovery)
+    // C2: br is void -- bare, slashed, spaced, and explicitly closed
+    // forms are equivalent; a stray </br> is purely ignored
     {
         const char *spellings[] = {
             "<div>a<br>b</div>",
             "<div>a<br/>b</div>",
             "<div>a<br />b</div>",
+            "<div>a<br></br>b</div>",
         };
         for (const char *doc : spellings)
         {
@@ -131,28 +131,11 @@ int test_html()
                        node_prop_v(r.children[2], "text")) == "b");
         }
 
-        // <br></br>: the close is stray (void br opens no frame), so it
-        // closes the div early per the recovery rule; "b" lands at root
-        {
-            ui_node r = parse_html("<div>a<br></br>b</div>\n", nullptr);
-            EXPECT(r.type == "root");
-            EXPECT(r.children.size() == 2);
-            EXPECT(r.children[0].type == "column");
-            EXPECT(r.children[0].children.size() == 2);
-            EXPECT(test::vget<std::string>(
-                       node_prop_v(r.children[0].children[0], "text")) == "a");
-            EXPECT(test::vget<long long>(
-                       node_prop_v(r.children[0].children[1], "height")) == 7);
-            EXPECT(test::vget<std::string>(
-                       node_prop_v(r.children[1], "text")) == "b");
-        }
-
         ui_node r = parse_html("<div>a</br>b</div>\n", nullptr);
-        EXPECT(r.type == "root");  // the stray close ends the div early
+        EXPECT(r.type == "column");  // </br> ignored: div stays open
         EXPECT(r.children.size() == 2);
-        EXPECT(r.children[0].type == "column");
         EXPECT(test::vget<std::string>(
-                   node_prop_v(r.children[0].children[0], "text")) == "a");
+                   node_prop_v(r.children[0], "text")) == "a");
         EXPECT(test::vget<std::string>(
                    node_prop_v(r.children[1], "text")) == "b");
     }
