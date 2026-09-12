@@ -657,6 +657,17 @@ namespace zb::ui
                     // leaf at close
                     if (tag == "br" || is_container_html(tag))
                     {
+                        if (tag == "br")
+                        {
+                            // no line breaking until H-1: the break degrades
+                            // to a word space in the single-line label (the
+                            // closer trims the edges, runs collapse), while
+                            // the spacer child is dropped by the materializer
+                            LW << "html: <br> inside a text element has no "
+                                  "line-break effect until H-1; degraded to "
+                                  "a space";
+                            p->text += ' ';
+                        }
                         p->children.push_back(std::move(e));
                         out_elem = p->children.back().get();
                         out_pushed = true;

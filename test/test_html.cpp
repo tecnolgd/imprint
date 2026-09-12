@@ -230,6 +230,24 @@ int test_html()
         EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "abc");
     }
 
+    // B1: br inside a leaf warns (no line breaking until H-1) and
+    // degrades to a word space in the single-line label; edges trim
+    // clean and runs collapse
+    {
+        ui_node r = parse_html("<label>a<br/>b</label>\n", nullptr);
+        EXPECT(r.children.size() == 1);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "a b");
+
+        ui_node r2 = parse_html("<label><br/>b</label>\n", nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r2.children[0], "text")) == "b");
+
+        ui_node r3 = parse_html("<label>a<br/></label>\n", nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r3.children[0], "text")) == "a");
+
+        ui_node r4 = parse_html("<label>a<br/><br/>b</label>\n", nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r4.children[0], "text")) == "a b");
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);

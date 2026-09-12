@@ -57,7 +57,7 @@ applies unchanged.
 | Construct | Handling |
 |---|---|
 | Element not in the whitelist | **LW warning + skipped**; its content is dropped. "Not in the table = not built" — the honest signal, so mistyped customs (`<metter>`) or unsupported HTML (`<table>`, `<input>`, `<form>`) never render a wrong structure |
-| `<br>` inside an inline element (`<span>`) | leaf materialization drops it with a warning (the same rule as `.ui` leaf children); place `br` as a child of a container |
+| `<br>` inside an inline element (`<span>`) | the parser warns (no line breaking until H-1) and degrades the break to a word space in the single-line label; the spacer child is dropped by leaf materialization with a warning (the same rule as `.ui` leaf children); place `br` as a child of a container |
 | Attribute not in the whitelist | silently tolerated; `class=` is accepted but inert (no selector support until H-5) |
 | Style declaration not in the whitelist | **LW warning + ignored** (the element keeps its default presentation) |
 | Malformed value (bad color, bad number, bad percent) | silently defaulted (the shared property table's tolerance) |
