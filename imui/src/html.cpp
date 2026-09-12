@@ -128,6 +128,281 @@ namespace zb::ui
             return out;
         }
 
+        void ascii_lower_inplace(std::string &s)
+        {
+            for (char &c : s)
+            {
+                if (c >= 'A' && c <= 'Z')
+                {
+                    c = static_cast<char>(c - 'A' + 'a');
+                }
+            }
+        }
+
+        // -------------------------------------------------------------------
+        // the tokenizer (B6): raw input -> token stream. It owns every
+        // lexical rule (comments/doctype skipping, tag-name casing,
+        // quote-aware token ends, attribute values with entity decoding)
+        // and carries 1-based line numbers for located warnings. It knows
+        // nothing about the whitelist or the tree.
+        // -------------------------------------------------------------------
+
+        struct Token
+        {
+            enum class Kind
+            {
+                eof,
+                text,  // raw span (normalization is the tree layer's job)
+                open,
+                close,
+            };
+            Kind kind = Kind::eof;
+            std::string name;  // lower-cased tag name (open/close)
+            std::vector<std::pair<std::string, std::string>> attrs;  // open
+            bool self_closing = false;  // open only
+            std::string text;           // text only
+            int line = 1;               // 1-based line where it starts
+        };
+
+        class Tokenizer
+        {
+          public:
+            Tokenizer(const char *begin, const char *end)
+                : p_(begin), end_(end)
+            {
+            }
+
+            Token next()
+            {
+                for (;;)
+                {
+                    if (p_ >= end_)
+                    {
+                        return Token{};
+                    }
+                    if (*p_ != '<')
+                    {
+                        return read_text();
+                    }
+                    // a tag, comment, or doctype begins at '<'
+                    const char *q = p_ + 1;
+                    if (q < end_ && *q == '!')
+                    {
+                        skip_bang();  // comments/doctypes are silent
+                        continue;
+                    }
+                    Token t;
+                    if (read_tag(t))
+                    {
+                        return t;
+                    }
+                    // a lone '<' or malformed token: consumed, move on
+                }
+            }
+
+          private:
+            const char *p_;
+            const char *end_;
+            int line_ = 1;
+
+            void count_lines(const char *from, const char *to)
+            {
+                for (const char *z = from; z < to; ++z)
+                {
+                    if (*z == '\n')
+                    {
+                        ++line_;
+                    }
+                }
+            }
+
+            Token read_text()
+            {
+                Token t;
+                t.kind = Token::Kind::text;
+                t.line = line_;
+                const char *start = p_;
+                while (p_ < end_ && *p_ != '<')
+                {
+                    ++p_;
+                }
+                t.text.assign(start, p_);
+                count_lines(start, p_);
+                return t;
+            }
+
+            // comment <!-- ... --> or <!DOCTYPE ...>: consumed silently
+            void skip_bang()
+            {
+                const char *start = p_;
+                const char *q = p_ + 1;
+                if (q + 2 < end_ && q[1] == '-' && q[2] == '-')
+                {
+                    const char *close = q + 3;
+                    while (close + 2 < end_ &&
+                           !(close[0] == '-' && close[1] == '-' && close[2] == '>'))
+                    {
+                        ++close;
+                    }
+                    p_ = (close + 2 < end_) ? close + 3 : end_;
+                }
+                else
+                {
+                    while (p_ < end_ && *p_ != '>')
+                    {
+                        ++p_;
+                    }
+                    if (p_ < end_)
+                    {
+                        ++p_;
+                    }
+                }
+                count_lines(start, p_);
+            }
+
+            static bool is_name_char(const char c)
+            {
+                return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                       (c >= '0' && c <= '9') || c == '-';
+            }
+
+            static bool is_attr_char(const char c)
+            {
+                return is_name_char(c) || c == '_' || c == ':';
+            }
+
+            static bool is_space(const char c)
+            {
+                return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+            }
+
+            // Reads one tag token into `t`; returns false for a lone '<'
+            // or malformed token (consumed, no token produced).
+            bool read_tag(Token &t)
+            {
+                t.line = line_;
+                const char *start = p_;
+                const char *q = p_ + 1;
+                const bool closing = (q < end_ && *q == '/');
+                if (closing)
+                {
+                    ++q;
+                }
+                const char *name_b = q;
+                while (q < end_ && is_name_char(*q))
+                {
+                    ++q;
+                }
+                t.name.assign(name_b, q);
+                ascii_lower_inplace(t.name);
+
+                // the token end: '>' (with '/' before it marking
+                // self-closing), honoring quoted attribute values
+                const char *scan = q;
+                bool in_quote = false;
+                while (scan < end_ && !(!in_quote && *scan == '>'))
+                {
+                    if (*scan == '"')
+                    {
+                        in_quote = !in_quote;
+                    }
+                    ++scan;
+                }
+                const bool self_closing =
+                    (scan < end_) && (scan > q) && (scan[-1] == '/');
+                const char *attr_end = (scan < end_ ? scan : end_);
+                const char *token_end =
+                    std::min(end_, (scan < end_ ? scan + 1 : end_));
+
+                if (closing || t.name.empty())
+                {
+                    // a closing tag (possibly nameless: ignored downstream)
+                    // or a lone '<' / malformed token: consume and move on
+                    t.kind = Token::Kind::close;
+                    p_ = token_end;
+                    count_lines(start, p_);
+                    return !t.name.empty();
+                }
+
+                t.kind = Token::Kind::open;
+                t.self_closing = self_closing;
+
+                // attributes (unknown ones are kept; the tree layer drops
+                // what is off-whitelist silently)
+                const char *attr_p = q;
+                while (attr_p < attr_end)
+                {
+                    while (attr_p < attr_end && is_space(*attr_p))
+                    {
+                        ++attr_p;
+                    }
+                    if (attr_p >= attr_end)
+                    {
+                        break;
+                    }
+                    const char *ka = attr_p;
+                    while (attr_p < attr_end && is_attr_char(*attr_p))
+                    {
+                        ++attr_p;
+                    }
+                    std::string key(ka, attr_p);
+                    ascii_lower_inplace(key);
+                    if (key.empty())
+                    {
+                        ++attr_p;  // junk: move on
+                        continue;
+                    }
+                    while (attr_p < attr_end && is_space(*attr_p))
+                    {
+                        ++attr_p;
+                    }
+                    std::string value;
+                    if (attr_p < attr_end && *attr_p == '=')
+                    {
+                        ++attr_p;
+                        while (attr_p < attr_end &&
+                               (*attr_p == ' ' || *attr_p == '\t'))
+                        {
+                            ++attr_p;
+                        }
+                        if (attr_p < attr_end && *attr_p == '"')
+                        {
+                            ++attr_p;
+                            const char *vb = attr_p;
+                            while (attr_p < attr_end && *attr_p != '"')
+                            {
+                                ++attr_p;
+                            }
+                            const char *ve = attr_p;
+                            if (attr_p < attr_end)
+                            {
+                                ++attr_p;  // the closing quote
+                            }
+                            append_decoded(vb, ve, value);
+                        }
+                        else
+                        {
+                            const char *vb = attr_p;
+                            while (attr_p < attr_end && !is_space(*attr_p))
+                            {
+                                ++attr_p;
+                            }
+                            append_decoded(vb, attr_p, value);
+                        }
+                    }
+                    else
+                    {
+                        value = key;  // valueless boolean attribute
+                    }
+                    t.attrs.emplace_back(std::move(key), std::move(value));
+                }
+
+                p_ = token_end;
+                count_lines(start, p_);
+                return true;
+            }
+        };
+
         // -------------------------------------------------------------------
         // element tree (intermediate) + <style> rules
         // -------------------------------------------------------------------
@@ -138,6 +413,7 @@ namespace zb::ui
             std::vector<std::pair<std::string, std::string>> attrs;
             std::string text;  // raw accumulation (leaves), normalized at close
             std::vector<std::unique_ptr<Elem>> children;
+            int line = 1;  // 1-based source line of the open tag (B6)
 
             const std::string &attr(const std::string &name) const
             {
@@ -457,13 +733,7 @@ namespace zb::ui
         // semantics); ids and all other values keep their case
         std::string ascii_lower(std::string s)
         {
-            for (char &c : s)
-            {
-                if (c >= 'A' && c <= 'Z')
-                {
-                    c = static_cast<char>(c - 'A' + 'a');
-                }
-            }
+            ascii_lower_inplace(s);
             return s;
         }
 
@@ -733,7 +1003,9 @@ namespace zb::ui
         }
 
         // -------------------------------------------------------------------
-        // the streaming parser
+        // the tree builder (B6): tokens -> element tree. It owns the frame
+        // stack, inline merging, and the whitelist modes, and knows nothing
+        // about characters, quotes, or comments anymore.
         // -------------------------------------------------------------------
 
         enum frame_mode : int
@@ -755,11 +1027,10 @@ namespace zb::ui
 
         struct Parser
         {
-            const char *p = nullptr;
-            const char *end = nullptr;
             Rules rules;
             std::string css;  // accumulated raw <style> text
             std::string text_buf;
+            int text_line = 1;  // source line of the buffered text (B6)
             std::unique_ptr<Elem> root;  // the body/document container
             std::vector<Frame> frames;
 
@@ -773,7 +1044,7 @@ namespace zb::ui
             // the caller adopts `owned` -- text is merged into the leaf parent
             // at close).
             void open_elem(const std::string &tag, Elem *&out_elem,
-                           bool &out_pushed)
+                           bool &out_pushed, const int line)
             {
                 Frame &parent = frames.back();
                 if (parent.mode != k_build || parent.elem == nullptr)
@@ -785,6 +1056,7 @@ namespace zb::ui
                 Elem *p = parent.elem;
                 auto e = std::make_unique<Elem>();
                 e->tag = tag;
+                e->line = line;
                 if (is_leaf(*p))
                 {
                     // inline context: br is pushed (the materializer drops it
@@ -794,11 +1066,13 @@ namespace zb::ui
                     {
                         if (tag == "br")
                         {
-                            // no line breaking until H-1: the break degrades
-                            // to a word space in the single-line label (the
-                            // closer trims the edges, runs collapse), while
-                            // the spacer child is dropped by the materializer
-                            LW << "html: <br> inside a text element has no "
+                            // B1: no line breaking until H-1: the break
+                            // degrades to a word space in the single-line
+                            // label (the closer trims the edges, runs
+                            // collapse), while the spacer child is dropped
+                            // by the materializer
+                            LW << "html: line " << line
+                               << ": <br> inside a text element has no "
                                   "line-break effect until H-1; degraded to "
                                   "a space";
                             p->text += ' ';
@@ -847,6 +1121,7 @@ namespace zb::ui
                                 auto anon = std::make_unique<Elem>();
                                 anon->tag = "span";
                                 anon->text = norm;
+                                anon->line = text_line;
                                 f.elem->children.push_back(std::move(anon));
                             }
                         }
@@ -883,6 +1158,119 @@ namespace zb::ui
                     }
                 }
             }
+
+            void close_to(const std::string &name)
+            {
+                // pop to the matching frame; unbalanced intermediates
+                // are finalized along the way (tolerant)
+                while (frames.size() > 1 && frames.back().tag != name)
+                {
+                    finalize(frames.back());
+                    frames.pop_back();
+                }
+                if (frames.size() > 1)
+                {
+                    Frame &f = frames.back();
+                    finalize(f);
+                    frames.pop_back();
+                }
+                // a closing tag without an open frame is ignored
+            }
+
+            void handle_open(const Token &t)
+            {
+                // decide the frame mode before creating anything (whitelist
+                // knowledge lives in the contract doc)
+                const std::string &name = t.name;
+                int mode = k_build;
+                if (is_structural(name) || name == "body")
+                {
+                    mode = k_no_build;  // html/head never build
+                }
+                else if (name == "style")
+                {
+                    mode = k_style;
+                }
+                else if (!is_whitelisted_tag(name))
+                {
+                    const int innermost = frames.back().mode;
+                    if (innermost == k_no_build || innermost == k_skip)
+                    {
+                        mode = k_skip;  // head boilerplate / dropped subtree
+                    }
+                    else
+                    {
+                        LW << "html: line " << t.line << ": element <" << name
+                           << "> is not in the whitelist; skipped";
+                        mode = k_skip;
+                    }
+                }
+
+                Elem *elem = nullptr;
+                bool pushed = false;
+                if (mode == k_build)
+                {
+                    open_elem(name, elem, pushed, t.line);
+                    if (elem != nullptr)
+                    {
+                        for (const auto &a : t.attrs)
+                        {
+                            elem->attrs.emplace_back(a.first, a.second);
+                        }
+                    }
+                }
+                else if (name == "body")
+                {
+                    // body is the document container: its children land on
+                    // the root, so a single top-level container still
+                    // becomes the document root (the .ui convention)
+                    mode = k_build;
+                    elem = root.get();
+                    pushed = true;
+                    if (elem != nullptr)
+                    {
+                        for (const auto &a : t.attrs)
+                        {
+                            elem->attrs.emplace_back(a.first, a.second);
+                        }
+                    }
+                }
+
+                if (t.self_closing)
+                {
+                    // no frame is pushed for a self-closing tag
+                    if (mode == k_build && !pushed)
+                    {
+                        frames.back().owned.reset();  // held temp: discard
+                    }
+                    return;
+                }
+                frames.push_back({name, mode, pushed, elem,
+                                  std::move(frames.back().owned)});
+            }
+
+            void feed(const Token &t)
+            {
+                switch (t.kind)
+                {
+                case Token::Kind::text:
+                    text_buf += t.text;
+                    text_line = t.line;
+                    flush_text();
+                    break;
+                case Token::Kind::close:
+                    if (!t.name.empty())
+                    {
+                        close_to(t.name);
+                    }
+                    break;
+                case Token::Kind::open:
+                    handle_open(t);
+                    break;
+                case Token::Kind::eof:
+                    break;
+                }
+            }
         };
     }  // namespace
 
@@ -895,262 +1283,19 @@ namespace zb::ui
         Parser ps;
         ps.root = std::make_unique<Elem>();
         ps.root->tag = "body";  // the document container (container_html)
-        ps.p = html ? html : "";
-        ps.end = ps.p + (html ? std::strlen(html) : 0);
         ps.frames.push_back(
             {std::string{}, k_build, true, ps.root.get(), nullptr});
 
-        while (ps.p < ps.end)
+        const char *begin = html ? html : "";
+        Tokenizer tz(begin, begin + (html ? std::strlen(html) : 0));
+        for (;;)
         {
-            const char c = *ps.p;
-            if (c != '<')
+            const Token t = tz.next();
+            if (t.kind == Token::Kind::eof)
             {
-                ps.text_buf += c;
-                ++ps.p;
-                continue;
+                break;
             }
-            // a tag, comment, or doctype begins at '<'
-            ps.flush_text();
-
-            const char *q = ps.p + 1;
-            if (q < ps.end && *q == '!')
-            {
-                // comment <!-- ... -->  or  <!DOCTYPE ...>
-                if (q + 2 < ps.end && q[1] == '-' && q[2] == '-')
-                {
-                    const char *close = q + 3;
-                    while (close + 2 < ps.end &&
-                           !(close[0] == '-' && close[1] == '-' && close[2] == '>'))
-                    {
-                        ++close;
-                    }
-                    ps.p = (close + 2 < ps.end) ? close + 3 : ps.end;
-                }
-                else
-                {
-                    while (ps.p < ps.end && *ps.p != '>')
-                    {
-                        ++ps.p;
-                    }
-                    if (ps.p < ps.end)
-                    {
-                        ++ps.p;
-                    }
-                }
-                continue;
-            }
-
-            const bool closing = (q < ps.end && *q == '/');
-            if (closing)
-            {
-                ++q;
-            }
-            const char *name_b = q;
-            while (q < ps.end && ((*q >= 'a' && *q <= 'z') ||
-                                  (*q >= 'A' && *q <= 'Z') ||
-                                  (*q >= '0' && *q <= '9') || *q == '-'))
-            {
-                ++q;
-            }
-            std::string name(name_b, q);
-            for (char &ch : name)
-            {
-                if (ch >= 'A' && ch <= 'Z')
-                {
-                    ch = static_cast<char>(ch - 'A' + 'a');
-                }
-            }
-
-            // the token end: '>' (with '/' before it marking self-closing),
-            // honoring quoted attribute values
-            const char *scan = q;
-            bool in_quote = false;
-            while (scan < ps.end &&
-                   !(!in_quote && *scan == '>'))
-            {
-                if (*scan == '"')
-                {
-                    in_quote = !in_quote;
-                }
-                ++scan;
-            }
-            const bool self_closing =
-                (scan < ps.end) && (scan > q) && (scan[-1] == '/');
-            const char *attr_end = (scan < ps.end ? scan : ps.end);
-
-            if (closing)
-            {
-                if (!name.empty())
-                {
-                    // pop to the matching frame; unbalanced intermediates
-                    // are finalized along the way (tolerant)
-                    while (ps.frames.size() > 1 &&
-                           ps.frames.back().tag != name)
-                    {
-                        ps.finalize(ps.frames.back());
-                        ps.frames.pop_back();
-                    }
-                    if (ps.frames.size() > 1)
-                    {
-                        Frame &f = ps.frames.back();
-                        ps.finalize(f);
-                        ps.frames.pop_back();
-                    }
-                }
-                ps.p = std::min(ps.end, (scan < ps.end ? scan + 1 : ps.end));
-                continue;
-            }
-
-            if (name.empty())
-            {
-                ps.p = std::min(ps.end, (scan < ps.end ? scan + 1 : ps.end));
-                continue;  // a lone '<' or a malformed token: skip it
-            }
-
-            // decide the frame mode before creating anything (whitelist
-            // knowledge lives in the contract doc)
-            int mode = k_build;
-            if (is_structural(name) || name == "body")
-            {
-                mode = k_no_build;  // html/head never build
-            }
-            else if (name == "style")
-            {
-                mode = k_style;
-            }
-            else if (!is_whitelisted_tag(name))
-            {
-                const int innermost = ps.frames.back().mode;
-                if (innermost == k_no_build || innermost == k_skip)
-                {
-                    mode = k_skip;  // head boilerplate / dropped subtree: silent
-                }
-                else
-                {
-                    LW << "html: element <" << name
-                       << "> is not in the whitelist; skipped";
-                    mode = k_skip;
-                }
-            }
-
-            Elem *elem = nullptr;
-            bool pushed = false;
-            if (mode == k_build)
-            {
-                ps.open_elem(name, elem, pushed);
-            }
-            else if (name == "body" && !is_structural(name))
-            {
-                // body is the document container: its children land on the
-                // root, so a single top-level container still becomes the
-                // document root (the .ui convention)
-                mode = k_build;
-                elem = ps.root.get();
-                pushed = true;
-            }
-
-            if (elem != nullptr && mode == k_build)
-            {
-                // attributes (unknown ones are silently tolerated)
-                const char *attr_p = q;
-                while (attr_p < attr_end)
-                {
-                    while (attr_p < attr_end &&
-                           (*attr_p == ' ' || *attr_p == '\t' ||
-                            *attr_p == '\n' || *attr_p == '\r'))
-                    {
-                        ++attr_p;
-                    }
-                    if (attr_p >= attr_end)
-                    {
-                        break;
-                    }
-                    const char *ka = attr_p;
-                    while (attr_p < attr_end &&
-                           ((*attr_p >= 'a' && *attr_p <= 'z') ||
-                            (*attr_p >= 'A' && *attr_p <= 'Z') ||
-                            (*attr_p >= '0' && *attr_p <= '9') ||
-                            *attr_p == '-' || *attr_p == '_' || *attr_p == ':'))
-                    {
-                        ++attr_p;
-                    }
-                    std::string key(ka, attr_p);
-                    for (char &ch : key)
-                    {
-                        if (ch >= 'A' && ch <= 'Z')
-                        {
-                            ch = static_cast<char>(ch - 'A' + 'a');
-                        }
-                    }
-                    if (key.empty())
-                    {
-                        ++attr_p;  // junk: move on
-                        continue;
-                    }
-                    while (attr_p < attr_end &&
-                           (*attr_p == ' ' || *attr_p == '\t' || *attr_p == '\n' ||
-                            *attr_p == '\r'))
-                    {
-                        ++attr_p;
-                    }
-                    std::string value;
-                    if (attr_p < attr_end && *attr_p == '=')
-                    {
-                        ++attr_p;
-                        while (attr_p < attr_end && (*attr_p == ' ' || *attr_p == '\t'))
-                        {
-                            ++attr_p;
-                        }
-                        if (attr_p < attr_end && *attr_p == '"')
-                        {
-                            ++attr_p;
-                            const char *vb = attr_p;
-                            while (attr_p < attr_end && *attr_p != '"')
-                            {
-                                ++attr_p;
-                            }
-                            const char *ve = attr_p;
-                            if (attr_p < attr_end)
-                            {
-                                ++attr_p;  // the closing quote
-                            }
-                            append_decoded(vb, ve, value);
-                        }
-                        else
-                        {
-                            const char *vb = attr_p;
-                            while (attr_p < attr_end && *attr_p != ' ' &&
-                                   *attr_p != '\t' && *attr_p != '\n' &&
-                                   *attr_p != '\r')
-                            {
-                                ++attr_p;
-                            }
-                            append_decoded(vb, attr_p, value);
-                        }
-                    }
-                    else
-                    {
-                        value = key;  // valueless boolean attribute
-                    }
-                    elem->attrs.emplace_back(std::move(key), std::move(value));
-                }
-            }
-
-            if (self_closing)
-            {
-                // no frame is pushed for a self-closing tag
-                if (mode == k_build && !pushed)
-                {
-                    ps.frames.back().owned.reset();  // held temp: discard
-                }
-            }
-            else
-            {
-                ps.frames.push_back({std::move(name), mode, pushed, elem,
-                                     std::move(ps.frames.back().owned)});
-            }
-
-            ps.p = std::min(ps.end, (scan < ps.end ? scan + 1 : ps.end));
+            ps.feed(t);
         }
 
         // trailing text at EOF
