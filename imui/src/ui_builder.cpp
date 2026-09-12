@@ -243,10 +243,24 @@ namespace zb::ui
         // accepts "#rgb", "#rrggbb", the named subset, or "transparent";
         // malformed strings and "transparent" yield false (nothing set --
         // default background / theme text stays). Returns false also for
-        // an empty string (absent prop).
+        // an empty string (absent prop). B4: names and "transparent" are
+        // ASCII case-insensitive (HTML semantics; hex digits already were);
+        // shared with the HTML front-end, so the .ui path gains it too.
         bool parse_color(const std::string &s, core::Color &out)
         {
-            if (s.empty() || s == "transparent")
+            if (s.empty())
+            {
+                return false;
+            }
+            std::string name = s;
+            for (char &c : name)
+            {
+                if (c >= 'A' && c <= 'Z')
+                {
+                    c = static_cast<char>(c - 'A' + 'a');
+                }
+            }
+            if (name == "transparent")
             {
                 return false;
             }
@@ -299,39 +313,39 @@ namespace zb::ui
                 }
                 return false;
             }
-            if (s == "black")
+            if (name == "black")
             {
                 out = core::colors::Black;
             }
-            else if (s == "white")
+            else if (name == "white")
             {
                 out = core::colors::White;
             }
-            else if (s == "red")
+            else if (name == "red")
             {
                 out = core::colors::Red;
             }
-            else if (s == "green")
+            else if (name == "green")
             {
                 out = core::colors::Green;
             }
-            else if (s == "blue")
+            else if (name == "blue")
             {
                 out = core::colors::Blue;
             }
-            else if (s == "yellow")
+            else if (name == "yellow")
             {
                 out = core::Color::from(255, 255, 0);
             }
-            else if (s == "gray" || s == "grey")
+            else if (name == "gray" || name == "grey")
             {
                 out = core::Color::from(128, 128, 128);
             }
-            else if (s == "cyan")
+            else if (name == "cyan")
             {
                 out = core::Color::from(0, 255, 255);
             }
-            else if (s == "magenta")
+            else if (name == "magenta")
             {
                 out = core::Color::from(255, 0, 255);
             }

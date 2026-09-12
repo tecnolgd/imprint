@@ -43,7 +43,10 @@ applies unchanged.
   the build host; otherwise a pseudo-root wraps the body's children and
   they materialize into the host one by one.
 - Element tags and attribute names are lower-cased (HTML is
-  case-insensitive); attribute values and `id` keep their case.
+  case-insensitive); attribute values and `id` keep their case. CSS
+  keyword values (`display` / `flex-direction` / `flex-wrap` / `auto` /
+  units) and color names are ASCII case-insensitive; `id` selectors stay
+  case-sensitive.
 - Text content: the trimmed concatenation of an element's text children
   (whitespace-only text nodes are dropped). Bare text inside a container
   becomes an anonymous `label` (a container's text must go somewhere).

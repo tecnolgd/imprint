@@ -409,30 +409,47 @@ namespace zb::ui
             return parse_int_value(s, v) ? v : fallback;
         }
 
+        // B4: CSS keyword values are ASCII case-insensitive (HTML
+        // semantics); ids and all other values keep their case
+        std::string ascii_lower(std::string s)
+        {
+            for (char &c : s)
+            {
+                if (c >= 'A' && c <= 'Z')
+                {
+                    c = static_cast<char>(c - 'A' + 'a');
+                }
+            }
+            return s;
+        }
+
         // a CSS length: px -> pixels, % -> percent (1..100), "auto"/malformed
-        // -> the axis stays measured (tolerance: silently not set)
+        // -> the axis stays measured (tolerance: silently not set).
+        // B4: units and "auto" are ASCII case-insensitive (digits and %
+        // are unaffected by the fold)
         void apply_length(ui_node &n, const std::string &prop,
                           const std::string &val)
         {
-            if (val == "auto")
+            const std::string v = ascii_lower(val);
+            if (v == "auto")
             {
                 return;
             }
-            if (val.size() >= 2 && val.back() == 'x' &&
-                val[val.size() - 2] == 'p')
+            if (v.size() >= 2 && v.back() == 'x' &&
+                v[v.size() - 2] == 'p')
             {
                 const long long px =
-                    parse_int(val.substr(0, val.size() - 2), -1);
+                    parse_int(v.substr(0, v.size() - 2), -1);
                 if (px >= 0)
                 {
                     n.prop(prop, px);
                 }
                 return;
             }
-            if (!val.empty() && val.back() == '%')
+            if (!v.empty() && v.back() == '%')
             {
                 const long long pct =
-                    parse_int(val.substr(0, val.size() - 1), -1);
+                    parse_int(v.substr(0, v.size() - 1), -1);
                 if (pct >= 1 && pct <= 100)
                 {
                     n.prop(prop, std::to_string(pct) + "%");
@@ -450,7 +467,7 @@ namespace zb::ui
             {
                 if (const std::string *dir = fold_lookup(folded, "flex-direction"))
                 {
-                    if (*dir == "row")
+                    if (ascii_lower(*dir) == "row")
                     {
                         return "row";
                     }
@@ -534,7 +551,7 @@ namespace zb::ui
             // the CSS subset (known properties from the whitelist)
             if (const std::string *d = fold_lookup(folded, "display"))
             {
-                if (*d == "none")
+                if (ascii_lower(*d) == "none")
                 {
                     n.prop("visible", false);
                 }
@@ -576,7 +593,7 @@ namespace zb::ui
                 }
                 if (const std::string *wv = fold_lookup(folded, "flex-wrap"))
                 {
-                    if (*wv == "wrap")
+                    if (ascii_lower(*wv) == "wrap")
                     {
                         n.prop("wrap", true);
                     }

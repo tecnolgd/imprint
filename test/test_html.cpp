@@ -177,6 +177,71 @@ int test_html()
         EXPECT(test::vget<bool>(node_prop_v(r2, "visible")) == false);
     }
 
+    // B4: CSS keyword values are ASCII case-insensitive; ids are not
+    {
+        ui_node r = parse_html(
+            "<div style=\"flex-direction: ROW; gap: 3; flex-wrap: WRAP\">\n"
+            "  <label>x</label>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(r.type == "row");
+        EXPECT(test::vget<bool>(node_prop_v(r, "wrap")) == true);
+
+        ui_node r2 = parse_html(
+            "<div style=\"display: NONE\"><label>x</label></div>\n", nullptr);
+        EXPECT(r2.type == "column");
+        EXPECT(test::vget<bool>(node_prop_v(r2, "visible")) == false);
+
+        ui_node r3 = parse_html(
+            "<label style=\"width: 120PX; height: AUTO\">w</label>\n", nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r3.children[0], "width")) == 120);
+        EXPECT(find_prop(r3.children[0], "height") < 0);
+    }
+
+    // B4 end-to-end: named colors resolve case-insensitively through the
+    // shared color parser (uppercase TRANSPARENT stays a no-op). Note:
+    // label text is element *content* in HTML, and size comes from the
+    // style (width=/height= are not element attributes).
+    {
+        ui_node root = parse_html(
+            "<label id=\"c\" style=\"width: 60px; height: 20px; color: RED; "
+            "background-color: BLUE\">Hi</label>\n"
+            "<label id=\"t\" style=\"width: 60px; height: 20px; "
+            "background-color: TRANSPARENT\">x</label>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(200, 60);
+        build(host, root);
+        host.layout();
+        auto *c = static_cast<Label *>(host.find_by_id("c"));
+        auto *t = static_cast<Label *>(host.find_by_id("t"));
+        EXPECT(c != nullptr && t != nullptr);
+        EXPECT(c->has_background());
+        EXPECT(!t->has_background());
+
+        core::Graphics g(200, 60, nullptr);
+        host.draw(g);
+        const auto cp = c->get_position();
+        const auto cs = c->get_size();
+        // background face sampled away from the top-left 5x7 text
+        EXPECT(test::pixel_at(g, cp.x + cs.width - 1, cp.y + cs.height - 1) ==
+               core::Color::from(0, 0, 255).pixel);  // BLUE face
+        bool saw_red = false;  // RED text somewhere in the box
+        for (int y = 0; y < cs.height && !saw_red; ++y)
+        {
+            for (int x = 0; x < cs.width; ++x)
+            {
+                if (test::pixel_at(g, cp.x + x, cp.y + y) ==
+                    core::Color::from(255, 0, 0).pixel)
+                {
+                    saw_red = true;
+                    break;
+                }
+            }
+        }
+        EXPECT(saw_red);
+    }
+
     // lengths: px and percent; bad values silently unset
     {
         ui_node r = parse_html(
