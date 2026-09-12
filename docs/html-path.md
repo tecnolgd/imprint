@@ -75,6 +75,9 @@ applies unchanged.
   an LW warning.
 - Multi-document hosts size the window from the first usable document;
   each screen resolves its own page against the window box.
+- A single top-level container's own `width`/`background` still do not
+  apply to the build host (only spacing/padding/wrap do) — the page box
+  above is the only channel for document-level size/background.
 
 ## Tolerance (how an off-whitelist construct is handled)
 
@@ -85,6 +88,7 @@ applies unchanged.
 | Attribute not in the whitelist | silently tolerated; `class=` is accepted but inert (no selector support until H-5) |
 | Style declaration not in the whitelist | **LW warning + ignored** (the element keeps its default presentation) |
 | Malformed value (bad color, bad number, bad percent) | silently defaulted (the shared property table's tolerance) |
+| Stray/mismatched closing tag | closes open ancestors up to the match (unbalanced intermediates are finalized along the way); ignored when no open frame matches. HTML5 would ignore the stray tag instead — tolerated deviation, silent |
 
 ## Whitelist — elements
 
@@ -117,7 +121,7 @@ applies unchanged.
 
 | Property | Values | Mapping |
 |---|---|---|
-| `display` | `flex`, `block`, `none` | `none` → `visible=false`; otherwise the element is a flex container (block ≡ flex) |
+| `display` | `flex`, `block`, `none` | `none` → `visible=false`; any other value leaves the element's table type unchanged (`block` ≡ `flex` for `div`, which is always a content-measuring flex container) |
 | `flex-direction` | `row`, `column` | container type of a `div` |
 | `width` / `height` | `Npx`, `N%` (1..100), `auto` | `Npx` → existing pixel size; `N%` → the `"N%"` percent form (FlexPanel parent content box); `auto` → absent (measured) |
 | `flex` | `N` (integer) | `flex_grow` |
