@@ -495,6 +495,31 @@ int test_html()
         EXPECT(test::vget<long long>(node_prop_v(r2, "spacing")) == 6);
     }
 
+    // C7: a styled br height stands alone (no shadowed duplicate);
+    // a lone sign is malformed, not zero
+    {
+        ui_node r = parse_html(
+            "<div><br style=\"height: 50px\"></div>\n", nullptr);
+        EXPECT(r.children.size() == 1);
+        int heights = 0;
+        for (const auto &p : r.children[0].props)
+        {
+            if (p.first == "height")
+            {
+                ++heights;
+            }
+        }
+        EXPECT(heights == 1);
+        EXPECT(test::vget<long long>(
+                   node_prop_v(r.children[0], "height")) == 50);
+
+        ui_node r2 = parse_html(
+            "<div style=\"gap: -\"><meter value=\"-\">x</meter></div>\n",
+            nullptr);
+        EXPECT(find_prop(r2, "spacing") < 0);
+        EXPECT(find_prop(r2.children[0], "value") < 0);
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);

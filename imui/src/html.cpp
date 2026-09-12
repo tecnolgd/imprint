@@ -784,6 +784,10 @@ namespace zb::ui
                 neg = true;
                 ++i;
             }
+            if (i >= s.size())
+            {
+                return false;  // a lone sign is malformed, not zero
+            }
             long long v = 0;
             for (; i < s.size(); ++i)
             {
@@ -833,14 +837,16 @@ namespace zb::ui
         // a CSS length: px -> pixels, % -> percent (1..100), "auto"/malformed
         // -> the axis stays measured (tolerance: silently not set).
         // B4: units and "auto" are ASCII case-insensitive (digits and %
-        // are unaffected by the fold)
-        void apply_length(ui_node &n, const std::string &prop,
+        // are unaffected by the fold). Returns whether a prop was stored
+        // (C7: lets br keep an explicit style height instead of appending
+        // a shadowed duplicate).
+        bool apply_length(ui_node &n, const std::string &prop,
                           const std::string &val)
         {
             const std::string v = ascii_lower(val);
             if (v == "auto")
             {
-                return;
+                return false;
             }
             if (v.size() >= 2 && v.back() == 'x' &&
                 v[v.size() - 2] == 'p')
@@ -850,8 +856,9 @@ namespace zb::ui
                 if (px >= 0)
                 {
                     n.prop(prop, px);
+                    return true;
                 }
-                return;
+                return false;
             }
             if (!v.empty() && v.back() == '%')
             {
@@ -860,8 +867,10 @@ namespace zb::ui
                 if (pct >= 1 && pct <= 100)
                 {
                     n.prop(prop, std::to_string(pct) + "%");
+                    return true;
                 }
             }
+            return false;
         }
 
         // -------------------------------------------------------------------
@@ -967,9 +976,12 @@ namespace zb::ui
             {
                 apply_length(n, "width", *w);
             }
+            // C7: a styled br height wins on its own; the spacer default
+            // below only fills an absent axis (no shadowed duplicate)
+            bool styled_height = false;
             if (const std::string *h = fold_lookup(folded, "height"))
             {
-                apply_length(n, "height", *h);
+                styled_height = apply_length(n, "height", *h);
             }
             if (const std::string *fx = fold_lookup(folded, "flex"))
             {
@@ -1025,7 +1037,7 @@ namespace zb::ui
                 }
             }
 
-            if (e.tag == "br")
+            if (e.tag == "br" && !styled_height)
             {
                 // a blank-line spacer: an empty label one text line tall
                 n.prop("height", 7LL);
