@@ -801,16 +801,20 @@ obligations:
   an early exit). `draw_image` (plain and tinted), `fill_gradient` and
   the round-rect pair all plot per-pixel through `draw_pixel`/`draw_line`
   and inherit the same clipping; the AA primitives (`draw_line_aa` /
-  `draw_circle_aa` / `draw_arc_aa`) write through `plot_aa` — the same
-  offset/bounds/damage gate, then a coverage-weighted source-over blend
-  that runs regardless of the `alpha_enabled` switch. Direct drawing
+  `draw_circle_aa` / `draw_arc_aa` / `fill_circle_aa` /
+  `fill_round_rect_aa` / `draw_round_rect_aa`) write through `plot_aa`
+  — the same offset/bounds/damage gate, then a coverage-weighted
+  source-over blend that runs regardless of the `alpha_enabled` switch. Direct drawing
   without `clip_safe` is therefore also safe in damage mode
   (`test_raster_damage` pins this).
 - **Render modes (S-1)**: `Graphics::render_mode::{full,wireframe,
   sketch}` (`set_render_mode`, default `full` = current behavior).
   `wireframe` turns the six shape fills (`fill_rect/circle/ellipse/
   triangle/gradient/round_rect`) into their 1px outlines (gradient uses
-  its `from` color); strokes, AA strokes, text, images, damage regions,
+  its `from` color); the AA fills (`fill_circle_aa` /
+  `fill_round_rect_aa`) degrade to their AA outlines (`draw_circle_aa` /
+  `draw_round_rect_aa` instead of the aliased ones, so the bones stay
+  smooth); strokes, AA strokes, text, images, damage regions,
   and hit-testing are unchanged. `fill()` is the mode-immune clear
   primitive (window clear, dialog mask); widget and pressed backgrounds
   go through `fill_rect` so they degrade. `sketch` is reserved and

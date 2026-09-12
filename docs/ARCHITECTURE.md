@@ -272,9 +272,12 @@ satisfies. Changing any of these is an architecture change.
 - `Graphics` can wrap an external writable buffer (wrapper mode) — the
   shape used by hosts that supply the framebuffer (WASM, Python,
   `CanvasWindow::create(w, h, buffer)`).
-- **AA raster primitives (V-1, V-5 arc).** `draw_line_aa` (Wu
-  two-pixel split), `draw_circle_aa` (exact-chord coverage) and
-  `draw_arc_aa` (sampled polyline) write exclusively through the private
+- **AA raster primitives (V-1, V-5 arc, AA fills).** `draw_line_aa` (Wu
+  two-pixel split), `draw_circle_aa` (exact-chord coverage),
+  `draw_arc_aa` (sampled polyline), `fill_circle_aa` (chord spans with
+  fractional edge pixels) and the round-rect pair (`fill_round_rect_aa`
+  / `draw_round_rect_aa`, straight AA edges plus quarter-arc corners)
+  write exclusively through the private
   `plot_aa` — the coverage value IS the blend weight, applied regardless
   of the `alpha_enabled` switch; at 16bpp coverage quantizes to
   plot/skip at half and the stroke stays one pixel wide. Angular work
