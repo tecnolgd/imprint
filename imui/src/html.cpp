@@ -28,7 +28,7 @@ namespace zb::ui
         bool is_whitelisted_tag(const std::string &t)
         {
             return t == "div" || t == "p" || t == "span" || t == "label" ||
-                   t == "button" || t == "checkbox" || t == "radio" ||
+                   t == "small" || t == "button" || t == "checkbox" || t == "radio" ||
                    t == "br" || t == "toggle" || t == "gauge" ||
                    t == "knob" || t == "trend" || t == "meter";
         }
@@ -890,7 +890,8 @@ namespace zb::ui
                 }
                 return "column";
             }
-            if (e.tag == "p" || e.tag == "span" || e.tag == "label")
+            if (e.tag == "p" || e.tag == "span" || e.tag == "label" ||
+                e.tag == "small")
             {
                 return "label";
             }

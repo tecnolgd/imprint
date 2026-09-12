@@ -115,7 +115,7 @@ applies unchanged.
 | Element | `ui_node` tag | Notes |
 |---|---|---|
 | `div` | `column` / `row` | default `column` (block reading order); `flex-direction: row` → `row`. `display: block` and `display: flex` are equivalent — the div is a content-measuring flex container, **not** HTML block layout; it never stretches to fill a parent's main axis. `flex:` markup drives fill |
-| `p`, `span`, `label` | `label` | single-line labels; no wrapping until H-1 |
+| `p`, `span`, `label`, `small` | `label` | single-line labels; no wrapping until H-1 (`small` keeps no size distinction — `font-size` has no widget seam yet) |
 | `button` | `button` | `text` = element text content |
 | `checkbox` | `checkbox` | `text` = content; `checked` = **attribute presence** (HTML semantics) |
 | `radio` | `radio` | `text` = content; `checked` = presence; `group` |

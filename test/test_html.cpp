@@ -391,6 +391,22 @@ int test_html()
         EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "abc");
     }
 
+    // small is an inline label (no size distinction until a font-size
+    // seam exists): it merges like span, and the model500 subtitle
+    // pattern keeps its text instead of dropping it
+    {
+        ui_node r = parse_html("<label>a<small>b</small>c</label>\n", nullptr);
+        EXPECT(r.children.size() == 1);
+        EXPECT(r.children[0].type == "label");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "text")) == "abc");
+        ui_node r2 = parse_html(
+            "<div>IMPRINT<small>MODEL 500</small></div>\n", nullptr);
+        EXPECT(r2.type == "column");
+        EXPECT(r2.children.size() == 2);
+        EXPECT(r2.children[1].type == "label");
+        EXPECT(test::vget<std::string>(node_prop_v(r2.children[1], "text")) == "MODEL 500");
+    }
+
     // B1: br inside a leaf warns (no line breaking until H-1) and
     // degrades to a word space in the single-line label; edges trim
     // clean and runs collapse
