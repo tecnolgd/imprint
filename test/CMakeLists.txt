@@ -40,6 +40,7 @@ add_executable(
     test_measure.cpp
     test_ui_file.cpp
     test_html.cpp
+    test_preview.cpp
     test_widget_size.cpp
     test_remove.cpp
     test_layout_dirty.cpp
@@ -66,6 +67,7 @@ target_link_libraries(
     imutil
     tictactoe_app
     showcase_app
+    ui_preview_app
     shell_common
 )
 

@@ -6,6 +6,7 @@
 #include "dispatcher.hpp"
 #include "flex_panel.hpp"
 #include "gauge_dial.hpp"
+#include "html.hpp"
 #include "knob.hpp"
 #include "label.hpp"
 #include "panel.hpp"

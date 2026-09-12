@@ -11,7 +11,15 @@
 namespace zb::app::ui_preview
 {
     /*
-     * Design-file previewer: renders .ui documents (space-separated
+     * document-kind routing (batch H / D5): a ".html"/".htm" path runs
+     * the HTML/CSS subset front-end, everything else the .ui
+     * design-file front-end. A free function (not a method) so the
+     * routing matrix is unit-testable without a window (test_preview).
+     */
+    bool is_html_path(const std::string &path);
+
+    /*
+     * Design-file previewer: renders .ui/.html documents (space-separated
      * paths from the UI_PREVIEW_FILES environment variable) inside the
      * generic desktop shell. Right/Left switch documents, each parsed
      * with the library parser and materialized with build() — the same

@@ -10,6 +10,17 @@
 
 namespace zb::app::ui_preview
 {
+    bool is_html_path(const std::string &path)
+    {
+        if (path.size() >= 5 &&
+            path.compare(path.size() - 5, 5, ".html") == 0)
+        {
+            return true;
+        }
+        return path.size() >= 4 &&
+               path.compare(path.size() - 4, 4, ".htm") == 0;
+    }
+
     UiPreview::UiPreview()
     {
         const char *files = std::getenv("UI_PREVIEW_FILES");
@@ -74,18 +85,10 @@ namespace zb::app::ui_preview
             const std::string text = ss.str();
 
             bool ok = false;
-            // the preview consumer selects the parser by extension:
-            // .html/.htm run the HTML/CSS subset path, everything else the
-            // design-file path (batch H / D5)
-            const std::string &name = files_[i];
-            bool is_html =
-                name.size() >= 5 &&
-                name.compare(name.size() - 5, 5, ".html") == 0;
-            if (!is_html && name.size() >= 4 &&
-                name.compare(name.size() - 4, 4, ".htm") == 0)
-            {
-                is_html = true;
-            }
+            // the preview consumer selects the parser by extension (D5);
+            // the routing itself is test-locked, the parse result flows
+            // into the shared screen machinery below
+            const bool is_html = is_html_path(files_[i]);
             zb::ui::ui_node doc = is_html
                                       ? zb::ui::parse_html(text.c_str(), &ok)
                                       : zb::ui::parse_ui_text(text.c_str(), &ok);
