@@ -248,7 +248,12 @@ support "a little at a time" as the boundary demands):**
   - Phased internally: (a) static geometry subset — `rect`, `circle`,
     `ellipse`, `line`, `polyline`, `polygon` + `fill`/`stroke`/
     `stroke-width` + `viewBox` (~400 lines, maps to existing Graphics
-    primitives); (b) `path` (Bezier M/L/C/Q/A) + `transform`
+    primitives). **Landed first cut (2026-09-12, demo-driven, narrower
+    than planned): `SvgCanvas` with `viewBox` + `line`/`text` + `g`
+    folding only, 1px strokes, stretch mapping; HTML tags `svg` and
+    `vectordial` (alias, shared implementation). Remainder of (a)
+    (`rect`/`circle`/`ellipse`/`polyline`/`polygon`/`fill`/widths) and
+    all of (b) stay unscheduled;** (b) `path` (Bezier M/L/C/Q/A) + `transform`
     translate/rotate/scale (~600 lines, needs new Bezier rasterization
     primitive); (c) out-of-scope: filters, gradient defs, clipPath,
     symbol/use, animation.
