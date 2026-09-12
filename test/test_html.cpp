@@ -202,6 +202,50 @@ int test_html()
         EXPECT(test::vget<long long>(node_prop_v(r.children[0], "value")) == 50);
     }
 
+    // B3: full integer grammar for range/value/group (negatives reach
+    // the widgets, which clamp); step stays non-negative; malformed
+    // values are still dropped
+    {
+        ui_node r = parse_html(
+            "<meter id=\"m\" min=\"-5\" max=\"5\" value=\"-3\"></meter>\n"
+            "<meter id=\"o\" min=\"0\" max=\"100\" value=\"150\"></meter>\n"
+            "<radio id=\"g\" group=\"-2\">r</radio>\n"
+            "<knob id=\"k\" step=\"-2\" min=\"0\" max=\"10\" value=\"3\"></knob>\n"
+            "<meter id=\"bad\" value=\"abc\"></meter>\n",
+            nullptr);
+        EXPECT(r.children.size() == 5);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "min")) == -5);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "max")) == 5);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "value")) == -3);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[1], "value")) == 150);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[2], "group")) == -2);
+        EXPECT(find_prop(r.children[3], "step") < 0);  // negative step dropped
+        EXPECT(test::vget<long long>(node_prop_v(r.children[3], "value")) == 3);
+        EXPECT(find_prop(r.children[4], "value") < 0);  // malformed dropped
+    }
+
+    // B3 end-to-end: the widgets clamp what the parser passes through
+    {
+        ui_node root = parse_html(
+            "<meter id=\"p\" min=\"-5\" max=\"5\" value=\"10\"/>\n"
+            "<meter id=\"q\" min=\"10\" max=\"0\" value=\"3\"/>\n"
+            "<radio id=\"r\" group=\"-2\">x</radio>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(200, 60);
+        build(host, root);
+        host.layout();
+        auto *p = static_cast<ProgressBar *>(host.find_by_id("p"));
+        auto *q = static_cast<ProgressBar *>(host.find_by_id("q"));
+        auto *rb = static_cast<RadioButton *>(host.find_by_id("r"));
+        EXPECT(p != nullptr && q != nullptr && rb != nullptr);
+        EXPECT(p->get_min() == -5 && p->get_max() == 5);
+        EXPECT(p->get_value() == 5);  // clamped into range
+        EXPECT(q->get_min() == 10 && q->get_max() == 10);  // reversed collapses
+        EXPECT(q->get_value() == 10);
+        EXPECT(rb->get_group() == -2);
+    }
+
     // <html>/<head> never construct but <style> still collects; <title>
     // is silently ignored; attribute entities decode
     {

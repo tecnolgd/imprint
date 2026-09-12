@@ -85,9 +85,9 @@ applies unchanged.
 | `id` | any element | `find_by_id` handle (unquoted digits accepted, stored as decimal — the `.ui` rule) |
 | `style` | any element | inline declaration list, wins over every rule |
 | `class` | any element | accepted, inert (no selectors) |
-| `min` / `max` / `step` / `value` | gauge / knob / meter | the widget's range/value properties (integers, tolerant) |
+| `min` / `max` / `step` / `value` | gauge / knob / meter | range/value properties (full integers, negatives accepted; the widget clamps `value` into [`min`, `max`] and collapses a reversed range to a point; `step` stays a non-negative magnitude) |
 | `checked` | checkbox / radio / toggle | boolean, by presence |
-| `group` | radio | radio group id (integer) |
+| `group` | radio | radio group id (integer, any sign — equality-matched, never indexed) |
 
 ## Whitelist — CSS properties (inline `style=` and `<style>` rules)
 

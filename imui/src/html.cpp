@@ -370,11 +370,13 @@ namespace zb::ui
             return best;
         }
 
-        long long parse_int(const std::string &s, const long long fallback)
+        // validity-exact integer scan (B3): "-1" is a value, not a
+        // malformed marker. Same tolerant grammar as parse_int below.
+        bool parse_int_value(const std::string &s, long long &out)
         {
             if (s.empty())
             {
-                return fallback;
+                return false;
             }
             std::size_t i = 0;
             bool neg = false;
@@ -389,15 +391,22 @@ namespace zb::ui
                 const char c = s[i];
                 if (c < '0' || c > '9')
                 {
-                    return fallback;
+                    return false;
                 }
                 if (v > (9223372036854775807LL - (c - '0')) / 10)
                 {
-                    return fallback;
+                    return false;
                 }
                 v = v * 10 + (c - '0');
             }
-            return neg ? -v : v;
+            out = neg ? -v : v;
+            return true;
+        }
+
+        long long parse_int(const std::string &s, const long long fallback)
+        {
+            long long v = 0;
+            return parse_int_value(s, v) ? v : fallback;
         }
 
         // a CSS length: px -> pixels, % -> percent (1..100), "auto"/malformed
@@ -486,8 +495,10 @@ namespace zb::ui
                 }
                 else if (k == "group" && n.type == "radio")
                 {
-                    const long long g = parse_int(a.second, -1);
-                    if (g >= 0)
+                    // B3: a group id is equality-matched (never indexed),
+                    // so any sign is a valid id
+                    long long g = 0;
+                    if (parse_int_value(a.second, g))
                     {
                         n.prop("group", g);
                     }
@@ -497,8 +508,14 @@ namespace zb::ui
                          (n.type == "gauge" || n.type == "knob" ||
                           n.type == "progress_bar"))
                 {
-                    const long long v = parse_int(a.second, -1);
-                    if (v >= 0)
+                    // B3: the full integer grammar (negatives included)
+                    // reaches the widgets, which clamp value into
+                    // [min, max] and collapse a reversed range to a point
+                    // themselves (locked by their suites); step stays a
+                    // non-negative magnitude
+                    long long v = 0;
+                    if (parse_int_value(a.second, v) &&
+                        (k != "step" || v >= 0))
                     {
                         n.prop(k, v);
                     }
