@@ -156,6 +156,38 @@ int test_html()
         EXPECT(test::vget<long long>(node_prop_v(r2.children[0], "height")) == 20);
     }
 
+    // B5: !important lifts above every normal declaration; the bucket
+    // order still applies inside the important tier
+    {
+        ui_node r = parse_html(
+            "<style>\n"
+            "  label { color: red !important; background-color: #111111; }\n"
+            "  #h { color: green; }\n"
+            "</style>\n"
+            "<label id=\"h\" style=\"color: yellow\">A</label>\n"
+            "<label id=\"h\" style=\"color: yellow !IMPORTANT\">B</label>\n"
+            "<label>C</label>\n"
+            "<label style=\"border: 1px !important\">D</label>\n"
+            "<label style=\"color: blue ! important\">E</label>\n",
+            nullptr);
+        EXPECT(r.children.size() == 5);
+
+        const auto &a = r.children[0];  // important tag > normal inline + id
+        EXPECT(test::vget<std::string>(node_prop_v(a, "color")) == "red");
+        EXPECT(test::vget<std::string>(node_prop_v(a, "background")) == "#111111");
+
+        const auto &b = r.children[1];  // important inline > important tag
+        EXPECT(test::vget<std::string>(node_prop_v(b, "color")) == "yellow");
+
+        const auto &c = r.children[2];  // important tag applies plainly
+        EXPECT(test::vget<std::string>(node_prop_v(c, "color")) == "red");
+
+        const auto &d = r.children[3];  // unknown stays ignored, flag or not
+        EXPECT(find_prop(d, "border") < 0);
+
+        const auto &e = r.children[4];  // spaced marker tolerated
+        EXPECT(test::vget<std::string>(node_prop_v(e, "color")) == "blue");
+    }
     // container props and flex direction; display:none hides a column
     {
         ui_node r = parse_html(

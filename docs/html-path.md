@@ -116,6 +116,11 @@ applies unchanged.
   bucket in document order (the last matching declaration wins). No
   cascade, no inheritance, no specificity — a child never inherits a
   parent's `color`.
+- `!important` (ASCII case-insensitive, whitespace tolerated:
+  `color: red !important`) lifts a declaration above every normal one;
+  among important declarations the same bucket order (inline > `#id` >
+  tag, document order, last wins) applies. Unknown properties stay
+  ignored (with the LW warning) even when marked important.
 
 ## Deliberate deviations from HTML
 

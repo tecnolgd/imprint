@@ -157,6 +157,7 @@ namespace zb::ui
         {
             std::string prop;
             std::string value;
+            bool important = false;  // B5: trailing "!important" tier
         };
         struct Rule
         {
@@ -165,6 +166,36 @@ namespace zb::ui
             std::vector<Decl> decls;
         };
         using Rules = std::vector<Rule>;
+
+        // B5: a trailing "!important" (ASCII case-insensitive,
+        // whitespace tolerated around it) lifts the declaration into the
+        // important tier instead of the value. "red!" or "a!b" are not
+        // markers -- the value keeps them and fails parsing as usual.
+        bool take_important(std::string &val)
+        {
+            const std::size_t bang = val.find_last_of('!');
+            if (bang == std::string::npos)
+            {
+                return false;
+            }
+            std::string rest = val.substr(bang + 1);
+            rest.erase(0, rest.find_first_not_of(" \t\n\r"));
+            rest.erase(rest.find_last_not_of(" \t\n\r") + 1);
+            for (char &c : rest)
+            {
+                if (c >= 'A' && c <= 'Z')
+                {
+                    c = static_cast<char>(c - 'A' + 'a');
+                }
+            }
+            if (rest != "important")
+            {
+                return false;
+            }
+            val.erase(bang);
+            val.erase(val.find_last_not_of(" \t\n\r") + 1);
+            return true;
+        }
 
         // an inline `style="..."` value parses exactly like a rule body
         void parse_declarations(const char *begin, const char *end,
@@ -217,7 +248,12 @@ namespace zb::ui
                 }
                 if (!prop.empty())
                 {
-                    out.push_back({std::move(prop), std::move(val)});
+                    bool important = false;
+                    if (!val.empty())
+                    {
+                        important = take_important(val);
+                    }
+                    out.push_back({std::move(prop), std::move(val), important});
                 }
             }
         }
@@ -355,19 +391,27 @@ namespace zb::ui
             }
         }
 
-        // the last occurrence of a property in the ordered decl list wins
+        // the last occurrence of a property in the ordered decl list wins,
+        // with the B5 tier rule: the last !important match beats every
+        // normal one; inside a tier the buckets keep tag -> #id -> inline
+        // document order (no cascade, no specificity)
         const std::string *fold_lookup(const std::vector<Decl> &folded,
                                        const std::string &prop)
         {
             const std::string *best = nullptr;
+            const std::string *best_important = nullptr;
             for (const Decl &d : folded)
             {
                 if (d.prop == prop)
                 {
                     best = &d.value;
+                    if (d.important)
+                    {
+                        best_important = &d.value;
+                    }
                 }
             }
-            return best;
+            return (best_important != nullptr) ? best_important : best;
         }
 
         // validity-exact integer scan (B3): "-1" is a value, not a
