@@ -520,6 +520,81 @@ int test_html()
         EXPECT(find_prop(r2.children[0], "value") < 0);
     }
 
+    // D: contracted mappings the suite never pinned -- radio / toggle /
+    // gauge / knob / trend element tags and their whitelisted attrs
+    {
+        ui_node r = parse_html(
+            "<radio id=\"a\" group=\"3\" checked>pick</radio>\n"
+            "<toggle id=\"b\" checked=\"yes\"></toggle>\n"
+            "<gauge id=\"c\" min=\"-10\" max=\"40\" value=\"20\"></gauge>\n"
+            "<knob id=\"d\" min=\"0\" max=\"10\" step=\"2\" value=\"4\"></knob>\n"
+            "<trend id=\"e\" style=\"width: 100px; height: 30px\"></trend>\n",
+            nullptr);
+        EXPECT(r.type == "root");
+        EXPECT(r.children.size() == 5);
+
+        const auto &radio = r.children[0];
+        EXPECT(radio.type == "radio" && radio.id == "a");
+        EXPECT(test::vget<long long>(node_prop_v(radio, "group")) == 3);
+        EXPECT(test::vget<bool>(node_prop_v(radio, "checked")) == true);
+        EXPECT(test::vget<std::string>(node_prop_v(radio, "text")) == "pick");
+
+        const auto &tog = r.children[1];
+        EXPECT(tog.type == "toggle" && tog.id == "b");
+        EXPECT(test::vget<bool>(node_prop_v(tog, "checked")) == true);
+
+        const auto &gg = r.children[2];
+        EXPECT(gg.type == "gauge" && gg.id == "c");
+        EXPECT(test::vget<long long>(node_prop_v(gg, "min")) == -10);
+        EXPECT(test::vget<long long>(node_prop_v(gg, "max")) == 40);
+        EXPECT(test::vget<long long>(node_prop_v(gg, "value")) == 20);
+
+        const auto &kn = r.children[3];
+        EXPECT(kn.type == "knob" && kn.id == "d");
+        EXPECT(test::vget<long long>(node_prop_v(kn, "step")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(kn, "value")) == 4);
+
+        const auto &tr = r.children[4];
+        EXPECT(tr.type == "trend" && tr.id == "e");
+        EXPECT(test::vget<long long>(node_prop_v(tr, "width")) == 100);
+        EXPECT(test::vget<long long>(node_prop_v(tr, "height")) == 30);
+    }
+
+    // D: contracted minutiae -- unquoted numeric ids, ignored font-size,
+    // display/flex-direction no-ops, stacked style blocks incl. body ones
+    {
+        ui_node r = parse_html("<div id=7><label>x</label></div>\n", nullptr);
+        EXPECT(r.type == "column");
+        EXPECT(r.id == "7");
+
+        ui_node r2 = parse_html(
+            "<label style=\"font-size: 20px\">hi</label>\n", nullptr);
+        EXPECT(find_prop(r2.children[0], "font-size") < 0);  // parsed, ignored
+        EXPECT(test::vget<std::string>(
+                   node_prop_v(r2.children[0], "text")) == "hi");
+
+        ui_node r3 = parse_html(
+            "<div style=\"display: block\"><label>x</label></div>\n"
+            "<div style=\"display: flex; flex-direction: column\">"
+            "<label>y</label></div>\n"
+            "<label style=\"display: block\">z</label>\n",
+            nullptr);
+        EXPECT(r3.children[0].type == "column");
+        EXPECT(r3.children[1].type == "column");
+        EXPECT(r3.children[2].type == "label");  // display keeps table type
+
+        ui_node r4 = parse_html(
+            "<head><style>label { color: red; }</style></head>\n"
+            "<body>\n"
+            "  <style>label { color: green; }</style>\n"
+            "  <label>w</label>\n"
+            "</body>\n",
+            nullptr);
+        EXPECT(r4.children.size() == 1);
+        EXPECT(test::vget<std::string>(
+                   node_prop_v(r4.children[0], "color")) == "green");
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);
