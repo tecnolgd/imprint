@@ -432,6 +432,12 @@ namespace zb::ui
          */
         void draw_text_at(core::Graphics &area, const char16_t *data, const int len,
                           const int x, const int y) const;
+        /*
+         * draw_text_at with an explicit color (svg <text fill>): the
+         * five-argument form above delegates with effective_text_color().
+         */
+        void draw_text_at(core::Graphics &area, const char16_t *data, const int len,
+                          const int x, const int y, const core::Color &color) const;
 
         /*
          * Returns the primary glyph provider: the custom provider set via

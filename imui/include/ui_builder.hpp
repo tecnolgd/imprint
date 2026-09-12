@@ -195,6 +195,35 @@ namespace zb::ui
         n.type = "trend";
         return n;
     }
+    // vector-dial subset (the HTML svg/vectordial front-end builds these;
+    // children are svg_line/svg_text nodes consumed at materialize time)
+    inline ui_node svg()
+    {
+        ui_node n;
+        n.type = "svg";
+        return n;
+    }
+    inline ui_node svg_line(const long long x1, const long long y1,
+                            const long long x2, const long long y2,
+                            std::string stroke = {}, const long long alpha = 255)
+    {
+        ui_node n;
+        n.type = "svg_line";
+        n.prop("x1", x1).prop("y1", y1).prop("x2", x2).prop("y2", y2);
+        n.prop("stroke", std::move(stroke)).prop("stroke_alpha", alpha);
+        return n;
+    }
+    inline ui_node svg_text(const long long x, const long long y,
+                            std::string text = {}, std::string fill = {},
+                            const long long anchor = 0)
+    {
+        ui_node n;
+        n.type = "svg_text";
+        n.prop("x", x).prop("y", y);
+        n.text(std::move(text)).prop("fill", std::move(fill));
+        n.prop("fill_alpha", 255LL).prop("anchor", anchor);
+        return n;
+    }
     inline ui_node list_box(std::vector<std::string> items, const long long rows = 4)
     {
         ui_node n;

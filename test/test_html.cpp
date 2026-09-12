@@ -716,5 +716,103 @@ int test_html()
         EXPECT(p->get_value() == 30);
     }
 
+    // svg vector-dial subset: viewBox, g inheritance, decimals, opacity
+    // product, text anchoring, and the vectordial alias
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body><div>\n"
+            "  <svg id=\"vu\" viewBox=\"0 0 100 50\" preserveAspectRatio=\"none\">\n"
+            "    <g stroke=\"#7f9cb0\" stroke-width=\"1\" opacity=\"0.7\">\n"
+            "      <line x1=\"6\" y1=\"38\" x2=\"12\" y2=\"35\"/>\n"
+            "      <line x1=\"50\" y1=\"44\" x2=\"38\" y2=\"20\" stroke=\"#dce7ee\""
+            " stroke-width=\"2.5\" opacity=\"0.35\"/>\n"
+            "    </g>\n"
+            "    <text x=\"50\" y=\"48\" fill=\"#dce7ee\" text-anchor=\"middle\">dB</text>\n"
+            "  </svg>\n"
+            "</div></body>\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(root.type == "column");
+        EXPECT(root.children.size() == 1);
+        const ui_node &s = root.children[0];
+        EXPECT(s.type == "svg");
+        EXPECT(s.id == "vu");
+        EXPECT(test::vget<long long>(node_prop_v(s, "vb_w")) == 100);
+        EXPECT(test::vget<long long>(node_prop_v(s, "vb_h")) == 50);
+        EXPECT(s.children.size() == 3);
+        EXPECT(s.children[0].type == "svg_line");
+        EXPECT(test::vget<long long>(node_prop_v(s.children[0], "x1")) == 6);
+        EXPECT(test::vget<std::string>(node_prop_v(s.children[0], "stroke")) == "#7f9cb0");
+        // inherited group opacity 0.7 -> alpha 179
+        EXPECT(test::vget<long long>(node_prop_v(s.children[0], "stroke_alpha")) == 179);
+        // own 0.35 times inherited 0.7 -> alpha 62
+        EXPECT(test::vget<std::string>(node_prop_v(s.children[1], "stroke")) == "#dce7ee");
+        EXPECT(test::vget<long long>(node_prop_v(s.children[1], "stroke_alpha")) == 62);
+        EXPECT(s.children[2].type == "svg_text");
+        EXPECT(test::vget<std::string>(node_prop_v(s.children[2], "text")) == "dB");
+        EXPECT(test::vget<long long>(node_prop_v(s.children[2], "anchor")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(s.children[2], "fill_alpha")) == 255);
+
+        // decimals round half away from zero (single container div
+        // keeps the svg one level down; a bare svg would stay wrapped
+        // in the pseudo-root)
+        ui_node r2 = parse_html(
+            "<div><svg viewBox=\"0 0 100 50\">"
+            "<line x1=\"2.5\" y1=\"-1.5\" x2=\"0\" y2=\"0\" stroke=\"red\"/></svg></div>\n",
+            nullptr);
+        EXPECT(r2.children[0].children.size() == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r2.children[0].children[0], "x1")) == 3);
+        EXPECT(test::vget<long long>(node_prop_v(r2.children[0].children[0], "y1")) == -2);
+
+        // vectordial is the same node type
+        ui_node r3 = parse_html("<vectordial viewBox=\"0 0 10 10\"></vectordial>\n", nullptr);
+        EXPECT(r3.children.size() == 1 && r3.children[0].type == "svg");
+
+        // malformed viewBox / missing stroke / zero width drop silently
+        ui_node r4 = parse_html(
+            "<div><svg viewBox=\"0 0 oops\">"
+            "<line x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"/></svg></div>\n",
+            nullptr);
+        EXPECT(find_prop(r4.children[0], "vb_w") < 0);
+        ui_node r5 = parse_html(
+            "<div><svg><line x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"/>"
+            "<line x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\" stroke=\"red\" stroke-width=\"0\"/></svg></div>\n",
+            nullptr);
+        EXPECT(r5.children[0].children.empty());
+
+        // line/text outside svg build nothing
+        bool ok6 = true;
+        ui_node r6 = parse_html("<line x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"/>\n", &ok6);
+        EXPECT(!ok6);
+        EXPECT(r6.children.empty());
+        bool ok7 = false;
+        ui_node r7 = parse_html("<label>x</label><line x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"/>\n", &ok7);
+        EXPECT(ok7);
+        EXPECT(r7.children.size() == 1 && r7.children[0].type == "label");
+    }
+
+    // end-to-end: an svg document materializes into a live SvgCanvas
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body><div>\n"
+            "  <svg id=\"vu\" viewBox=\"0 0 100 50\">\n"
+            "    <line x1=\"0\" y1=\"25\" x2=\"100\" y2=\"25\" stroke=\"white\"/>\n"
+            "    <text x=\"50\" y=\"48\" fill=\"white\" text-anchor=\"middle\">dB</text>\n"
+            "  </svg>\n"
+            "</div></body>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, root);
+        host.layout();
+        auto *v = static_cast<SvgCanvas *>(host.find_by_id("vu"));
+        EXPECT(v != nullptr);
+        EXPECT(v->lines().size() == 1 && v->texts().size() == 1);
+        EXPECT(v->view_w() == 100 && v->view_h() == 50);
+    }
+
     return test::report("html");
 }

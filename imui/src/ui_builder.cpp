@@ -12,6 +12,8 @@
 #include "progress_bar.hpp"
 #include "radio_button.hpp"
 #include "slider.hpp"
+#include "svg_canvas.hpp"
+#include "text/utf8.hpp"
 #include "text_input.hpp"
 #include "toggle_switch.hpp"
 #include "trend_line.hpp"
@@ -146,6 +148,10 @@ namespace zb::ui
             {
                 return std::make_unique<TrendLine>();
             }
+            if (t == "svg")
+            {
+                return std::make_unique<SvgCanvas>();
+            }
             if (t == "list_box")
             {
                 return std::make_unique<ListBox>();
@@ -197,6 +203,10 @@ namespace zb::ui
         TrendLine *as_trend(Widget &w)
         {
             return static_cast<TrendLine *>(&w);
+        }
+        SvgCanvas *as_svg(Widget &w)
+        {
+            return static_cast<SvgCanvas *>(&w);
         }
         ListBox *as_list(Widget &w)
         {
@@ -388,6 +398,65 @@ namespace zb::ui
                 k.set_value(static_cast<int>(prop_of(n, "value", 0LL)));
                 return;
             }
+            if (t == "svg")
+            {
+                // the vector-dial subset: viewBox props plus structured
+                // children (svg_line/svg_text) consumed here, never
+                // recursed (see materialize)
+                SvgCanvas &v = *as_svg(w);
+                v.set_view_box(static_cast<int>(prop_of(n, "vb_x", 0LL)),
+                               static_cast<int>(prop_of(n, "vb_y", 0LL)),
+                               static_cast<int>(prop_of(n, "vb_w", 0LL)),
+                               static_cast<int>(prop_of(n, "vb_h", 0LL)));
+                // the svg element's own opacity multiplies every child
+                // (the per-level product already folded at parse time)
+                const long long base_alpha = prop_of(n, "opacity", 255LL);
+                for (const ui_node &c : n.children)
+                {
+                    if (c.type == "svg_line")
+                    {
+                        core::Color stroke;
+                        if (!parse_color(prop_of(c, "stroke", std::string{}), stroke))
+                        {
+                            continue;  // SVG default: no stroke = invisible
+                        }
+                        const long long alpha =
+                            prop_of(c, "stroke_alpha", 255LL) * base_alpha / 255;
+                        stroke.set_a(static_cast<uint8_t>(alpha));
+                        SvgCanvas::Line l;
+                        l.x1 = static_cast<int>(prop_of(c, "x1", 0LL));
+                        l.y1 = static_cast<int>(prop_of(c, "y1", 0LL));
+                        l.x2 = static_cast<int>(prop_of(c, "x2", 0LL));
+                        l.y2 = static_cast<int>(prop_of(c, "y2", 0LL));
+                        l.color = stroke;
+                        v.add_line(l);
+                    }
+                    else if (c.type == "svg_text")
+                    {
+                        const std::string s = prop_of(c, "text", std::string{});
+                        if (s.empty())
+                        {
+                            continue;
+                        }
+                        SvgCanvas::Text t;
+                        t.text = utf8_to_utf16(s.c_str());
+                        t.x = static_cast<int>(prop_of(c, "x", 0LL));
+                        t.y = static_cast<int>(prop_of(c, "y", 0LL));
+                        core::Color fill;
+                        if (parse_color(prop_of(c, "fill", std::string{}), fill))
+                        {
+                            const long long alpha =
+                                prop_of(c, "fill_alpha", 255LL) * base_alpha / 255;
+                            fill.set_a(static_cast<uint8_t>(alpha));
+                            t.color = fill;
+                            t.has_color = true;
+                        }
+                        t.anchor = static_cast<int>(prop_of(c, "anchor", 0LL));
+                        v.add_text(t);
+                    }
+                }
+                return;
+            }
             if (t == "list_box")
             {
                 ListBox &l = *as_list(w);
@@ -438,6 +507,10 @@ namespace zb::ui
             // it to a container (no RTTI) and write through a bogus
             // pointer -- drop the children instead (contract: leaf
             // children are dropped with a warning)
+            if (n.type == "svg")
+            {
+                return;  // svg_line/svg_text already consumed above
+            }
             if (!n.children.empty() && !is_container_tag(n.type))
             {
                 LW << "ui_builder: '" << n.type

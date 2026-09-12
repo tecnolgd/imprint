@@ -57,6 +57,7 @@ add_executable(
     test_gauge_dial.cpp
     test_knob.cpp
     test_trend_line.cpp
+    test_svg.cpp
 )
 
 target_link_libraries(

@@ -21,6 +21,7 @@ add_library(
     src/gauge_dial.cpp
     src/knob.cpp
     src/trend_line.cpp
+    src/svg_canvas.cpp
 )
 
 target_include_directories(

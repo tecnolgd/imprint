@@ -268,6 +268,12 @@ namespace zb::ui
     void Widget::draw_text_at(core::Graphics &area, const char16_t *data, const int len,
                               const int x, const int y) const
     {
+        draw_text_at(area, data, len, x, y, effective_text_color());
+    }
+
+    void Widget::draw_text_at(core::Graphics &area, const char16_t *data, const int len,
+                              const int x, const int y, const core::Color &color) const
+    {
         const GlyphProvider *const primary = primary_provider();
         const GlyphProvider *const fallback = bitmap_fallback_.get();
 
@@ -296,7 +302,7 @@ namespace zb::ui
             }
             if (cur != nullptr)
             {
-                cur->write(area, data + i, j - i, x + pen, y, effective_text_color());
+                cur->write(area, data + i, j - i, x + pen, y, color);
                 pen += cur->measure(data + i, j - i).width;
             }
             i = j;

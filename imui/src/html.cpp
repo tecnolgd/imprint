@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -30,13 +31,27 @@ namespace zb::ui
             return t == "div" || t == "p" || t == "span" || t == "label" ||
                    t == "small" || t == "button" || t == "checkbox" || t == "radio" ||
                    t == "br" || t == "toggle" || t == "gauge" ||
-                   t == "knob" || t == "trend" || t == "meter";
+                   t == "knob" || t == "trend" || t == "meter" ||
+                   t == "svg" || t == "vectordial";
+            // NOTE: line/text/g are svg-context only (handled in
+            // handle_open while in_svg()); elsewhere they stay
+            // off-whitelist and skip with content dropped
         }
         // elements whose bare text becomes an anonymous label: the container
         // tags, and body (the document container)
         bool is_container_html(const std::string &t)
         {
             return t == "div" || t == "body";
+        }
+        // presentation attributes a transparent svg <g> folds onto its
+        // descendant line/text (nearest ancestor wins; the element's own
+        // attribute wins over all)
+        bool is_svg_inheritable(const std::string &a)
+        {
+            return a == "stroke" || a == "stroke-width" ||
+                   a == "stroke-linecap" || a == "opacity" ||
+                   a == "fill" || a == "font-size" ||
+                   a == "text-anchor";
         }
         bool is_known_css_prop(const std::string &p)
         {
@@ -903,7 +918,279 @@ namespace zb::ui
             {
                 return "progress_bar";
             }
+            if (e.tag == "svg" || e.tag == "vectordial")
+            {
+                return "svg";
+            }
             return e.tag;  // button/checkbox/radio/toggle/gauge/knob/trend
+        }
+
+        // SVG numbers: optional sign, digits, optional fraction; rounded
+        // half away from zero into a clamped int (SVG authors write 2.5)
+        bool parse_svg_num(const std::string &s, long long &out)
+        {
+            std::size_t i = 0;
+            while (i < s.size() && (s[i] == ' ' || s[i] == '\t'))
+            {
+                ++i;
+            }
+            bool neg = false;
+            if (i < s.size() && (s[i] == '+' || s[i] == '-'))
+            {
+                neg = s[i] == '-';
+                ++i;
+            }
+            int64_t ip = 0;
+            bool any = false;
+            while (i < s.size() && s[i] >= '0' && s[i] <= '9')
+            {
+                any = true;
+                ip = ip * 10 + (s[i] - '0');
+                if (ip > 1000000000LL)
+                {
+                    return false;
+                }
+                ++i;
+            }
+            int64_t fp = 0, scale = 1;
+            if (i < s.size() && s[i] == '.')
+            {
+                ++i;
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < 1000000000LL)
+                {
+                    fp = fp * 10 + (s[i] - '0');
+                    scale *= 10;
+                    ++i;
+                }
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9')
+                {
+                    ++i;  // beyond precision: kept for validation only
+                }
+                any = true;
+            }
+            while (i < s.size() && (s[i] == ' ' || s[i] == '\t'))
+            {
+                ++i;
+            }
+            if (!any || i != s.size())
+            {
+                return false;
+            }
+            int64_t v = ip + (fp * 2 >= scale ? 1 : 0);
+            out = neg ? -v : v;
+            return true;
+        }
+
+        // opacity 0..1 (SVG-clamped) into an alpha byte; malformed rides
+        // the tolerance default (fully opaque)
+        int parse_svg_alpha(const std::string &s)
+        {
+            std::size_t i = 0;
+            while (i < s.size() && (s[i] == ' ' || s[i] == '\t'))
+            {
+                ++i;
+            }
+            bool neg = false;
+            if (i < s.size() && (s[i] == '+' || s[i] == '-'))
+            {
+                neg = s[i] == '-';
+                ++i;
+            }
+            int64_t ip = 0;
+            bool any = false;
+            while (i < s.size() && s[i] >= '0' && s[i] <= '9')
+            {
+                any = true;
+                ip = ip * 10 + (s[i] - '0');
+                if (ip > 1)
+                {
+                    break;  // clamps to 1 below; stop accumulating
+                }
+                ++i;
+            }
+            int64_t fp = 0, scale = 1;
+            if (i < s.size() && s[i] == '.')
+            {
+                ++i;
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < 1000000000LL)
+                {
+                    fp = fp * 10 + (s[i] - '0');
+                    scale *= 10;
+                    ++i;
+                }
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9')
+                {
+                    ++i;
+                }
+                any = true;
+            }
+            while (i < s.size() && (s[i] == ' ' || s[i] == '\t'))
+            {
+                ++i;
+            }
+            if (!any || i != s.size())
+            {
+                return 255;
+            }
+            if (neg || (ip == 0 && fp == 0))
+            {
+                return 0;
+            }
+            if (ip >= 1)
+            {
+                return 255;
+            }
+            return static_cast<int>((fp * 255 + scale / 2) / scale);
+        }
+
+        // viewBox splitter: spaces, tabs, newlines and commas separate
+        bool split_view_box(const std::string &s, long long out[4])
+        {
+            long long v[4] = {0, 0, 0, 0};
+            int n = 0;
+            std::size_t i = 0;
+            while (i < s.size() && n < 4)
+            {
+                while (i < s.size() && (s[i] == ' ' || s[i] == '\t' ||
+                                        s[i] == '\n' || s[i] == '\r' ||
+                                        s[i] == ','))
+                {
+                    ++i;
+                }
+                if (i >= s.size())
+                {
+                    break;
+                }
+                std::size_t j = i;
+                while (j < s.size() && s[j] != ' ' && s[j] != '\t' &&
+                       s[j] != '\n' && s[j] != '\r' && s[j] != ',')
+                {
+                    ++j;
+                }
+                if (!parse_svg_num(s.substr(i, j - i), v[n]))
+                {
+                    return false;
+                }
+                ++n;
+                i = j;
+            }
+            while (i < s.size() && (s[i] == ' ' || s[i] == '\t' ||
+                                    s[i] == '\n' || s[i] == '\r' ||
+                                    s[i] == ','))
+            {
+                ++i;
+            }
+            if (n != 4 || i != s.size())
+            {
+                return false;
+            }
+            for (int k = 0; k < 4; ++k)
+            {
+                out[k] = v[k];
+            }
+            return true;
+        }
+
+        // one svg stroke child into the shared node form; silently dropped
+        // when its geometry is malformed (the shared tolerance)
+        void convert_svg_line(ui_node &n, const Elem &c)
+        {
+            long long x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+            bool geo = true;
+            for (const auto &a : c.attrs)
+            {
+                long long v = 0;
+                if (a.first == "x1" || a.first == "y1" ||
+                    a.first == "x2" || a.first == "y2")
+                {
+                    if (!parse_svg_num(a.second, v))
+                    {
+                        geo = false;
+                        break;
+                    }
+                    if (a.first == "x1") x1 = v;
+                    else if (a.first == "y1") y1 = v;
+                    else if (a.first == "x2") x2 = v;
+                    else y2 = v;
+                }
+            }
+            if (!geo)
+            {
+                return;
+            }
+            const std::string &stroke = c.attr("stroke");
+            if (stroke.empty())
+            {
+                return;  // SVG default: no stroke = invisible
+            }
+            long long width = 1;
+            bool has_width = false;
+            for (const auto &a : c.attrs)
+            {
+                if (a.first == "stroke-width")
+                {
+                    has_width = true;
+                    if (!parse_svg_num(a.second, width) || width <= 0)
+                    {
+                        return;  // width 0 = invisible; malformed = dropped
+                    }
+                }
+            }
+            (void)has_width;
+            ui_node l;
+            l.type = "svg_line";
+            l.prop("x1", x1).prop("y1", y1).prop("x2", x2).prop("y2", y2);
+            l.prop("stroke", stroke);
+            const std::string &op = c.attr("opacity");
+            l.prop("stroke_alpha", op.empty() ? 255LL
+                                              : static_cast<long long>(parse_svg_alpha(op)));
+            n.children.push_back(std::move(l));
+        }
+
+        void convert_svg_text(ui_node &n, const Elem &c)
+        {
+            if (c.text.empty())
+            {
+                return;
+            }
+            long long x = 0, y = 0;
+            for (const auto &a : c.attrs)
+            {
+                long long v = 0;
+                if (a.first == "x" || a.first == "y")
+                {
+                    if (!parse_svg_num(a.second, v))
+                    {
+                        return;
+                    }
+                    if (a.first == "x") x = v;
+                    else y = v;
+                }
+            }
+            ui_node t;
+            t.type = "svg_text";
+            t.prop("x", x).prop("y", y);
+            t.prop("text", c.text);
+            const std::string &fill = c.attr("fill");
+            if (!fill.empty())
+            {
+                t.prop("fill", fill);
+            }
+            const std::string &op = c.attr("opacity");
+            t.prop("fill_alpha", op.empty() ? 255LL
+                                            : static_cast<long long>(parse_svg_alpha(op)));
+            int anchor = 0;
+            const std::string an = ascii_lower(c.attr("text-anchor"));
+            if (an == "middle")
+            {
+                anchor = 1;
+            }
+            else if (an == "end")
+            {
+                anchor = 2;
+            }
+            t.prop("anchor", static_cast<long long>(anchor));
+            n.children.push_back(std::move(t));
         }
 
         ui_node convert_elem(const Elem &e, const Rules &rules)
@@ -1044,6 +1331,48 @@ namespace zb::ui
                 n.prop("height", 7LL);
             }
 
+            if (n.type == "svg")
+            {
+                // the vector-dial subset: viewBox mapping plus strokes;
+                // the generic child recursion below is skipped
+                // (svg_line/svg_text are consumed, not widgets)
+                long long vb[4] = {0, 0, 0, 0};
+                if (split_view_box(e.attr("viewbox"), vb))
+                {
+                    n.prop("vb_x", vb[0]).prop("vb_y", vb[1]);
+                    n.prop("vb_w", vb[2]).prop("vb_h", vb[3]);
+                }
+                const std::string par = ascii_lower(e.attr("preserveaspectratio"));
+                if (!par.empty() && par != "none")
+                {
+                    LW << "html: line " << e.line << ": preserveAspectRatio '"
+                       << e.attr("preserveaspectratio")
+                       << "' is not honored; the viewBox stretches like none";
+                }
+                const std::string &sop = e.attr("opacity");
+                if (!sop.empty())
+                {
+                    n.prop("opacity", static_cast<long long>(parse_svg_alpha(sop)));
+                }
+                for (const auto &c : e.children)
+                {
+                    if (c->tag == "line")
+                    {
+                        convert_svg_line(n, *c);
+                    }
+                    else if (c->tag == "text")
+                    {
+                        convert_svg_text(n, *c);
+                    }
+                    else
+                    {
+                        LW << "html: line " << c->line << ": <" << c->tag
+                           << "> inside svg is not in the subset and was ignored";
+                    }
+                }
+                return n;
+            }
+
             for (const auto &c : e.children)
             {
                 n.children.push_back(convert_elem(*c, rules));
@@ -1120,6 +1449,7 @@ namespace zb::ui
             k_no_build,   // html/head: children never construct
             k_skip,       // an off-whitelist subtree is dropped
             k_style,      // collecting <style> rule text
+            k_svg_group,  // transparent <g> marker inside svg (no Elem)
         };
 
         struct Frame
@@ -1139,10 +1469,46 @@ namespace zb::ui
             int text_line = 1;  // source line of the buffered text (B6)
             std::unique_ptr<Elem> root;  // the body/document container
             std::vector<Frame> frames;
+            // transparent <g> presentation maps inside svg, innermost last;
+            // each level already merges its ancestors (nearest wins by
+            // overwrite), so resolution reads the back only
+            std::vector<std::vector<std::pair<std::string, std::string>>> svg_stack;
 
             bool is_leaf(const Elem &e) const
             {
                 return !is_container_html(e.tag);
+            }
+
+            // true while any open frame is an svg canvas: line/text/g
+            // tokens then take the svg-context path
+            bool in_svg() const
+            {
+                for (const Frame &f : frames)
+                {
+                    if (f.tag == "svg" || f.tag == "vectordial")
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // nearest frame that can host a child Elem (skips transparent
+            // svg group markers); nullptr past a structural boundary
+            Frame *host_frame()
+            {
+                for (auto it = frames.rbegin(); it != frames.rend(); ++it)
+                {
+                    if (it->mode == k_build && it->elem != nullptr)
+                    {
+                        return &(*it);
+                    }
+                    if (it->mode == k_no_build || it->mode == k_skip)
+                    {
+                        return nullptr;
+                    }
+                }
+                return nullptr;
             }
 
             // opens a new element into the current context. Returns the elem
@@ -1152,23 +1518,29 @@ namespace zb::ui
             void open_elem(const std::string &tag, Elem *&out_elem,
                            bool &out_pushed, const int line)
             {
-                Frame &parent = frames.back();
-                if (parent.mode != k_build || parent.elem == nullptr)
+                // transparent svg group markers never host (the svg Elem
+                // below them does); past a structural boundary nothing hosts
+                Frame *host = host_frame();
+                if (host == nullptr)
                 {
                     out_elem = nullptr;
                     out_pushed = true;
                     return;
                 }
-                Elem *p = parent.elem;
+                Elem *p = host->elem;
                 auto e = std::make_unique<Elem>();
                 e->tag = tag;
                 e->line = line;
+                const bool svg_child = (tag == "line" || tag == "text") &&
+                    (p->tag == "svg" || p->tag == "vectordial");
                 if (is_leaf(*p))
                 {
                     // inline context: br is pushed (the materializer drops it
                     // with a warning); nested inline tags are merged into the
-                    // leaf at close
-                    if (tag == "br" || is_container_html(tag))
+                    // leaf at close; svg canvases and their strokes push so
+                    // an svg inside text still reaches the leaf-drop warning
+                    if (tag == "br" || is_container_html(tag) ||
+                        tag == "svg" || tag == "vectordial" || svg_child)
                     {
                         if (tag == "br")
                         {
@@ -1190,7 +1562,7 @@ namespace zb::ui
                     }
                     out_elem = e.get();
                     out_pushed = false;
-                    parent.owned = std::move(e);
+                    host->owned = std::move(e);
                     return;
                 }
                 p->children.push_back(std::move(e));
@@ -1234,7 +1606,7 @@ namespace zb::ui
                     }
                     break;
                 default:
-                    break;  // k_no_build / k_skip: drop
+                    break;  // k_no_build / k_skip / k_svg_group: drop
                 }
                 text_buf.clear();
             }
@@ -1268,17 +1640,25 @@ namespace zb::ui
             void close_to(const std::string &name)
             {
                 // pop to the matching frame; unbalanced intermediates
-                // are finalized along the way (tolerant)
-                while (frames.size() > 1 && frames.back().tag != name)
-                {
+                // are finalized along the way (tolerant). A popped svg
+                // group marker also pops its presentation map, keeping
+                // the stack in sync with the frames.
+                const auto pop_one = [this] {
+                    if (frames.back().mode == k_svg_group &&
+                        !svg_stack.empty())
+                    {
+                        svg_stack.pop_back();
+                    }
                     finalize(frames.back());
                     frames.pop_back();
+                };
+                while (frames.size() > 1 && frames.back().tag != name)
+                {
+                    pop_one();
                 }
                 if (frames.size() > 1)
                 {
-                    Frame &f = frames.back();
-                    finalize(f);
-                    frames.pop_back();
+                    pop_one();
                 }
                 // a closing tag without an open frame is ignored
             }
@@ -1297,6 +1677,43 @@ namespace zb::ui
                 {
                     mode = k_style;
                 }
+                else if (name == "g" && in_svg())
+                {
+                    // transparent group: no Elem, just a marker frame plus
+                    // a presentation map merging over the enclosing one
+                    mode = k_svg_group;
+                    std::vector<std::pair<std::string, std::string>> merged;
+                    if (!svg_stack.empty())
+                    {
+                        merged = svg_stack.back();
+                    }
+                    for (const auto &a : t.attrs)
+                    {
+                        if (!is_svg_inheritable(a.first))
+                        {
+                            continue;
+                        }
+                        bool found = false;
+                        for (auto &m : merged)
+                        {
+                            if (m.first == a.first)
+                            {
+                                m.second = a.second;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found)
+                        {
+                            merged.emplace_back(a.first, a.second);
+                        }
+                    }
+                    svg_stack.push_back(std::move(merged));
+                }
+                else if ((name == "line" || name == "text") && in_svg())
+                {
+                    mode = k_build;  // strokes of the canvas (attrs merged below)
+                }
                 else if (!is_whitelisted_tag(name))
                 {
                     const int innermost = frames.back().mode;
@@ -1314,12 +1731,85 @@ namespace zb::ui
 
                 Elem *elem = nullptr;
                 bool pushed = false;
+                // svg strokes resolve their presentation attributes against
+                // the enclosing <g> maps (own attribute wins); everything
+                // else keeps the token attributes verbatim
+                std::vector<std::pair<std::string, std::string>> resolved;
+                const std::vector<std::pair<std::string, std::string>> *attr_src = &t.attrs;
+                if (mode == k_build && (name == "line" || name == "text") && in_svg() &&
+                    !svg_stack.empty())
+                {
+                    resolved = t.attrs;
+                    for (const auto &m : svg_stack.back())
+                    {
+                        if (m.first == "opacity")
+                        {
+                            continue;  // multiplied below, not nearest-wins
+                        }
+                        bool found = false;
+                        for (const auto &a : resolved)
+                        {
+                            if (a.first == m.first)
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found)
+                        {
+                            resolved.emplace_back(m.first, m.second);
+                        }
+                    }
+                    // effective opacity is the SVG product over every
+                    // enclosing level times the element's own value,
+                    // stored back as a decimal the converter re-parses
+                    // (3 digits round-trip every alpha byte exactly)
+                    const auto find_op = [](const std::vector<std::pair<std::string, std::string>> &v)
+                        -> const std::string * {
+                        for (const auto &a : v)
+                        {
+                            if (a.first == "opacity")
+                            {
+                                return &a.second;
+                            }
+                        }
+                        return nullptr;
+                    };
+                    int eff = 255;
+                    for (const auto &level : svg_stack)
+                    {
+                        if (const std::string *o = find_op(level))
+                        {
+                            eff = (parse_svg_alpha(*o) * eff + 127) / 255;
+                        }
+                    }
+                    if (const std::string *o = find_op(resolved))
+                    {
+                        eff = (parse_svg_alpha(*o) * eff + 127) / 255;
+                    }
+                    for (auto it = resolved.begin(); it != resolved.end();)
+                    {
+                        if (it->first == "opacity")
+                        {
+                            it = resolved.erase(it);
+                        }
+                        else
+                        {
+                            ++it;
+                        }
+                    }
+                    char buf[8];
+                    std::snprintf(buf, sizeof buf, "%.3f",
+                                  static_cast<double>(eff) / 255.0);
+                    resolved.emplace_back("opacity", buf);
+                    attr_src = &resolved;
+                }
                 if (mode == k_build)
                 {
                     open_elem(name, elem, pushed, t.line);
                     if (elem != nullptr)
                     {
-                        for (const auto &a : t.attrs)
+                        for (const auto &a : *attr_src)
                         {
                             elem->attrs.emplace_back(a.first, a.second);
                         }
@@ -1355,8 +1845,12 @@ namespace zb::ui
                     }
                     return;
                 }
+                // the held inline temp lives on the host frame (transparent
+                // svg markers never host), so drain it from there
+                Frame *host = host_frame();
                 frames.push_back({name, mode, pushed, elem,
-                                  std::move(frames.back().owned)});
+                                  host != nullptr ? std::move(host->owned)
+                                                  : std::unique_ptr<Elem>()});
             }
 
             void feed(const Token &t)
