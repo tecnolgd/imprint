@@ -297,14 +297,20 @@ namespace zb::ui
                 ascii_lower_inplace(t.name);
 
                 // the token end: '>' (with '/' before it marking
-                // self-closing), honoring quoted attribute values
+                // self-closing), honoring quoted attribute values. C6:
+                // both quote styles open a quoted span; only the matching
+                // quote closes it (a '"' inside '...' stays literal).
                 const char *scan = q;
-                bool in_quote = false;
-                while (scan < end_ && !(!in_quote && *scan == '>'))
+                char quote = 0;
+                while (scan < end_ && !(quote == 0 && *scan == '>'))
                 {
-                    if (*scan == '"')
+                    if (quote == 0 && (*scan == '"' || *scan == '\''))
                     {
-                        in_quote = !in_quote;
+                        quote = *scan;
+                    }
+                    else if (*scan == quote)
+                    {
+                        quote = 0;
                     }
                     ++scan;
                 }
@@ -365,11 +371,15 @@ namespace zb::ui
                         {
                             ++attr_p;
                         }
-                        if (attr_p < attr_end && *attr_p == '"')
+                        // C6: single-quoted values mirror double-quoted
+                        // ones (entity decoding included)
+                        if (attr_p < attr_end &&
+                            (*attr_p == '"' || *attr_p == '\''))
                         {
+                            const char qc = *attr_p;
                             ++attr_p;
                             const char *vb = attr_p;
-                            while (attr_p < attr_end && *attr_p != '"')
+                            while (attr_p < attr_end && *attr_p != qc)
                             {
                                 ++attr_p;
                             }

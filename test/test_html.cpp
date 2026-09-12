@@ -460,6 +460,26 @@ int test_html()
         EXPECT(r2.id == "x");
     }
 
+    // C6: single-quoted values mirror double-quoted ones (entities
+    // included); the other quote stays literal inside
+    {
+        ui_node r = parse_html(
+            "<div id='box' style='gap: 2'><label>x</label></div>\n", nullptr);
+        EXPECT(r.type == "column");
+        EXPECT(r.id == "box");
+        EXPECT(test::vget<long long>(node_prop_v(r, "spacing")) == 2);
+
+        ui_node r2 = parse_html(
+            "<label id=\"a'b\">x</label><label id='c\"d'>y</label>\n", nullptr);
+        EXPECT(r2.children[0].id == "a'b");
+        EXPECT(r2.children[1].id == "c\"d");
+
+        ui_node r3 = parse_html("<label title='a>b'>x</label>\n", nullptr);
+        EXPECT(r3.children.size() == 1);  // '>' inside quotes ends nothing
+        EXPECT(test::vget<std::string>(
+                   node_prop_v(r3.children[0], "text")) == "x");
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);
