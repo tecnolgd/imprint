@@ -816,6 +816,20 @@ namespace zb::ui
             return s;
         }
 
+        // C3: gap/padding take a bare integer (legacy tolerance, locked
+        // by tests) or an Npx length (the contracted form); units fold
+        // case like everywhere (B4); negatives stay unset
+        bool parse_gap_value(const std::string &s, long long &out)
+        {
+            const std::string v = ascii_lower(s);
+            if (v.size() >= 2 && v.back() == 'x' && v[v.size() - 2] == 'p')
+            {
+                return parse_int_value(v.substr(0, v.size() - 2), out) &&
+                       out >= 0;
+            }
+            return parse_int_value(v, out) && out >= 0;
+        }
+
         // a CSS length: px -> pixels, % -> percent (1..100), "auto"/malformed
         // -> the axis stays measured (tolerance: silently not set).
         // B4: units and "auto" are ASCII case-insensitive (digits and %
@@ -970,16 +984,16 @@ namespace zb::ui
             {
                 if (const std::string *gv = fold_lookup(folded, "gap"))
                 {
-                    const long long s = parse_int(*gv, -1);
-                    if (s >= 0)
+                    long long s = 0;
+                    if (parse_gap_value(*gv, s))
                     {
                         n.prop("spacing", s);
                     }
                 }
                 if (const std::string *pv = fold_lookup(folded, "padding"))
                 {
-                    const long long p = parse_int(*pv, -1);
-                    if (p >= 0)
+                    long long p = 0;
+                    if (parse_gap_value(*pv, p))
                     {
                         n.prop("padding", p);
                     }

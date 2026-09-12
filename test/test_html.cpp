@@ -480,6 +480,21 @@ int test_html()
                    node_prop_v(r3.children[0], "text")) == "x");
     }
 
+    // C3: gap/padding take the contracted Npx form (bare integers keep
+    // working as the legacy tolerance)
+    {
+        ui_node r = parse_html(
+            "<div style=\"gap: 8px; padding: 4px\"><label>x</label></div>\n",
+            nullptr);
+        EXPECT(r.type == "column");
+        EXPECT(test::vget<long long>(node_prop_v(r, "spacing")) == 8);
+        EXPECT(test::vget<long long>(node_prop_v(r, "padding")) == 4);
+
+        ui_node r2 = parse_html(
+            "<div style=\"gap: 6PX\"><label>x</label></div>\n", nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r2, "spacing")) == 6);
+    }
+
     // top-level bare text becomes an anonymous label
     {
         ui_node r = parse_html("<body>hello <button>b</button></body>\n", nullptr);
