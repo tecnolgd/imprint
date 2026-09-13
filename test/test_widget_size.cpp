@@ -12,16 +12,19 @@ using namespace zb::ui;
 // NDS cross build (4MB RAM) keeps thousands of widgets affordable. The
 // static assert pins the budget per ABI (the printed values are the
 // host baseline recorded in CONTEXT.md). Layout differs per compiler:
-// gcc x86_64 measured 224, MSVC x64 packs the same members larger
-// (crosses 224) -- the 64-bit gate is a desktop tripwire, the hard
-// resource budget is the 32-bit line below.
+// gcc x86_64 measured 232 at HEAD (aspect/H-5 growth; the old 224 note
+// below predates it), MSVC x64 packs the same members larger -- the
+// 64-bit gate is a desktop tripwire, the hard resource budget is the
+// 32-bit line below (wasm32 measures 176 with P-1 paint dressing,
+// NDS ARM 184: both keep headroom).
 #if UINTPTR_MAX == 0xffffffffu
 // 32-bit ABI budget (NDS); 16bpp builds are smaller still.
 static_assert(sizeof(Widget) <= 192, "Widget inline size must stay under the 32-bit batch J budget");
 #else
-// 64-bit host baselines: gcc x86_64 224, MSVC x64 240 (both recorded in
-// CONTEXT.md); one pointer of headroom over the largest observed.
-static_assert(sizeof(Widget) <= 248, "Widget inline size must stay under the 64-bit batch J budget");
+// 64-bit host baselines: gcc x86_64 256 with P-1 (was 232 at HEAD),
+// MSVC x64 packs larger; one pointer of headroom over the largest
+// observed (both recorded in CONTEXT.md).
+static_assert(sizeof(Widget) <= 264, "Widget inline size must stay under the 64-bit batch J budget");
 #endif
 
 // Construction probe (batch J1, tightened by batch J6): widgets share

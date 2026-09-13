@@ -562,6 +562,71 @@ int test_html()
         EXPECT(find_prop(r.children[1], "color") < 0);  // no fallback: dropped
     }
 
+    // P-1 paint: background shorthand (solid/linear/radial layers),
+    // border, radius
+    {
+        ui_node r = parse_html(
+            "<div style=\"background:linear-gradient(90deg, #111111 0%, #eeeeee 100%)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r, "bg_lin_from")) == "#111111");
+        EXPECT(test::vget<std::string>(node_prop_v(r, "bg_lin_to")) == "#eeeeee");
+        EXPECT(test::vget<bool>(node_prop_v(r, "bg_lin_h")) == true);
+        EXPECT(find_prop(r, "background") < 0);
+        ui_node r2 = parse_html(
+            "<div style=\"background:linear-gradient(180deg, #111111, #eeeeee)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<bool>(node_prop_v(r2, "bg_lin_h")) == false);
+        ui_node r3 = parse_html(
+            "<div style=\"background:radial-gradient(circle at 50% 20%, #0c0f14 0%, #05060a 75%)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r3, "bg_rad_cx")) == 50);
+        EXPECT(test::vget<long long>(node_prop_v(r3, "bg_rad_cy")) == 20);
+        EXPECT(test::vget<std::string>(node_prop_v(r3, "bg_rad_from")) == "#0c0f14");
+        EXPECT(test::vget<long long>(node_prop_v(r3, "bg_rad_from_p")) == 0);
+        EXPECT(test::vget<std::string>(node_prop_v(r3, "bg_rad_to")) == "#05060a");
+        EXPECT(test::vget<long long>(node_prop_v(r3, "bg_rad_to_p")) == 75);
+        // 3-stop keeps the ends; texture overlays fall through to the base
+        ui_node r4 = parse_html(
+            "<style>:root{--tex:repeating-linear-gradient(90deg,#fff 0 2px);}</style>"
+            "<div style=\"background:var(--tex), linear-gradient(180deg, #aa0000 0%, #00aa00 45%, #0000aa 100%)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r4, "bg_lin_from")) == "#aa0000");
+        EXPECT(test::vget<std::string>(node_prop_v(r4, "bg_lin_to")) == "#0000aa");
+        // unknown var without fallback drops the whole declaration (CSS)
+        ui_node r5 = parse_html(
+            "<div style=\"background:var(--tex), linear-gradient(180deg,#aa0000,#0000aa)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(find_prop(r5, "background") < 0);
+        EXPECT(find_prop(r5, "bg_lin_from") < 0);
+        // conic/repeating skip the layer; a lone texture leaves nothing
+        ui_node r6 = parse_html(
+            "<div style=\"background:repeating-linear-gradient(90deg, #fff 0 2px)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(find_prop(r6, "background") < 0);
+        EXPECT(find_prop(r6, "bg_lin_from") < 0);
+        // solid shorthand + border + radius; shorthand beats background-color
+        ui_node r7 = parse_html(
+            "<div style=\"background-color:#111111;background:rgba(20,30,40,0.5);"
+            "border:2px solid #0a0b09;border-radius:50%\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r7, "background")) == "rgba(20,30,40,0.5)");
+        EXPECT(test::vget<long long>(node_prop_v(r7, "border_w")) == 2);
+        EXPECT(test::vget<std::string>(node_prop_v(r7, "border_color")) == "#0a0b09");
+        EXPECT(test::vget<bool>(node_prop_v(r7, "radius_half")) == true);
+        ui_node r8 = parse_html(
+            "<div style=\"border:1px dashed #000;border-radius:10px\"><label>x</label></div>\n",
+            nullptr);
+        EXPECT(find_prop(r8, "border_w") < 0);  // non-solid drops
+        EXPECT(test::vget<long long>(node_prop_v(r8, "radius_px")) == 10);
+    }
+
     // C4: an unquoted value ends at whitespace or '/': value=30/> is
     // value "30", self-closed
     {

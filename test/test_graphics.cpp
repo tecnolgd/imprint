@@ -802,5 +802,67 @@ int test_graphics()
         EXPECT(test::pixel_at(*gk, 3, 10) == core::colors::White.pixel);   // 180deg endpoint visible
     }
 
+    // fill_radial (P-1): center pixel is `from`, the farthest corner is
+    // `to`, midpoints interpolate; square corners stay painted
+    {
+        auto g = core::Graphics::make_ptr(21, 21);
+        g->fill(core::colors::Black);
+        // 20x20 box, center (10,10): farthest corner dist = sqrt(200)
+        g->fill_radial(0, 0, 20, 20, 10, 10, core::colors::White, 0,
+                       core::colors::Black, 100);
+        EXPECT(test::pixel_at(*g, 10, 10) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g, 20, 20) == core::colors::Black.pixel);
+        // halfway to the corner (dist sqrt(50), pct 50): mid gray
+        EXPECT(test::pixel_at(*g, 5, 5) == core::Color::from(127, 127, 127).pixel);
+        EXPECT(test::pixel_at(*g, 15, 15) == core::Color::from(127, 127, 127).pixel);
+    }
+
+    // fill_radial: stop offsets rescale the ramp (outside clamps), the
+    // center follows cx/cy
+    {
+        auto g = core::Graphics::make_ptr(21, 11);
+        g->fill(core::colors::Black);
+        // center (5,5), 0%..50%: the 50% ring is already `to`
+        g->fill_radial(0, 0, 20, 10, 5, 5, core::colors::White, 0,
+                       core::colors::Black, 50);
+        EXPECT(test::pixel_at(*g, 5, 5) == core::colors::White.pixel);
+        // farthest corner from (5,5) is (20,10): dist sqrt(250); a pixel
+        // at pct >= 50 clamps to `to`
+        EXPECT(test::pixel_at(*g, 20, 10) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g, 15, 5) == core::colors::Black.pixel);
+    }
+
+    // fill_radial with corner radius: corners cut, interior gradient kept
+    {
+        auto g = core::Graphics::make_ptr(22, 22);
+        g->fill(core::colors::Black);
+        g->fill_radial(1, 1, 20, 20, 10, 10, core::colors::White, 0,
+                       core::colors::Black, 100, 5);
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Black.pixel);  // cut
+        EXPECT(test::pixel_at(*g, 10, 10) != core::colors::Black.pixel);  // face kept
+        EXPECT(test::pixel_at(*g, 10, 1) != core::colors::Black.pixel);  // flat edge kept
+    }
+
+    // fill_gradient with corner radius: middle rows interpolate
+    // full-width, corner rows shrink by the chord
+    {
+        auto g = core::Graphics::make_ptr(12, 12);
+        g->fill(core::colors::Black);
+        g->fill_gradient(1, 1, 10, 10, core::colors::Black, core::colors::White,
+                         false, 3);
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Black.pixel);  // cut
+        EXPECT(test::pixel_at(*g, 5, 5) != core::colors::Black.pixel);  // face
+        EXPECT(test::pixel_at(*g, 5, 2) != core::colors::Black.pixel);  // chord span
+        EXPECT(test::pixel_at(*g, 0, 2) == core::colors::Black.pixel);  // chord cut
+        EXPECT(test::pixel_at(*g, 0, 9) == core::colors::Black.pixel);  // cut
+#if COLOR_DEPTH == 32
+        // the AA fringe kisses the first cut column (same formula as
+        // fill_round_rect_aa); at 16bpp coverage quantizes and the
+        // fringe pixel stays clear
+        EXPECT(test::pixel_at(*g, 1, 2) != core::colors::Black.pixel);
+#endif
+    }
+
     return test::report("graphics");
 }

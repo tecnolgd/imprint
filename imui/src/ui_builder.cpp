@@ -335,6 +335,51 @@ namespace zb::ui
             {
                 w.set_background_color(c);
             }
+            // P-1 paint dressing: radial wins over linear when both are
+            // set (contract); a mistyped half leaves the color unset
+            if (has_prop(n, "bg_rad_from") && has_prop(n, "bg_rad_to"))
+            {
+                core::Color from;
+                core::Color to;
+                if (parse_color(prop_of(n, "bg_rad_from", std::string{}), from) &&
+                    parse_color(prop_of(n, "bg_rad_to", std::string{}), to))
+                {
+                    w.set_background_radial(
+                        static_cast<int>(prop_of(n, "bg_rad_cx", 50LL)),
+                        static_cast<int>(prop_of(n, "bg_rad_cy", 50LL)), from,
+                        static_cast<int>(prop_of(n, "bg_rad_from_p", 0LL)), to,
+                        static_cast<int>(prop_of(n, "bg_rad_to_p", 100LL)));
+                }
+            }
+            else if (has_prop(n, "bg_lin_from") && has_prop(n, "bg_lin_to"))
+            {
+                core::Color from;
+                core::Color to;
+                if (parse_color(prop_of(n, "bg_lin_from", std::string{}), from) &&
+                    parse_color(prop_of(n, "bg_lin_to", std::string{}), to))
+                {
+                    w.set_background_linear(from, to,
+                                            prop_of(n, "bg_lin_h", true));
+                }
+            }
+            if (has_prop(n, "border_w") && has_prop(n, "border_color"))
+            {
+                core::Color bc;
+                if (parse_color(prop_of(n, "border_color", std::string{}), bc))
+                {
+                    w.set_border(
+                        static_cast<int>(prop_of(n, "border_w", 0LL)), bc);
+                }
+            }
+            if (prop_of(n, "radius_half", false))
+            {
+                w.set_corner_radius_half();
+            }
+            else if (has_prop(n, "radius_px"))
+            {
+                w.set_corner_radius(
+                    static_cast<int>(prop_of(n, "radius_px", 0LL)));
+            }
             if (parse_color(prop_of(n, "color", std::string{}), c))
             {
                 w.set_text_color(c);
@@ -643,6 +688,141 @@ namespace zb::ui
         else if (name == "magenta")
         {
             out = core::Color::from(255, 0, 255);
+        }
+        else if (name.compare(0, 4, "rgb(") == 0 ||
+                 name.compare(0, 5, "rgba(") == 0)
+        {
+            // rgb()/rgba() comma form (contract P-1): components are
+            // 0..255 integers, alpha a 0..1 decimal (>1 clamps opaque
+            // like browsers); anything else is malformed
+            const bool has_alpha = name[3] == 'a';
+            const std::size_t open = s.find('(');
+            const std::size_t close = s.rfind(')');
+            if (open == std::string::npos || close == std::string::npos ||
+                close <= open + 1)
+            {
+                return false;
+            }
+            const std::string body = s.substr(open + 1, close - open - 1);
+            std::vector<std::string> parts;
+            std::string cur;
+            for (const char c : body)
+            {
+                if (c == ',')
+                {
+                    parts.push_back(cur);
+                    cur.clear();
+                }
+                else
+                {
+                    cur.push_back(c);
+                }
+            }
+            parts.push_back(cur);
+            if (parts.size() != (has_alpha ? 4U : 3U))
+            {
+                return false;
+            }
+            auto to_byte = [](const std::string &t, int &v) {
+                std::size_t i = 0;
+                while (i < t.size() && (t[i] == ' ' || t[i] == '\t'))
+                {
+                    ++i;
+                }
+                std::size_t j = t.size();
+                while (j > i && (t[j - 1] == ' ' || t[j - 1] == '\t'))
+                {
+                    --j;
+                }
+                if (i >= j)
+                {
+                    return false;
+                }
+                int n = 0;
+                for (std::size_t k = i; k < j; ++k)
+                {
+                    if (t[k] < '0' || t[k] > '9')
+                    {
+                        return false;
+                    }
+                    n = n * 10 + (t[k] - '0');
+                    if (n > 255)
+                    {
+                        return false;
+                    }
+                }
+                v = n;
+                return true;
+            };
+            int comp[3] = {0, 0, 0};
+            for (int k = 0; k < 3; ++k)
+            {
+                if (!to_byte(parts[static_cast<std::size_t>(k)], comp[k]))
+                {
+                    return false;
+                }
+            }
+            out = core::Color::from(comp[0], comp[1], comp[2]);
+            if (has_alpha)
+            {
+                const std::string &a = parts[3];
+                std::size_t i = 0;
+                while (i < a.size() && (a[i] == ' ' || a[i] == '\t'))
+                {
+                    ++i;
+                }
+                std::size_t j = a.size();
+                while (j > i && (a[j - 1] == ' ' || a[j - 1] == '\t'))
+                {
+                    --j;
+                }
+                if (i >= j)
+                {
+                    return false;
+                }
+                int whole = 0;
+                int frac = 0;
+                int frac_div = 1;
+                bool dot = false;
+                bool bad = false;
+                for (std::size_t k = i; k < j; ++k)
+                {
+                    if (a[k] == '.' && !dot)
+                    {
+                        dot = true;
+                        continue;
+                    }
+                    if (a[k] < '0' || a[k] > '9')
+                    {
+                        bad = true;
+                        break;
+                    }
+                    if (!dot)
+                    {
+                        whole = whole * 10 + (a[k] - '0');
+                    }
+                    else if (frac_div < 1000)
+                    {
+                        frac = frac * 10 + (a[k] - '0');
+                        frac_div *= 10;
+                    }
+                }
+                if (bad)
+                {
+                    return false;
+                }
+                int alpha = 255;
+                if (whole <= 0)
+                {
+                    alpha = frac * 255 / frac_div;
+                }
+                else if (whole == 1 && frac == 0)
+                {
+                    alpha = 255;
+                }
+                // whole > 1 (or 1.xxx) clamps to 255
+                out.set_a(static_cast<uint8_t>(alpha));
+            }
         }
         else
         {

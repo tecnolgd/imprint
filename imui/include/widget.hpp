@@ -300,7 +300,66 @@ namespace zb::ui
             background_image = img;
             mark_dirty();
         }
-        [[nodiscard]] bool has_background() const { return background.has_value() || background_image.has_value(); }
+        // linear-dressing background (P-1): interpolates from->to along
+        // the width (horizontal) or height; coexists with the solid
+        // (painted over it) and the image (painted over both)
+        void set_background_linear(const core::Color &from, const core::Color &to,
+                                   const bool horizontal)
+        {
+            dress_.bg_kind = 1;
+            dress_.bg_from = from;
+            dress_.bg_to = to;
+            dress_.bg_ax = horizontal ? 1 : 0;
+            mark_dirty();
+        }
+        // circular-dressing background (P-1): from at (cx_pct, cy_pct)
+        // of the box, to at the farthest corner; stop offsets 0..100
+        // rescale the ramp (outside clamps to the end stops)
+        void set_background_radial(const int cx_pct, const int cy_pct,
+                                   const core::Color &from, const int from_pos,
+                                   const core::Color &to, const int to_pos)
+        {
+            auto clamp100 = [](const int v) {
+                return v < 0 ? 0 : (v > 100 ? 100 : v);
+            };
+            dress_.bg_kind = 2;
+            dress_.bg_from = from;
+            dress_.bg_to = to;
+            dress_.bg_ax = static_cast<uint8_t>(clamp100(cx_pct));
+            dress_.bg_ay = static_cast<uint8_t>(clamp100(cy_pct));
+            dress_.bg_p0 = static_cast<uint8_t>(clamp100(from_pos));
+            dress_.bg_p1 = static_cast<uint8_t>(clamp100(to_pos));
+            mark_dirty();
+        }
+        // 1px+ outline painted over the background, inside the box
+        // (border-box); only solid is honored
+        void set_border(const int width_px, const core::Color &c)
+        {
+            dress_.border_w =
+                width_px < 0 ? 0 : (width_px > 255 ? 255 : width_px);
+            dress_.border_color = c;
+            mark_dirty();
+        }
+        // rounded background/border corners (P-1): px clamps to half the
+        // smaller side at draw time; the half form resolves 50% then
+        void set_corner_radius(const int px)
+        {
+            dress_.radius_kind = 1;
+            dress_.radius_px =
+                static_cast<uint16_t>(px < 0 ? 0 : (px > 65535 ? 65535 : px));
+            mark_dirty();
+        }
+        void set_corner_radius_half()
+        {
+            dress_.radius_kind = 2;
+            mark_dirty();
+        }
+        [[nodiscard]] bool has_background() const
+        {
+            return background.has_value() || background_image.has_value() ||
+                   dress_.bg_kind != 0;
+        }
+        [[nodiscard]] bool has_border() const { return dress_.border_w > 0; }
 
         // text (input is UTF-8, see docs/code-contract.md section 2)
         void set_text(const char *text);
@@ -645,6 +704,25 @@ namespace zb::ui
         // background
         std::optional<core::Color> background;
         std::optional<core::image_t> background_image;
+        // paint dressing (P-1, 24 bytes: the batch J budget leaves no
+        // room for two optionals + ints, so one packed struct, kinds
+        // instead of nullopts; border_w 0 = no border, bg_kind 0 =
+        // no gradient, radius_kind 0 = square)
+        struct paint_dress
+        {
+            uint8_t bg_kind = 0;  // 0 none, 1 linear, 2 radial
+            uint8_t bg_ax = 1;    // linear: horizontal; radial: cx %
+            uint8_t bg_ay = 50;   // radial: cy %
+            uint8_t bg_p0 = 0;    // radial from stop
+            uint8_t bg_p1 = 100;  // radial to stop
+            core::Color bg_from{};
+            core::Color bg_to{};
+            uint8_t border_w = 0;
+            uint8_t radius_kind = 0;  // 0 none, 1 px, 2 half
+            uint16_t radius_px = 0;
+            core::Color border_color{};
+        };
+        paint_dress dress_;
 
         // text
         std::u16string text_;

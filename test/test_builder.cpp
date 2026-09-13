@@ -394,5 +394,90 @@ int test_builder()
         EXPECT(!host.find_by_id("b")->has_background());
     }
 
+    // rgb()/rgba() colors: components resolve, alpha blends over the page
+    {
+        auto doc = column({
+            label("").size(20, 10).named("half").background("rgba(255,0,0,0.5)"),
+            label("").size(20, 10).named("full").background("rgb(0,0,255)"),
+            label("").size(20, 10).named("bad").background("rgba(1,2,3)"),
+        });
+        Panel host;
+        host.set_size(20, 30);
+        build(host, doc);
+        host.layout();
+        core::Graphics g(20, 30, nullptr);
+        g.fill(core::colors::Black);
+        host.draw(g);
+        auto *half = host.find_by_id("half");
+        auto *full = host.find_by_id("full");
+        auto *bad = host.find_by_id("bad");
+        EXPECT(half != nullptr && full != nullptr && bad != nullptr);
+#if COLOR_DEPTH == 32
+        EXPECT(test::pixel_at(g, half->get_position().x + 10,
+                              half->get_position().y + 5) ==
+               core::Color::from(127, 0, 0).pixel);
+#else
+        // binary alpha: any set bit paints the front opaque
+        EXPECT(test::pixel_at(g, half->get_position().x + 10,
+                              half->get_position().y + 5) ==
+               core::Color::from(255, 0, 0).pixel);
+#endif
+        EXPECT(test::pixel_at(g, full->get_position().x + 10,
+                              full->get_position().y + 5) ==
+               core::Color::from(0, 0, 255).pixel);
+        EXPECT(!bad->has_background());
+    }
+
+    // P-1 paint dressing props land and really paint: linear, radial,
+    // border, rounded solid
+    {
+        auto doc = column({
+            label("").size(20, 10).named("lin")
+                .prop("bg_lin_from", std::string{"#000000"})
+                .prop("bg_lin_to", std::string{"#ffffff"})
+                .prop("bg_lin_h", true),
+            label("").size(20, 10).named("rad")
+                .prop("bg_rad_cx", 50LL).prop("bg_rad_cy", 50LL)
+                .prop("bg_rad_from", std::string{"#ffffff"})
+                .prop("bg_rad_from_p", 0LL)
+                .prop("bg_rad_to", std::string{"#000000"})
+                .prop("bg_rad_to_p", 100LL),
+            label("").size(20, 10).named("bd")
+                .background("#000000")
+                .prop("border_w", 1LL)
+                .prop("border_color", std::string{"#ffffff"}),
+            label("").size(12, 12).named("dot")
+                .background("#ff0000")
+                .prop("radius_half", true),
+        });
+        Panel host;
+        host.set_size(20, 44);
+        build(host, doc);
+        host.layout();
+        core::Graphics g(20, 44, nullptr);
+        g.fill(core::colors::Black);
+        host.draw(g);
+        auto *lin = host.find_by_id("lin");
+        auto *rad = host.find_by_id("rad");
+        auto *bd = host.find_by_id("bd");
+        auto *dot = host.find_by_id("dot");
+        EXPECT(lin != nullptr && rad != nullptr && bd != nullptr && dot != nullptr);
+        const auto lp = lin->get_position();
+        EXPECT(test::pixel_at(g, lp.x, lp.y + 5) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(g, lp.x + 19, lp.y + 5) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(g, lp.x + 10, lp.y + 5) ==
+               core::Color::from(134, 134, 134).pixel);
+        const auto rp = rad->get_position();
+        EXPECT(test::pixel_at(g, rp.x + 10, rp.y + 5) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(g, rp.x, rp.y) == core::colors::Black.pixel);
+        const auto bp = bd->get_position();
+        EXPECT(test::pixel_at(g, bp.x, bp.y) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(g, bp.x + 10, bp.y + 5) == core::colors::Black.pixel);
+        const auto dp = dot->get_position();
+        EXPECT(test::pixel_at(g, dp.x, dp.y) == core::colors::Black.pixel);  // cut
+        EXPECT(test::pixel_at(g, dp.x + 6, dp.y + 6) ==
+               core::Color::from(255, 0, 0).pixel);
+    }
+
     return test::report("builder");
 }

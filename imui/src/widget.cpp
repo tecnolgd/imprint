@@ -1,5 +1,7 @@
 #include "widget.hpp"
 
+#include <algorithm>
+
 #include "text/utf8.hpp"
 
 namespace zb::ui
@@ -86,17 +88,90 @@ namespace zb::ui
 
     void Widget::draw_background(core::Graphics &area) const
     {
+        const auto s = get_size();
+        // corner radius shared by the background and the border (P-1):
+        // px clamps to half the smaller side, the half form resolves
+        // 50% at draw time
+        int radius = 0;
+        if (dress_.radius_kind != 0)
+        {
+            const int half_min = std::min(s.width, s.height) / 2;
+            radius = dress_.radius_kind == 2
+                         ? half_min
+                         : std::min<int>(dress_.radius_px, half_min);
+        }
+        // a dressed color below opaque paints blended; on 16bpp
+        // (binary alpha) the enable is a visual no-op — alpha_blend
+        // returns front for any set bit — so one rule covers both
+        auto needs_blend = [](const core::Color &c) { return c.a() < 255; };
+        bool blend = background.has_value() && needs_blend(*background);
+        if (dress_.bg_kind != 0 &&
+            (needs_blend(dress_.bg_from) || needs_blend(dress_.bg_to)))
+        {
+            blend = true;
+        }
+        const bool bak = area.is_alpha_enabled();
+        if (blend)
+        {
+            area.enable_alpha(true);
+        }
         if (background.has_value())
         {
             // S-1: through fill_rect (not fill) so a wireframe view
             // degrades the face to an outline; pixel-identical to fill()
             // in FULL mode. The dialog mask keeps fill() (immune).
-            const auto s = get_size();
-            area.fill_rect(0, 0, s.width - 1, s.height - 1, *background);
+            if (radius > 0)
+            {
+                area.fill_round_rect_aa(0, 0, s.width - 1, s.height - 1, radius,
+                                        *background);
+            }
+            else
+            {
+                area.fill_rect(0, 0, s.width - 1, s.height - 1, *background);
+            }
+        }
+        // radial wins when both kinds are set (contract P-1; the
+        // builder sets exactly one, this is direct-setter misuse)
+        if (dress_.bg_kind == 2)
+        {
+            area.fill_radial(0, 0, s.width - 1, s.height - 1,
+                             s.width * dress_.bg_ax / 100,
+                             s.height * dress_.bg_ay / 100, dress_.bg_from,
+                             dress_.bg_p0, dress_.bg_to, dress_.bg_p1, radius);
+        }
+        else if (dress_.bg_kind == 1)
+        {
+            area.fill_gradient(0, 0, s.width - 1, s.height - 1, dress_.bg_from,
+                               dress_.bg_to, dress_.bg_ax != 0, radius);
         }
         if (background_image.has_value())
         {
             area.draw_image(*background_image, 0, 0);
+        }
+        // border-box outline over the background; a default (alpha-0)
+        // color never reaches here through the builder (parse_color
+        // rejects transparent), the guard is for direct app misuse
+        for (int i = 0; i < dress_.border_w; ++i)
+        {
+            if (dress_.border_color.a() == 0)
+            {
+                break;
+            }
+            if (radius > 0)
+            {
+                area.draw_round_rect_aa(i, i, s.width - 1 - i, s.height - 1 - i,
+                                        radius - i < 0 ? 0 : radius - i,
+                                        dress_.border_color);
+            }
+            else
+            {
+                area.draw_rect(i, i, s.width - 1 - i, s.height - 1 - i,
+                               dress_.border_color);
+            }
+        }
+        if (blend)
+        {
+            area.enable_alpha(bak);
         }
     }
 

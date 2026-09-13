@@ -978,7 +978,8 @@ void Graphics::draw_wireframe_grid(const int spacing, const Color &colr)
     }
 }
 
-void Graphics::fill_gradient(int x1, int y1, int x2, int y2, const Color &from, const Color &to, const bool horizontal)
+void Graphics::fill_gradient(int x1, int y1, int x2, int y2, const Color &from, const Color &to, const bool horizontal,
+                             const int radius)
 {
     if (render_mode_ == render_mode::wireframe)
     {
@@ -990,13 +991,74 @@ void Graphics::fill_gradient(int x1, int y1, int x2, int y2, const Color &from, 
     const int top = y1 < y2 ? y1 : y2;
     const int bottom = y1 < y2 ? y2 : y1;
 
+    // corner radius shared with the round-rect pair: clamp to half the
+    // shorter side, non-positive keeps the square fast path
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+
+    // fractional chord edge (the fill_round_rect_aa formula): the two
+    // pixels just outside the span blend by coverage
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int frac8) {
+        if (frac8 > 0)
+        {
+            plot_aa(lx - 1, row, frac8, lc);
+            plot_aa(rx + 1, row, frac8, rc);
+        }
+    };
+
     if (horizontal)
     {
         const int steps = right - left;
-        for (int col = left; col <= right; ++col)
+        auto col_color = [&](const int col) {
+            return steps == 0 ? from : lerp_color(from, to, col - left, steps);
+        };
+        if (r == 0)
         {
-            const Color c = steps == 0 ? from : lerp_color(from, to, col - left, steps);
-            draw_line(col, top, col, bottom, c);
+            // square fast path: one span per column (the old body)
+            for (int col = left; col <= right; ++col)
+            {
+                draw_line(col, top, col, bottom, col_color(col));
+            }
+            return;
+        }
+        for (int row = top; row <= bottom; ++row)
+        {
+            int dy = 0;
+            if (r > 0)
+            {
+                if (row < top + r)
+                {
+                    dy = top + r - row;
+                }
+                else if (row > bottom - r)
+                {
+                    dy = row - (bottom - r);
+                }
+            }
+            if (dy == 0)
+            {
+                // rounded middle rows still walk per pixel (the color
+                // varies along the row); the square case returned above
+                for (int col = left; col <= right; ++col)
+                {
+                    draw_pixel(col, row, col_color(col));
+                }
+                continue;
+            }
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            const int frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            const int lx = left + r - dx;
+            const int rx = right - r + dx;
+            for (int col = lx; col <= rx; ++col)
+            {
+                draw_pixel(col, row, col_color(col));
+            }
+            fringe(lx, rx, row, col_color(lx), col_color(rx), frac8);
         }
     }
     else
@@ -1005,7 +1067,127 @@ void Graphics::fill_gradient(int x1, int y1, int x2, int y2, const Color &from, 
         for (int row = top; row <= bottom; ++row)
         {
             const Color c = steps == 0 ? from : lerp_color(from, to, row - top, steps);
-            draw_line(left, row, right, row, c);
+            int dy = 0;
+            if (r > 0)
+            {
+                if (row < top + r)
+                {
+                    dy = top + r - row;
+                }
+                else if (row > bottom - r)
+                {
+                    dy = row - (bottom - r);
+                }
+            }
+            if (dy == 0)
+            {
+                draw_line(left, row, right, row, c);
+                continue;
+            }
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            const int frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            const int lx = left + r - dx;
+            const int rx = right - r + dx;
+            draw_line(lx, row, rx, row, c);
+            fringe(lx, rx, row, c, c, frac8);
+        }
+    }
+}
+
+void Graphics::fill_radial(int x1, int y1, int x2, int y2, const int cx, const int cy, const Color &from,
+                           const int from_p, const Color &to, const int to_p, const int radius)
+{
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_rect(x1, y1, x2, y2, from);  // S-1: bones only
+        return;
+    }
+    const int left = x1 < x2 ? x1 : x2;
+    const int right = x1 < x2 ? x2 : x1;
+    const int top = y1 < y2 ? y1 : y2;
+    const int bottom = y1 < y2 ? y2 : y1;
+
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+
+    // CSS farthest-corner extent: the radius reaches the remotest rect
+    // corner from the center (cx/cy are rect-local pixels)
+    const int acx = left + cx;
+    const int acy = top + cy;
+    int64_t rad2 = 0;
+    const int cxs[2] = {left, right};
+    const int cys[2] = {top, bottom};
+    for (const int px : cxs)
+    {
+        for (const int py : cys)
+        {
+            const int64_t d2 =
+                1LL * (px - acx) * (px - acx) + 1LL * (py - acy) * (py - acy);
+            if (d2 > rad2)
+            {
+                rad2 = d2;
+            }
+        }
+    }
+    const int rad = static_cast<int>(isqrt_floor(rad2));
+    const int span = to_p - from_p;
+
+    auto shade = [&](const int x, const int y) {
+        if (rad <= 0)
+        {
+            return from;
+        }
+        const int64_t d2 = 1LL * (x - acx) * (x - acx) + 1LL * (y - acy) * (y - acy);
+        const int pct = static_cast<int>(isqrt_floor(d2) * 100 / rad);
+        if (pct <= from_p)
+        {
+            return from;
+        }
+        if (pct >= to_p || span <= 0)
+        {
+            return to;
+        }
+        return lerp_color(from, to, pct - from_p, span);
+    };
+
+    for (int row = top; row <= bottom; ++row)
+    {
+        int dy = 0;
+        if (r > 0)
+        {
+            if (row < top + r)
+            {
+                dy = top + r - row;
+            }
+            else if (row > bottom - r)
+            {
+                dy = row - (bottom - r);
+            }
+        }
+        int lx = left;
+        int rx = right;
+        int frac8 = 0;
+        if (dy > 0)
+        {
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            lx = left + r - dx;
+            rx = right - r + dx;
+        }
+        for (int col = lx; col <= rx; ++col)
+        {
+            draw_pixel(col, row, shade(col, row));
+        }
+        if (frac8 > 0)
+        {
+            plot_aa(lx - 1, row, frac8, shade(lx, row));
+            plot_aa(rx + 1, row, frac8, shade(rx, row));
         }
     }
 }

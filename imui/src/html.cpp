@@ -58,7 +58,8 @@ namespace zb::ui
             return p == "display" || p == "flex-direction" || p == "width" ||
                    p == "height" || p == "flex" || p == "gap" ||
                    p == "padding" || p == "flex-wrap" ||
-                   p == "background-color" || p == "color" ||
+                   p == "background" || p == "background-color" ||
+                   p == "border" || p == "border-radius" || p == "color" ||
                    p == "font-size" || p == "aspect-ratio";
         }
 
@@ -1320,6 +1321,332 @@ namespace zb::ui
             return parse_int_value(v, out) && out >= 0;
         }
 
+        // P-1 paint: split a background value at top-level commas
+        // (paren depth 0). Gradient args and rgba() commas live inside
+        // parens and never split; layers come out in listed order.
+        void split_layers(const std::string &s, std::vector<std::string> &out)
+        {
+            std::string cur;
+            int depth = 0;
+            for (const char c : s)
+            {
+                if (c == '(')
+                {
+                    ++depth;
+                }
+                else if (c == ')' && depth > 0)
+                {
+                    --depth;
+                }
+                if (c == ',' && depth == 0)
+                {
+                    out.push_back(cur);
+                    cur.clear();
+                }
+                else
+                {
+                    cur.push_back(c);
+                }
+            }
+            out.push_back(cur);
+        }
+
+        std::string css_trim(std::string v)
+        {
+            v.erase(0, v.find_first_not_of(" \t\n\r"));
+            const std::size_t t = v.find_last_not_of(" \t\n\r");
+            if (t == std::string::npos)
+            {
+                return std::string{};
+            }
+            v.erase(t + 1);
+            return v;
+        }
+
+        // one gradient stop: "<color> [<pos>]" — the color may hold
+        // inner spaces (rgba(…) with spaces), so the position splits at
+        // the last space; pos "N%" -> pct, bare -> absent (-1), anything
+        // else (px/deg/double-position) is unsupported for P-1
+        bool parse_stop(const std::string &s, std::string &color, long long &pct)
+        {
+            const std::string t = css_trim(s);
+            if (t.empty())
+            {
+                return false;
+            }
+            const std::size_t sp = t.rfind(' ');
+            if (sp == std::string::npos)
+            {
+                color = t;
+                pct = -1;
+                return true;
+            }
+            const std::string tail = css_trim(t.substr(sp + 1));
+            if (!tail.empty() && tail.back() == '%')
+            {
+                long long p = 0;
+                if (!parse_svg_num(tail.substr(0, tail.size() - 1), p) ||
+                    p < 0 || p > 100)
+                {
+                    return false;
+                }
+                color = css_trim(t.substr(0, sp));
+                pct = p;
+                return !color.empty();
+            }
+            return false;
+        }
+
+        // linear-gradient args (already top-level split): angle/direction
+        // first, then stops. >2 stops keep first+last (contract); a
+        // single stop is a solid. False = unsupported (warn + skip layer).
+        bool parse_linear_layer(ui_node &n, const std::vector<std::string> &args)
+        {
+            if (args.empty())
+            {
+                return false;
+            }
+            std::size_t first = 0;
+            bool horizontal = false;  // CSS default: to bottom
+            const std::string head = css_trim(ascii_lower(args[0]));
+            const std::size_t lp = head.find('(');
+            if (lp == std::string::npos)
+            {
+                if (head.size() > 3 && head.compare(head.size() - 3, 3, "deg") == 0)
+                {
+                    long long deg = 0;
+                    if (!parse_svg_num(head.substr(0, head.size() - 3), deg))
+                    {
+                        return false;
+                    }
+                    deg = ((deg % 360) + 360) % 360;
+                    if (deg == 90 || deg == 270)
+                    {
+                        horizontal = true;
+                    }
+                    else if (deg != 0 && deg != 180)
+                    {
+                        return false;
+                    }
+                    first = 1;
+                }
+                else if (head == "to right" || head == "to left")
+                {
+                    horizontal = true;
+                    first = 1;
+                }
+                else if (head == "to top" || head == "to bottom")
+                {
+                    first = 1;
+                }
+                // otherwise the head is a color: no angle, vertical
+            }
+            else
+            {
+                return false;  // a function where the angle belongs
+            }
+            std::vector<std::string> colors;
+            std::vector<long long> pos;
+            for (std::size_t i = first; i < args.size(); ++i)
+            {
+                std::string c;
+                long long p = -1;
+                if (!parse_stop(args[i], c, p))
+                {
+                    return false;
+                }
+                colors.push_back(c);
+                pos.push_back(p);
+            }
+            if (colors.empty())
+            {
+                return false;
+            }
+            if (colors.size() == 1)
+            {
+                n.prop("background", colors[0]);
+                return true;
+            }
+            // linear stop offsets are P-1-out: the ramp always spans
+            // full (contract); N-stop keeps the end colors
+            n.prop("bg_lin_from", colors.front());
+            n.prop("bg_lin_to", colors.back());
+            n.prop("bg_lin_h", horizontal);
+            return true;
+        }
+
+        // radial-gradient: circle at X% Y% + stops (same first+last
+        // rule); ellipse/px centers/extents are P-1-out
+        bool parse_radial_layer(ui_node &n, const std::vector<std::string> &args)
+        {
+            if (args.empty())
+            {
+                return false;
+            }
+            long long cx = 50, cy = 50;
+            std::size_t first = 0;
+            const std::string head = css_trim(ascii_lower(args[0]));
+            if (head.find("circle") != std::string::npos)
+            {
+                first = 1;
+                const std::size_t at = head.find("at");
+                if (at != std::string::npos)
+                {
+                    std::string rest = css_trim(head.substr(at + 2));
+                    const std::size_t sp = rest.find(' ');
+                    if (sp == std::string::npos)
+                    {
+                        return false;
+                    }
+                    const std::string xs = css_trim(rest.substr(0, sp));
+                    const std::string ys = css_trim(rest.substr(sp + 1));
+                    if (xs.empty() || xs.back() != '%' || ys.empty() ||
+                        ys.back() != '%')
+                    {
+                        return false;
+                    }
+                    if (!parse_svg_num(xs.substr(0, xs.size() - 1), cx) ||
+                        !parse_svg_num(ys.substr(0, ys.size() - 1), cy) ||
+                        cx < 0 || cx > 100 || cy < 0 || cy > 100)
+                    {
+                        return false;
+                    }
+                }
+            }
+            else if (head.find('(') == std::string::npos)
+            {
+                // a bare color head means circle-at-center with the head
+                // as the first stop (shape keyword omitted)
+            }
+            else
+            {
+                return false;
+            }
+            std::vector<std::string> colors;
+            std::vector<long long> pos;
+            for (std::size_t i = first; i < args.size(); ++i)
+            {
+                std::string c;
+                long long p = -1;
+                if (!parse_stop(args[i], c, p))
+                {
+                    return false;
+                }
+                colors.push_back(c);
+                pos.push_back(p);
+            }
+            if (colors.empty())
+            {
+                return false;
+            }
+            if (colors.size() == 1)
+            {
+                n.prop("background", colors[0]);
+                return true;
+            }
+            // radial stop offsets rescale the ramp (contract P-1);
+            // bare ends default to 0/100
+            const long long fp = pos.front() < 0 ? 0 : pos.front();
+            const long long tp = pos.back() < 0 ? 100 : pos.back();
+            n.prop("bg_rad_cx", cx);
+            n.prop("bg_rad_cy", cy);
+            n.prop("bg_rad_from", colors.front());
+            n.prop("bg_rad_from_p", fp);
+            n.prop("bg_rad_to", colors.back());
+            n.prop("bg_rad_to_p", tp);
+            return true;
+        }
+
+        // one background layer value: solid passthrough, linear/radial
+        // gradients, everything else (repeating-*, conic-*, url()
+        // textures, junk) unsupported. True when a prop landed.
+        bool parse_bg_layer(ui_node &n, const std::string &layer)
+        {
+            const std::string t = css_trim(layer);
+            if (t.empty())
+            {
+                return false;
+            }
+            const std::string low = ascii_lower(t);
+            const std::size_t lp = low.find('(');
+            if (lp == std::string::npos)
+            {
+                n.prop("background", t);  // solid (parse_color decides)
+                return true;
+            }
+            const std::string fn = css_trim(low.substr(0, lp));
+            if (fn != "linear-gradient" && fn != "radial-gradient")
+            {
+                // rgb()/rgba() are solid colors in function clothing;
+                // every other function (repeating-*, conic-*, url(),
+                // junk) is unsupported
+                if (fn == "rgb" || fn == "rgba")
+                {
+                    n.prop("background", t);
+                    return true;
+                }
+                return false;
+            }
+            if (low.back() != ')')
+            {
+                return false;
+            }
+            std::vector<std::string> args;
+            split_layers(t.substr(lp + 1, t.size() - lp - 2), args);
+            if (fn == "linear-gradient")
+            {
+                return parse_linear_layer(n, args);
+            }
+            return parse_radial_layer(n, args);
+        }
+
+        // whether a background prop (solid or gradient) already
+        // landed — gates the no-supported-layer warning
+        bool has_bg_prop(const ui_node &n)
+        {
+            for (const auto &p : n.props)
+            {
+                if (p.first == "background" || p.first == "bg_lin_from" ||
+                    p.first == "bg_rad_from")
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // border: "Npx solid <color>" (the color keeps inner spaces for
+        // rgba()); any other style/grammar drops the border
+        bool parse_border(const std::string &s, long long &w, std::string &color)
+        {
+            const std::string t = css_trim(s);
+            const std::size_t s1 = t.find(' ');
+            if (s1 == std::string::npos)
+            {
+                return false;
+            }
+            const std::string ws = ascii_lower(css_trim(t.substr(0, s1)));
+            if (ws.size() < 3 || ws.compare(ws.size() - 2, 2, "px") != 0)
+            {
+                return false;
+            }
+            if (!parse_svg_num(ws.substr(0, ws.size() - 2), w) || w < 0)
+            {
+                return false;
+            }
+            const std::string rest = css_trim(t.substr(s1 + 1));
+            const std::size_t s2 = rest.find(' ');
+            if (s2 == std::string::npos)
+            {
+                return false;
+            }
+            if (ascii_lower(css_trim(rest.substr(0, s2))) != "solid")
+            {
+                return false;
+            }
+            color = css_trim(rest.substr(s2 + 1));
+            return !color.empty();
+        }
         // aspect-ratio: "W / H", "W/H", or a bare number N (= N/1);
         // "auto" and malformed values stay absent
         bool parse_aspect(const std::string &s, long long &w, long long &h)
@@ -1838,9 +2165,67 @@ namespace zb::ui
                     }
                 }
             }
-            if (const std::string *bg = fold_lookup(folded, "background-color"))
+            // P-1 paint: background-color stands only when no
+            // background shorthand won the fold (CSS: the shorthand
+            // resets it; props append and prop_of reads the first, so
+            // the loser must not emit at all)
+            const std::string *bgs = fold_lookup(folded, "background");
+            if (bgs == nullptr)
             {
-                n.prop("background", *bg);
+                if (const std::string *bg = fold_lookup(folded, "background-color"))
+                {
+                    n.prop("background", *bg);
+                }
+            }
+            else
+            {
+                // P-1 paint: the background shorthand (solid/linear/radial;
+                // contract html-path). Layers split paren-aware and scan
+                // base-first — the first supported form wins, so a texture
+                // overlay (.amp's brushed repeating layer) falls through to
+                // the linear base.
+                std::vector<std::string> layers;
+                split_layers(*bgs, layers);
+                for (auto it = layers.rbegin(); it != layers.rend(); ++it)
+                {
+                    if (parse_bg_layer(n, *it))
+                    {
+                        break;
+                    }
+                }
+                if (!has_bg_prop(n))
+                {
+                    LW << "html: line " << e.line
+                       << ": background has no supported layer; ignored";
+                }
+            }
+            if (const std::string *bd = fold_lookup(folded, "border"))
+            {
+                long long w = 0;
+                std::string c;
+                if (parse_border(*bd, w, c))
+                {
+                    n.prop("border_w", w);
+                    n.prop("border_color", c);
+                }
+            }
+            if (const std::string *br = fold_lookup(folded, "border-radius"))
+            {
+                const std::string t = css_trim(ascii_lower(*br));
+                if (t == "50%")
+                {
+                    n.prop("radius_half", true);
+                }
+                else if (t.size() > 2 &&
+                         t.compare(t.size() - 2, 2, "px") == 0)
+                {
+                    long long px = 0;
+                    if (parse_svg_num(t.substr(0, t.size() - 2), px) &&
+                        px >= 0)
+                    {
+                        n.prop("radius_px", px);
+                    }
+                }
             }
             if (const std::string *fg = fold_lookup(folded, "color"))
             {

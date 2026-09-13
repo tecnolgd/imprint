@@ -233,9 +233,26 @@ namespace zb::ui::core
          * top->bottom). Channels interpolate through the 8-bit-normalized
          * accessors (A-19); a single-column/row span degenerates to the
          * flat `from` color. Every row goes through draw_pixel, so the
-         * clip/damage/alpha conventions hold (A-12/A-13).
+         * clip/damage/alpha conventions hold (A-12/A-13). A positive
+         * `radius` rounds the corners like fill_round_rect_aa (same
+         * chord + fringe formula; corner rows interpolate per pixel);
+         * <= 0 keeps the square fast path. Wireframe degrades to the
+         * outline like the square form.
          */
-        void fill_gradient(int x1, int y1, int x2, int y2, const Color &from, const Color &to, bool horizontal = true);
+        void fill_gradient(int x1, int y1, int x2, int y2, const Color &from, const Color &to, bool horizontal = true,
+                           int radius = 0);
+
+        /*
+         * Fill the rect with a two-stop circular gradient (P-1): stop
+         * `from` at the center (cx, cy, local pixels), stop `to` at the
+         * farthest-corner radius; stop offsets from_p/to_p (0..100, CSS
+         * stop positions) rescale the ramp, outside clamps to the end
+         * stops. Integer-only (isqrt per pixel, no FPU); alpha lerps
+         * with the channels. `radius` rounds the corners like
+         * fill_gradient above. Wireframe degrades to the outline.
+         */
+        void fill_radial(int x1, int y1, int x2, int y2, int cx, int cy, const Color &from, int from_p,
+                         const Color &to, int to_p, int radius = 0);
 
         /*
          * Rectangle with circular corners of the given radius (clamped to
