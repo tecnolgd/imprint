@@ -251,6 +251,24 @@ TU and defines `IMCORE_HAS_TTF_RUNTIME` PUBLIC. Contract:
   never rasterizes (advances only); `line_metrics` is computed once per
   size (ascent/descent/line height, no linegap — the same formula as
   the build-time subset).
+
+**Widget text dressing (P-2a)**: three additive, default-off properties
+  on the widget text seam (`draw_text` / `draw_text_at` / `advance_of` /
+  `text_advance`):
+- `letter-spacing Npx` (`set_letter_spacing`, px; negative clamps to
+  0): added to the advance of every covered code unit — trailing unit
+  included, per CSS — in both measure and draw. Spacing 0 keeps the
+  provider-run path bit-identical (no per-glyph split; splitting is
+  safe only because kerning is never applied, line 198). Center/right
+  alignment follows automatically through `text_advance`.
+- `font-weight` 600+ / `bold` (`set_bold`): double-strike — the string
+  draws twice, the second pass shifted +1px in the same color. No bold
+  glyph variant is synthesized or required (5x7 stays single-weight).
+- `text-shadow: dx dy [blur] color` (`set_text_shadow`): one solid
+  offset copy of the whole string (spacing and double-strike included)
+  drawn first in the shadow color; the blur radius is
+  parsed-and-ignored (no blur primitive); a comma list keeps the first
+  shadow only. SVG `text` rides the same seam.
 - **Selection-point-only conditional compilation**: stb_truetype is
   never a hard imcore/imui dependency — with the option off no new code
   compiles and the 5x7/build-time subset paths are untouched. Default
@@ -583,7 +601,11 @@ system (standing non-goals):
   the real container; the root tag does not instantiate a widget); root's
   spacing/padding/wrap apply when the host is a FlexPanel, spacing/padding
   when it is a Panel; root's children are materialized into the host one
-  by one.
+  by one. The root's own box dress — solid/gradient background, border,
+  radius, text color — styles the host (a styled document root paints
+  its frame on the host); geometry never transfers (width/height,
+  position, visibility, text, flex-grow stay host-owned — a fixed host
+  buffer always wins, §H-8).
 - Materialize semantics: unknown tags are logged and skipped (LW); a
   non-container tag with children → children silently dropped (LW); when
   the host is a FlexPanel, children with flex_grow go through flex

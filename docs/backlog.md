@@ -294,6 +294,15 @@ support "a little at a time" as the boundary demands):**
   stripes), element-level `opacity` (LED dimming), `box-shadow` /
   `text-shadow`, side-specific `border-top`, 3+-stop linear mid colors
   (P-1 keeps first+last), `font-weight` / `letter-spacing`.
+  P-2a landed 2026-09-13: `letter-spacing` (per-unit tracking),
+  `font-weight` 600+/bold (double-strike), `text-shadow` (solid offset
+  copy, blur ignored). Frame patch same day: `build()` forwards the
+  root box dress (bg/border/radius/text color) to the host, geometry
+  never transfers (contract §build). Follow-ups (not P-2): document-width
+  roots are not centered by UiPreview (amp runs full-bleed); body
+  gradient backgrounds have no `html_page` carrier (H-8 holds colors
+  only); GIF review captures band smooth ramps (216-cube) — review from
+  the raw framebuffer.
 - P-3. Absolute positioning — **landed 2026-09-13**: `position:
   relative/absolute` + `top/left/right/bottom` (`Npx`/`N%`/bare/`auto`)
   + `transform: translate()`; FlexPanel skips abs in measure/lines and

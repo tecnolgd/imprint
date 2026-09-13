@@ -162,6 +162,9 @@ applies unchanged.
 | `transform` | `translate(X[, Y])` (`%` of self or px) | shift after abs placement; any other function drops the declaration |
 | `color` | same color forms | the shared `color` property (text color) |
 | `font-size` | `Npx` | **parsed and ignored** (no per-widget size seam; deferred with a future `set_font_size`) |
+| `letter-spacing` | `Npx` | per-code-unit tracking in measure and draw (trailing unit included, per CSS); negative clamps to 0 |
+| `font-weight` | `bold`, or a number ≥ 600 → on; `normal` / < 600 → off | double-strike: second pass shifted +1px, no bold variant |
+| `text-shadow` | `DXpx DYpx [blur] <color>` | one solid offset copy drawn first; blur parsed-and-ignored; a comma list keeps the first shadow only |
 
 ## `<style>` rule matching
 
