@@ -152,7 +152,7 @@ applies unchanged.
 | `gap` | `Npx` (single value) | `spacing` |
 | `padding` | `Npx` (single value) | `padding` |
 | `flex-wrap` | `wrap` | `wrap=true` |
-| `aspect-ratio` | `W / H`, `N`, `auto` | derived-axis size from the settled cross axis (only when the derived axis is auto with no percent and the cross axis is explicit or percent — e.g. `.vu`'s `2/1` turns a `width: 100%` into a height; explicit declarations always win); `auto`/malformed = absent |
+| `aspect-ratio` | `W / H`, `N`, `auto` | derived-axis size from the cross axis (only when the derived axis is auto with no percent and the cross axis is explicit or percent — e.g. `.vu`'s `2/1` turns a `width: 100%` into a height; explicit declarations always win; the cross value may settle during the same layout — convergent passes re-read it, H-9); `auto`/malformed = absent |
 | `background-color` | `#rgb`, `#rrggbb`, named subset, `transparent` | the shared `background` property (see design-file) |
 | `color` | same color forms | the shared `color` property (text color) |
 | `font-size` | `Npx` | **parsed and ignored** (no per-widget size seam; deferred with a future `set_font_size`) |

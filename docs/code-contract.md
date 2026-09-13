@@ -699,6 +699,17 @@ dispatcher's raw pointers against dangling/UAF:
 - Invalidation propagation only sets the layout flag and does not
   additionally mark render dirty (geometry changes produce damage
   naturally when layout writes sizes back through its setters).
+- **Convergent passes (H-9)**: one `FlexPanel::layout()` pass cannot fit
+  an auto size to a child whose input only settles top-down during that
+  same pass (an aspect-derived height whose cross width resolves in the
+  pass; the ancestor measured first, the child derives after). So
+  `layout()` re-runs its pass while any child size, position, or
+  `measure()` changed, bounded at 3 rounds. Each level converges its own
+  subtree before returning, so the bound covers arbitrary depth; trees
+  without derived sizes settle after the first pass (every demand is a
+  pure function of settled inputs) and pay one compare. The flag still
+  clears when done — convergence happens inside one `layout()` call, so
+  a given state still triggers at most one layout per paint.
 - Text advance cache (batch J4) invalidation duty: any setter that
   changes glyph content (set_text/set_glyph_provider) must reset
   the cache; when adding such a setter, invalidate in the same change +
