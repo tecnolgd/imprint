@@ -1256,5 +1256,62 @@ int test_html()
         EXPECT(test::pixel_at(g, op.x, oy) != test::pixel_at(g, op.x + 3, oy));
     }
 
+    // P-2d opacity + border-top: fixed-point parse, build-time alpha
+    // fold, top band paint
+    {
+        ui_node r = parse_html(
+            "<div>"
+            "<div style=\"opacity:0.35\"><label>a</label></div>"
+            "<div style=\"opacity:35%\"><label>b</label></div>"
+            "<div style=\"opacity:2\"><label>c</label></div>"
+            "<div style=\"opacity:junk\"><label>d</label></div>"
+            "<div style=\"border-top:2px solid #ff0000\"><label>e</label></div>"
+            "</div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "elem_opacity")) == 350);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[1], "elem_opacity")) == 350);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[2], "elem_opacity")) == 1000);
+        EXPECT(find_prop(r.children[3], "elem_opacity") < 0);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[4], "border_t_w")) == 2);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[4], "border_t_c")) == "#ff0000");
+
+        // white face at 0.35 over clear-black blends to 90 gray
+        // (ceil((255 * 350 + 999) / 1000)); on 16bpp the folded bit
+        // stays set
+        ui_node doc = parse_html(
+            "<div>"
+            "<div style=\"width:41px;height:41px;background:#ffffff;opacity:0.35\">"
+            "<label>x</label></div>"
+            "<div style=\"width:41px;height:12px;border-top:2px solid #ff0000\">"
+            "<label>y</label></div>"
+            "</div>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, doc);
+        host.layout();
+        auto *dim = host.get_items()[0].child.get();
+        auto *ruled = host.get_items()[1].child.get();
+        EXPECT(dim->has_background());
+        EXPECT(ruled->has_top_border());
+        core::Graphics g(200, 100, nullptr);
+        host.draw(g);
+        const auto dp = dim->get_position();
+#if COLOR_DEPTH == 32
+        // white at 90 over clear-black: channels 90, source-over alpha
+        // 90 (90 + 0)
+        EXPECT(test::pixel_at(g, dp.x + 20, dp.y + 20) ==
+               core::Color::from(90, 90, 90, 90).pixel);
+#else
+        EXPECT(test::pixel_at(g, dp.x + 20, dp.y + 20) ==
+               core::colors::White.pixel);
+#endif
+        const auto rp = ruled->get_position();
+        const uint32_t red_px = core::Color::from(255, 0, 0).pixel;
+        EXPECT(test::pixel_at(g, rp.x + 20, rp.y) == red_px);
+        EXPECT(test::pixel_at(g, rp.x + 20, rp.y + 1) == red_px);
+        EXPECT(test::pixel_at(g, rp.x + 20, rp.y + 5) != red_px);
+    }
+
     return test::report("html");
 }

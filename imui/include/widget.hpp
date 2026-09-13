@@ -215,6 +215,48 @@ namespace zb::ui
         }
         [[nodiscard]] bool has_aspect() const { return aspect_w_ > 0 && aspect_h_ > 0; }
 
+        // sidecar sections (defined up here: the public setters below
+        // name these types; storage + mutators stay private at the
+        // bottom). One heap sidecar per dressed widget (batch J).
+        // positioning spec (P-3): offsets l/t/r/b then translate
+        // x/y, INT16_MIN = unset, pctmask bits l/t/r/b/tx/ty
+        struct abs_spec
+        {
+            int16_t off[4] = {INT16_MIN, INT16_MIN, INT16_MIN, INT16_MIN};
+            int16_t tr[2] = {INT16_MIN, INT16_MIN};
+            uint8_t kind = 0;  // 1 relative, 2 absolute
+            uint8_t pctmask = 0;
+        };
+        // extended gradient (P-2b/c): forms the packed paint_dress
+        // cannot hold. kind 3 = conic (a = from deg, b = nstops,
+        // pos/col = stops); kind 5 = three-stop linear (col =
+        // from/mid/to, a = mid %, flags bit0 = horizontal)
+        struct grad_ex
+        {
+            uint8_t kind = 0;
+            uint8_t flags = 0;
+            uint16_t a = 0;
+            uint16_t b = 0;
+            uint16_t pos[4] = {0, 0, 0, 0};
+            core::Color col[4]{};
+        };
+        // repeating stripe overlay (P-2c): up to 6 px stops, period =
+        // last stop; paints translucently over any base
+        struct rep_ex
+        {
+            uint8_t flags = 0;  // bit0 = horizontal
+            uint8_t n = 0;
+            uint16_t period = 0;
+            uint16_t pos[6] = {0, 0, 0, 0, 0, 0};
+            core::Color col[6]{};
+        };
+        // top border band (P-2d): width px + color (alpha 0 = none)
+        struct bord_t
+        {
+            uint8_t w = 0;
+            core::Color c{};
+        };
+
         /*
          * Positioning (P-3): relative lays out in flow and anchors abs
          * descendants; absolute leaves the flow (resolved by the
@@ -484,6 +526,26 @@ namespace zb::ui
                    rep() != nullptr;
         }
         [[nodiscard]] bool has_border() const { return dress_.border_w > 0; }
+        // top border band (P-2d): full-width strip over the
+        // background; a zero width or alpha-0 color paints nothing
+        void set_top_border(const int width_px, const core::Color &c)
+        {
+            bord_t *const b = mut_bord();
+            b->w = static_cast<uint8_t>(width_px < 0 ? 0
+                                          : (width_px > 255 ? 255 : width_px));
+            b->c = c;
+            mark_dirty();
+        }
+        [[nodiscard]] bool has_top_border() const
+        {
+            return ext_ != nullptr && ext_->has_bord != 0 &&
+                   ext_->bord.w != 0 && ext_->bord.c.a() != 0;
+        }
+        // band geometry for the draw path (null = none)
+        [[nodiscard]] const bord_t *top_border() const
+        {
+            return has_top_border() ? &ext_->bord : nullptr;
+        }
         // conic-dressing background (P-2b): `from_deg` start angle (CSS
         // degrees), 2..4 {deg, color} stops (center fixed at 50%/50%).
         // Rides the sidecar (flags its section); overrides every
@@ -970,40 +1032,6 @@ namespace zb::ui
         };
         paint_dress dress_;
 
-        // positioning spec (P-3): offsets l/t/r/b then translate
-        // x/y, INT16_MIN = unset, pctmask bits l/t/r/b/tx/ty
-        struct abs_spec
-        {
-            int16_t off[4] = {INT16_MIN, INT16_MIN, INT16_MIN, INT16_MIN};
-            int16_t tr[2] = {INT16_MIN, INT16_MIN};
-            uint8_t kind = 0;  // 1 relative, 2 absolute
-            uint8_t pctmask = 0;
-        };
-        // extended gradient (P-2b/c): forms the packed paint_dress
-        // cannot hold. kind 3 = conic (a = from deg, b = nstops,
-        // pos/col = stops); kind 5 = three-stop linear (col =
-        // from/mid/to, a = mid %, flags bit0 = horizontal). The
-        // repeating overlay (P-2c) rides its own rep section below so
-        // a base + texture compose on one widget.
-        struct grad_ex
-        {
-            uint8_t kind = 0;
-            uint8_t flags = 0;
-            uint16_t a = 0;
-            uint16_t b = 0;
-            uint16_t pos[4] = {0, 0, 0, 0};
-            core::Color col[4]{};
-        };
-        // repeating stripe overlay (P-2c): up to 6 px stops, period =
-        // last stop; paints translucently over any base
-        struct rep_ex
-        {
-            uint8_t flags = 0;  // bit0 = horizontal
-            uint8_t n = 0;
-            uint16_t period = 0;
-            uint16_t pos[6] = {0, 0, 0, 0, 0, 0};
-            core::Color col[6]{};
-        };
         // one heap sidecar for every optional dressing section (batch
         // J): a bare widget keeps ext_ null (zero-alloc ctor, lean
         // inline); each setter allocates once and flags its section,
@@ -1014,6 +1042,7 @@ namespace zb::ui
             abs_spec pos{};
             grad_ex grad{};
             rep_ex rep{};
+            bord_t bord{};
             int16_t letter_px = 0;
             uint8_t text_flags = 0;  // bit0 = bold (double-strike)
             core::Color shadow_color{};
@@ -1022,6 +1051,7 @@ namespace zb::ui
             uint8_t has_pos = 0;
             uint8_t has_grad = 0;
             uint8_t has_rep = 0;
+            uint8_t has_bord = 0;
             uint8_t has_text = 0;
         };
         std::unique_ptr<widget_ext> ext_;
@@ -1064,6 +1094,12 @@ namespace zb::ui
             ensure_ext();
             ext_->has_rep = 1;
             return &ext_->rep;
+        }
+        bord_t *mut_bord()
+        {
+            ensure_ext();
+            ext_->has_bord = 1;
+            return &ext_->bord;
         }
         widget_ext *mut_text()
         {

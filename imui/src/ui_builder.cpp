@@ -130,6 +130,26 @@ namespace zb::ui
             return t == "column" || t == "row" || t == "panel";
         }
 
+        // element opacity (P-2d): fixed-point 0..1000, default opaque
+        long long elem_opacity(const ui_node &n)
+        {
+            const long long v = prop_of(n, "elem_opacity", 1000LL);
+            return v < 0 ? 0 : (v > 1000 ? 1000 : v);
+        }
+        // fold opacity into a paint color (rounded up: any nonzero
+        // stays nonzero — the set_a(v > 0) binary rule, so a dimmed
+        // LED keeps its bit on 16bpp)
+        core::Color fold_opacity(core::Color c, const long long op)
+        {
+            if (op < 1000)
+            {
+                const int v = static_cast<int>(c.a()) *
+                              static_cast<int>(op);
+                c.set_a(static_cast<uint8_t>(v <= 0 ? 0 : (v + 999) / 1000));
+            }
+            return c;
+        }
+
         // tag table -> concrete widget; the property table below can
         // static_cast safely because it only runs on widgets this
         // function made (no RTTI on NDS)
@@ -354,6 +374,8 @@ namespace zb::ui
         // the call sites; this keeps the two paths from drifting)
         void apply_box_dress(Widget &w, const ui_node &n)
         {
+            // element opacity folds into every paint color here (P-2d)
+            const long long op = elem_opacity(n);
             // P-1 paint dressing: radial wins over linear when both are
             // set (contract); a mistyped half leaves the color unset
             if (has_prop(n, "bg_rad_from") && has_prop(n, "bg_rad_to"))
@@ -365,8 +387,10 @@ namespace zb::ui
                 {
                     w.set_background_radial(
                         static_cast<int>(prop_of(n, "bg_rad_cx", 50LL)),
-                        static_cast<int>(prop_of(n, "bg_rad_cy", 50LL)), from,
-                        static_cast<int>(prop_of(n, "bg_rad_from_p", 0LL)), to,
+                        static_cast<int>(prop_of(n, "bg_rad_cy", 50LL)),
+                        fold_opacity(from, op),
+                        static_cast<int>(prop_of(n, "bg_rad_from_p", 0LL)),
+                        fold_opacity(to, op),
                         static_cast<int>(prop_of(n, "bg_rad_to_p", 100LL)));
                 }
             }
@@ -377,7 +401,8 @@ namespace zb::ui
                 if (parse_color(prop_of(n, "bg_lin_from", std::string{}), from) &&
                     parse_color(prop_of(n, "bg_lin_to", std::string{}), to))
                 {
-                    w.set_background_linear(from, to,
+                    w.set_background_linear(fold_opacity(from, op),
+                                            fold_opacity(to, op),
                                             prop_of(n, "bg_lin_h", true));
                 }
             }
@@ -411,9 +436,14 @@ namespace zb::ui
                 }
                 if (nstops >= 2)
                 {
+                    core::Color folded[4]{};
+                    for (int i = 0; i < nstops; ++i)
+                    {
+                        folded[i] = fold_opacity(cols[i], op);
+                    }
                     w.set_background_conic(
                         static_cast<int>(prop_of(n, "bg_con_from", 0LL)),
-                        degs, cols, nstops);
+                        degs, folded, nstops);
                 }
             }
             // P-2c three-stop linear: the mid section rides the sidecar
@@ -431,8 +461,9 @@ namespace zb::ui
                                      to))
                 {
                     w.set_background_linear3(
-                        from, mid,
-                        static_cast<int>(prop_of(n, "bg_lin3_p", 50LL)), to,
+                        fold_opacity(from, op), fold_opacity(mid, op),
+                        static_cast<int>(prop_of(n, "bg_lin3_p", 50LL)),
+                        fold_opacity(to, op),
                         prop_of(n, "bg_lin_h", true));
                 }
             }
@@ -471,12 +502,28 @@ namespace zb::ui
                     }
                     if (got >= 2)
                     {
+                        core::Color folded[6]{};
+                        for (int i = 0; i < got; ++i)
+                        {
+                            folded[i] = fold_opacity(cols[i], op);
+                        }
                         w.set_background_repeating(
                             prop_of(n, "bg_rep_h", false),
                             static_cast<int>(
                                 prop_of(n, "bg_rep_period", 0LL)),
-                            pos, cols, got);
+                            pos, folded, got);
                     }
+                }
+            }
+            // P-2d top border: same grammar as border, own band
+            if (has_prop(n, "border_t_w") && has_prop(n, "border_t_c"))
+            {
+                core::Color bc;
+                if (parse_color(prop_of(n, "border_t_c", std::string{}), bc))
+                {
+                    w.set_top_border(
+                        static_cast<int>(prop_of(n, "border_t_w", 0LL)),
+                        fold_opacity(bc, op));
                 }
             }
             if (has_prop(n, "border_w") && has_prop(n, "border_color"))
@@ -485,7 +532,8 @@ namespace zb::ui
                 if (parse_color(prop_of(n, "border_color", std::string{}), bc))
                 {
                     w.set_border(
-                        static_cast<int>(prop_of(n, "border_w", 0LL)), bc);
+                        static_cast<int>(prop_of(n, "border_w", 0LL)),
+                        fold_opacity(bc, op));
                 }
             }
             if (prop_of(n, "radius_half", false))
@@ -575,7 +623,7 @@ namespace zb::ui
             core::Color c;
             if (parse_color(prop_of(n, "background", std::string{}), c))
             {
-                w.set_background_color(c);
+                w.set_background_color(fold_opacity(c, elem_opacity(n)));
             }
             apply_box_dress(w, n);
             // P-3 positioning: relative anchors, absolute leaves the flow
@@ -619,7 +667,7 @@ namespace zb::ui
             }
             if (parse_color(prop_of(n, "color", std::string{}), c))
             {
-                w.set_text_color(c);
+                w.set_text_color(fold_opacity(c, elem_opacity(n)));
             }
             // P-2a text dressing: tracking, double-strike bold, one
             // solid offset shadow (shadow color through parse_color,
@@ -640,7 +688,7 @@ namespace zb::ui
                                 sc))
                 {
                     w.set_text_shadow(
-                        sc,
+                        fold_opacity(sc, elem_opacity(n)),
                         static_cast<int>(prop_of(n, "shadow_dx", 0LL)),
                         static_cast<int>(prop_of(n, "shadow_dy", 0LL)));
                 }
@@ -1114,12 +1162,12 @@ namespace zb::ui
         core::Color c;
         if (parse_color(prop_of(root, "background", std::string{}), c))
         {
-            host.set_background_color(c);
+            host.set_background_color(fold_opacity(c, elem_opacity(root)));
         }
         apply_box_dress(host, root);
         if (parse_color(prop_of(root, "color", std::string{}), c))
         {
-            host.set_text_color(c);
+            host.set_text_color(fold_opacity(c, elem_opacity(root)));
         }
         for (const ui_node &c : root.children)
         {

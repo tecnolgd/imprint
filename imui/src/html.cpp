@@ -64,7 +64,8 @@ namespace zb::ui
                    p == "right" || p == "bottom" || p == "transform" ||
                    p == "font-size" || p == "aspect-ratio" ||
                    p == "letter-spacing" || p == "font-weight" ||
-                   p == "text-shadow";
+                   p == "text-shadow" || p == "opacity" ||
+                   p == "border-top";
         }
 
         // --- text helpers --------------------------------------------------
@@ -1988,6 +1989,75 @@ namespace zb::ui
             color = css_trim(rest.substr(s2 + 1));
             return !color.empty();
         }
+        // opacity (P-2d): "N" 0..1 or "N%" into fixed-point 0..1000
+        // (integer-only: up to 3 fraction digits, truncated, clamped).
+        // Malformed (empty, junk, bare ".") drops the declaration.
+        bool parse_opacity_fixed(const std::string &s, long long &out)
+        {
+            std::string t = css_trim(ascii_lower(s));
+            if (t.empty())
+            {
+                return false;
+            }
+            long long scale = 1000;
+            if (!t.empty() && t.back() == '%')
+            {
+                t = css_trim(t.substr(0, t.size() - 1));
+                scale = 10;
+            }
+            const std::size_t dot = t.find('.');
+            std::string ip = dot == std::string::npos ? t : t.substr(0, dot);
+            std::string fp = dot == std::string::npos ? "" : t.substr(dot + 1);
+            if (ip.empty() && fp.empty())
+            {
+                return false;  // bare "." and friends
+            }
+            if (ip.empty())
+            {
+                ip = "0";
+            }
+            long long whole = 0;
+            for (const char c : ip)
+            {
+                if (c < '0' || c > '9')
+                {
+                    return false;
+                }
+                whole = whole * 10 + (c - '0');
+                if (whole > 1000000)
+                {
+                    break;  // clamps below; no need for exact bigness
+                }
+            }
+            while (fp.size() > 3)
+            {
+                fp.pop_back();
+            }
+            while (fp.size() < 3)
+            {
+                fp.push_back('0');
+            }
+            long long frac = 0;
+            for (const char c : fp)
+            {
+                if (c < '0' || c > '9')
+                {
+                    return false;
+                }
+                frac = frac * 10 + (c - '0');
+            }
+            long long v = 0;
+            if (scale == 1000)
+            {
+                v = whole * 1000 + frac;  // "N" 0..1
+            }
+            else
+            {
+                v = whole * 10 + frac / 100;  // "N%" (frac thirds truncate)
+            }
+            out = v < 0 ? 0 : (v > 1000 ? 1000 : v);
+            return true;
+        }
         // text-shadow: "DXpx DYpx [blur] <color>" (a comma list keeps
         // the first shadow only, per contract P-2a). Lengths are Npx or
         // bare numbers; the blur (when 4 tokens) is parsed-and-ignored.
@@ -2610,6 +2680,27 @@ namespace zb::ui
                 {
                     n.prop("border_w", w);
                     n.prop("border_color", c);
+                }
+            }
+            // P-2d: border-top takes the same grammar on its own props
+            if (const std::string *bt = fold_lookup(folded, "border-top"))
+            {
+                long long w = 0;
+                std::string c;
+                if (parse_border(*bt, w, c))
+                {
+                    n.prop("border_t_w", w);
+                    n.prop("border_t_c", c);
+                }
+            }
+            // P-2d: element opacity folds into the widget's own paint
+            // at build time (stored fixed-point 0..1000)
+            if (const std::string *op = fold_lookup(folded, "opacity"))
+            {
+                long long v = 1000;
+                if (parse_opacity_fixed(*op, v))
+                {
+                    n.prop("elem_opacity", v);
                 }
             }
             if (const std::string *br = fold_lookup(folded, "border-radius"))

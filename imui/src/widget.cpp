@@ -139,6 +139,12 @@ namespace zb::ui
         {
             blend = true;
         }
+        // the top band blends like any border (P-2d)
+        if (const bord_t *const b = top_border();
+            b != nullptr && needs_blend(b->c))
+        {
+            blend = true;
+        }
         const bool bak = area.is_alpha_enabled();
         if (blend)
         {
@@ -234,6 +240,13 @@ namespace zb::ui
                 area.draw_rect(i, i, s.width - 1 - i, s.height - 1 - i,
                                dress_.border_color);
             }
+        }
+        // top border band (P-2d): full-width strip; radius corners
+        // are not cut (contract)
+        if (const bord_t *const b = top_border(); b != nullptr)
+        {
+            const int bh = b->w > s.height ? s.height : b->w;
+            area.fill_rect(0, 0, s.width - 1, bh - 1, b->c);
         }
         if (blend)
         {
