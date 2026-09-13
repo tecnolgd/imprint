@@ -451,6 +451,26 @@ system (standing non-goals):
   `space-around → space_around`; unknown values warn once and keep the
   current value. `.ui`/builder flows set the same parameter through the
   `justify` node prop (integer code).
+- **FlexPanel cross-axis alignment (H-7b)**: `align_items` (`start`
+  default preserving the historical line-top packing, `center`, `end`,
+  `stretch`) plus a per-item `align_self` (`auto` = inherit the
+  container, else one of the four). The effective alignment resolves per
+  line; offsets sit inside the line's cross extent (`line_cross`, the
+  max child cross size): `start → 0`, `center → (line_cross−c)/2`
+  (floor), `end → line_cross−c`, `stretch → 0` after growing. `stretch`
+  writes the child's cross size up to `line_cross` only when that axis
+  is auto (measured) — an explicit size or a percent declaration keeps
+  its value and the item behaves as `start` (CSS non-auto rule). Sizes
+  on the main axis, `measure()` (demands, not positions), and line
+  breaking are untouched; the stretch write is closed over settled
+  demands so the H-9 loop sees no drift. HTML `align-items` maps
+  `flex-start/start → start`, `center → center`, `flex-end/end → end`,
+  `stretch → stretch` onto the container prop; `align-self` maps the
+  same plus `auto` onto the per-item hint (honored only under a flex
+  parent, ignored elsewhere like `flex_grow`); `baseline` and anything
+  else warn once and keep the current value. `.ui`/builder flows use the
+  `align` node prop (container, integer code) and the `align_self` node
+  hint (item).
 - Keyboard constraints: with a modal open, keyboard focus and
   Tab/arrow navigation are confined to the modal subtree (`focus_next`
   scopes to the modal); if the focused widget lies outside the modal
