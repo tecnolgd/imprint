@@ -265,7 +265,8 @@ support "a little at a time" as the boundary demands):**
     UI-drawing widgets (icons, gauge faces, decoration), not
     pixel-dense assets.
 - H-7. Layout alignment & flex fill (FlexPanel enhancements, not parser
-  work): `justify-content` (main-axis end/center/space-between),
+  work): `justify-content` (main-axis end/center/space-between/
+  space-around — around added for the knob-row; H-7a),
   `align-items`/`align-self` (cross-axis alignment — today FlexPanel does
   not stretch cross-axis), `flex-basis`/`flex-shrink`, and `flex` min/max
   constraints. Each is an additive FlexPanel parameter with a default

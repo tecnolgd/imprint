@@ -432,6 +432,25 @@ system (standing non-goals):
   non-explicit cross axis (including flex children) always take their
   `measure()` content size — framework text does not wrap, so content
   height is unaffected by main-axis assignment.
+- **FlexPanel main-axis justification (H-7a)**: `FlexPanel::justify`
+  (`start` default, `center`, `end`, `space_between`, `space_around`)
+  distributes each line's free space — `F = content_main − (Σ final main
+  sizes + spacing·(n−1))`, `spacing` acting as the minimum gap (CSS `gap`
+  analogy) — as positions only; sizes, `measure()`, and line breaking
+  are untouched. `start` keeps the historical padding origin; `end`
+  leads by `F`, `center` by `F/2` (floor); `space_between` puts item k at
+  `padding + sizes_before + k·F/(n−1)` (`n == 1` behaves as `start`);
+  `space_around` puts item k at `padding + sizes_before + (2k+1)·F/(2n)`
+  (half gap at both ends). `F ≤ 0` falls back to `start` placement
+  (overflow clips at the far edge, never overlaps backwards). Each
+  wrapped line justifies independently; abs children resolve in
+  `resolve_abs`, never here. The forms are closed over settled sizes, so
+  the H-9 convergence loop sees no drift. HTML `justify-content` maps
+  `flex-start/start/left → start`, `flex-end/end/right → end`,
+  `center → center`, `space-between → space_between`,
+  `space-around → space_around`; unknown values warn once and keep the
+  current value. `.ui`/builder flows set the same parameter through the
+  `justify` node prop (integer code).
 - Keyboard constraints: with a modal open, keyboard focus and
   Tab/arrow navigation are confined to the modal subtree (`focus_next`
   scopes to the modal); if the focused widget lies outside the modal
