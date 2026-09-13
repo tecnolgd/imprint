@@ -273,6 +273,17 @@ support "a little at a time" as the boundary demands):**
   cross-axis), so existing tests and `.ui` files stay green when a
   parameter lands. Sized individually; gated by a real page that needs
   them (see §0 step 6: not now).
+- H-9. Convergent layout passes (FlexPanel, 2026-09-13 evidence:
+  model500 `.vu` resolves 84x42 through `aspect-ratio` but its auto-height
+  ancestors measured ~10px in the same single pass, so the dials clip —
+  proven by probe, not by guess). Single-pass measure-then-layout cannot
+  fit auto heights to aspect-derived (or indefinite-percent) children
+  whose cross widths settle top-down in the same pass; H-7 definite
+  widths alone do NOT fix it (the auto height still measures first).
+  Fix shape: bounded re-pack iteration and/or value-gated layout writes
+  so a pass converges instead of wiping (today each panel clears its
+  flag at pass end). Gated behind real need; until then `aspect-ratio`
+  needs a definite cross axis upstream (contract says exactly this).
 - H-8. Page-level box (landed 2026-09-12, B2 review): the `<body>` style
   feeds an `html_page` (per-axis Npx size + background) beside the tree;
   `parse_html(text, ok, page)` fills it; consumers resolve document →
