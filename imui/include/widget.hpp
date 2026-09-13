@@ -480,7 +480,8 @@ namespace zb::ui
         [[nodiscard]] bool has_background() const
         {
             return background.has_value() || background_image.has_value() ||
-                   dress_.bg_kind != 0 || grad() != nullptr;
+                   dress_.bg_kind != 0 || grad() != nullptr ||
+                   rep() != nullptr;
         }
         [[nodiscard]] bool has_border() const { return dress_.border_w > 0; }
         // conic-dressing background (P-2b): `from_deg` start angle (CSS
@@ -504,6 +505,49 @@ namespace zb::ui
                 const int d = stop_deg[i] < 0 ? 0 : stop_deg[i];
                 g->pos[i] = static_cast<uint16_t>(d > 360 ? 360 : d);
                 g->col[i] = stop_col[i];
+            }
+            mark_dirty();
+        }
+        // three-stop linear (P-2c): full from/mid/to + mid % ride the
+        // sidecar (kind 5); horizontal in flags bit0. Replaces any
+        // paint_dress gradient at draw time
+        void set_background_linear3(const core::Color &from,
+                                    const core::Color &mid, const int mid_p,
+                                    const core::Color &to,
+                                    const bool horizontal)
+        {
+            grad_ex *const g = mut_grad();
+            g->kind = 5;
+            g->flags = horizontal ? 1 : 0;
+            g->a = static_cast<uint16_t>(mid_p < 0 ? 0
+                                           : (mid_p > 100 ? 100 : mid_p));
+            g->col[0] = from;
+            g->col[1] = mid;
+            g->col[2] = to;
+            mark_dirty();
+        }
+        // repeating stripe overlay (P-2c): 2..6 px stops, period > 0;
+        // paints over any base. Anything else is ignored
+        void set_background_repeating(const bool horizontal, const int period,
+                                      const int *stop_pos,
+                                      const core::Color *stop_col,
+                                      const int nstops)
+        {
+            if (stop_pos == nullptr || stop_col == nullptr || nstops < 2 ||
+                nstops > 6 || period <= 0 || period > 65535)
+            {
+                return;
+            }
+            rep_ex *const r = mut_rep();
+            r->flags = horizontal ? 1 : 0;
+            r->n = static_cast<uint8_t>(nstops);
+            r->period = static_cast<uint16_t>(period);
+            for (int i = 0; i < nstops; ++i)
+            {
+                const int p = stop_pos[i] < 0 ? 0 : stop_pos[i];
+                r->pos[i] =
+                    static_cast<uint16_t>(p > 65535 ? 65535 : p);
+                r->col[i] = stop_col[i];
             }
             mark_dirty();
         }
@@ -937,8 +981,10 @@ namespace zb::ui
         };
         // extended gradient (P-2b/c): forms the packed paint_dress
         // cannot hold. kind 3 = conic (a = from deg, b = nstops,
-        // pos/col = stops); kinds 4/5 reserved for P-2c (repeating /
-        // three-stop linear)
+        // pos/col = stops); kind 5 = three-stop linear (col =
+        // from/mid/to, a = mid %, flags bit0 = horizontal). The
+        // repeating overlay (P-2c) rides its own rep section below so
+        // a base + texture compose on one widget.
         struct grad_ex
         {
             uint8_t kind = 0;
@@ -947,6 +993,16 @@ namespace zb::ui
             uint16_t b = 0;
             uint16_t pos[4] = {0, 0, 0, 0};
             core::Color col[4]{};
+        };
+        // repeating stripe overlay (P-2c): up to 6 px stops, period =
+        // last stop; paints translucently over any base
+        struct rep_ex
+        {
+            uint8_t flags = 0;  // bit0 = horizontal
+            uint8_t n = 0;
+            uint16_t period = 0;
+            uint16_t pos[6] = {0, 0, 0, 0, 0, 0};
+            core::Color col[6]{};
         };
         // one heap sidecar for every optional dressing section (batch
         // J): a bare widget keeps ext_ null (zero-alloc ctor, lean
@@ -957,6 +1013,7 @@ namespace zb::ui
         {
             abs_spec pos{};
             grad_ex grad{};
+            rep_ex rep{};
             int16_t letter_px = 0;
             uint8_t text_flags = 0;  // bit0 = bold (double-strike)
             core::Color shadow_color{};
@@ -964,6 +1021,7 @@ namespace zb::ui
             int8_t shadow_dy = 0;
             uint8_t has_pos = 0;
             uint8_t has_grad = 0;
+            uint8_t has_rep = 0;
             uint8_t has_text = 0;
         };
         std::unique_ptr<widget_ext> ext_;
@@ -995,6 +1053,17 @@ namespace zb::ui
             ensure_ext();
             ext_->has_grad = 1;
             return &ext_->grad;
+        }
+        [[nodiscard]] const rep_ex *rep() const
+        {
+            return (ext_ != nullptr && ext_->has_rep != 0) ? &ext_->rep
+                                                          : nullptr;
+        }
+        rep_ex *mut_rep()
+        {
+            ensure_ext();
+            ext_->has_rep = 1;
+            return &ext_->rep;
         }
         widget_ext *mut_text()
         {

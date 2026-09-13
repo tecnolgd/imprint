@@ -60,6 +60,35 @@ namespace zb::ui
             return false;
         }
 
+        // a gradient stop color: parse_color, except the literal
+        // `transparent` is an explicit alpha-0 stop (parse_color
+        // reports it false by design — no paintable color — which is
+        // right for solid backgrounds but wrong inside a stop list)
+        bool parse_stop_color(const std::string &s, core::Color &c)
+        {
+            if (parse_color(s, c))
+            {
+                return true;
+            }
+            std::string t;
+            for (const char ch : s)
+            {
+                if (ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r')
+                {
+                    t.push_back(
+                        static_cast<char>(ch >= 'A' && ch <= 'Z'
+                                              ? ch - 'A' + 'a'
+                                              : ch));
+                }
+            }
+            if (t == "transparent")
+            {
+                c = core::Color{};
+                return true;
+            }
+            return false;
+        }
+
         // prop `name`, or `fallback` when missing (kind must match the
         // builder that produced it; a wrong kind yields the fallback)
         template <class T>
@@ -370,8 +399,8 @@ namespace zb::ui
                     {
                         break;
                     }
-                    if (!parse_color(prop_of(n, cs.c_str(), std::string{}),
-                                     cols[i]))
+                    if (!parse_stop_color(
+                            prop_of(n, cs.c_str(), std::string{}), cols[i]))
                     {
                         nstops = 0;
                         break;
@@ -385,6 +414,69 @@ namespace zb::ui
                     w.set_background_conic(
                         static_cast<int>(prop_of(n, "bg_con_from", 0LL)),
                         degs, cols, nstops);
+                }
+            }
+            // P-2c three-stop linear: the mid section rides the sidecar
+            // (kind 5); a mistyped mid keeps the ends-only base above
+            if (has_prop(n, "bg_lin3_mid"))
+            {
+                core::Color from;
+                core::Color mid;
+                core::Color to;
+                if (parse_stop_color(prop_of(n, "bg_lin_from", std::string{}),
+                                     from) &&
+                    parse_stop_color(prop_of(n, "bg_lin3_mid", std::string{}),
+                                     mid) &&
+                    parse_stop_color(prop_of(n, "bg_lin_to", std::string{}),
+                                     to))
+                {
+                    w.set_background_linear3(
+                        from, mid,
+                        static_cast<int>(prop_of(n, "bg_lin3_p", 50LL)), to,
+                        prop_of(n, "bg_lin_h", true));
+                }
+            }
+            // P-2c repeating overlay: 2..6 stops ride bg_rep_pN/cN; any
+            // missing half drops the overlay, the base above survives
+            if (has_prop(n, "bg_rep_n"))
+            {
+                const int nstops =
+                    static_cast<int>(prop_of(n, "bg_rep_n", 0LL));
+                if (nstops >= 2 && nstops <= 6)
+                {
+                    int pos[6] = {0, 0, 0, 0, 0, 0};
+                    core::Color cols[6]{};
+                    int got = 0;
+                    for (int i = 0; i < nstops; ++i)
+                    {
+                        const std::string ps =
+                            "bg_rep_p" + std::to_string(i);
+                        const std::string cs =
+                            "bg_rep_c" + std::to_string(i);
+                        if (!has_prop(n, ps.c_str()) ||
+                            !has_prop(n, cs.c_str()))
+                        {
+                            break;
+                        }
+                        if (!parse_stop_color(
+                                prop_of(n, cs.c_str(), std::string{}),
+                                cols[i]))
+                        {
+                            got = 0;
+                            break;
+                        }
+                        pos[i] =
+                            static_cast<int>(prop_of(n, ps.c_str(), 0LL));
+                        ++got;
+                    }
+                    if (got >= 2)
+                    {
+                        w.set_background_repeating(
+                            prop_of(n, "bg_rep_h", false),
+                            static_cast<int>(
+                                prop_of(n, "bg_rep_period", 0LL)),
+                            pos, cols, got);
+                    }
                 }
             }
             if (has_prop(n, "border_w") && has_prop(n, "border_color"))

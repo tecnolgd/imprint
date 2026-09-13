@@ -1353,6 +1353,282 @@ void Graphics::fill_conic(int x1, int y1, int x2, int y2, int from_deg, const in
     }
 }
 
+void Graphics::fill_gradient3(int x1, int y1, int x2, int y2, const Color &from, const Color &mid, int mid_p,
+                               const Color &to, const bool horizontal, const int radius)
+{
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_rect(x1, y1, x2, y2, from);  // S-1: bones only
+        return;
+    }
+    const int left = x1 < x2 ? x1 : x2;
+    const int right = x1 < x2 ? x2 : x1;
+    const int top = y1 < y2 ? y1 : y2;
+    const int bottom = y1 < y2 ? y2 : y1;
+
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+    const int mp = mid_p < 0 ? 0 : (mid_p > 100 ? 100 : mid_p);
+
+    // two straight segments meeting exactly at mid (integer grid:
+    // the mid column/row reads mid on both sides)
+    auto ramp = [&](const int t, const int steps) {
+        if (steps <= 0)
+        {
+            return from;
+        }
+        const int t_mid = mp * steps / 100;
+        if (t <= t_mid)
+        {
+            if (t_mid <= 0)
+            {
+                return mid;
+            }
+            return lerp_color(from, mid, t, t_mid);
+        }
+        if (steps - t_mid <= 0)
+        {
+            return to;
+        }
+        return lerp_color(mid, to, t - t_mid, steps - t_mid);
+    };
+
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int frac8) {
+        if (frac8 > 0)
+        {
+            plot_aa(lx - 1, row, frac8, lc);
+            plot_aa(rx + 1, row, frac8, rc);
+        }
+    };
+
+    if (horizontal)
+    {
+        const int steps = right - left;
+        auto col_color = [&](const int col) { return ramp(col - left, steps); };
+        if (r == 0)
+        {
+            for (int col = left; col <= right; ++col)
+            {
+                draw_line(col, top, col, bottom, col_color(col));
+            }
+            return;
+        }
+        for (int row = top; row <= bottom; ++row)
+        {
+            int dy = 0;
+            if (r > 0)
+            {
+                if (row < top + r)
+                {
+                    dy = top + r - row;
+                }
+                else if (row > bottom - r)
+                {
+                    dy = row - (bottom - r);
+                }
+            }
+            if (dy == 0)
+            {
+                for (int col = left; col <= right; ++col)
+                {
+                    draw_pixel(col, row, col_color(col));
+                }
+                continue;
+            }
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            const int frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            const int lx = left + r - dx;
+            const int rx = right - r + dx;
+            for (int col = lx; col <= rx; ++col)
+            {
+                draw_pixel(col, row, col_color(col));
+            }
+            fringe(lx, rx, row, col_color(lx), col_color(rx), frac8);
+        }
+    }
+    else
+    {
+        const int steps = bottom - top;
+        for (int row = top; row <= bottom; ++row)
+        {
+            const Color c = ramp(row - top, steps);
+            int dy = 0;
+            if (r > 0)
+            {
+                if (row < top + r)
+                {
+                    dy = top + r - row;
+                }
+                else if (row > bottom - r)
+                {
+                    dy = row - (bottom - r);
+                }
+            }
+            if (dy == 0)
+            {
+                draw_line(left, row, right, row, c);
+                continue;
+            }
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            const int frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            const int lx = left + r - dx;
+            const int rx = right - r + dx;
+            draw_line(lx, row, rx, row, c);
+            fringe(lx, rx, row, c, c, frac8);
+        }
+    }
+}
+
+void Graphics::fill_repeating(int x1, int y1, int x2, int y2, const bool horizontal, const int period,
+                               const int *stop_pos, const Color *stop_col, int nstops, const int radius)
+{
+    if (stop_pos == nullptr || stop_col == nullptr || nstops < 2)
+    {
+        return;
+    }
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_rect(x1, y1, x2, y2, stop_col[0]);  // S-1: bones only
+        return;
+    }
+    const int left = x1 < x2 ? x1 : x2;
+    const int right = x1 < x2 ? x2 : x1;
+    const int top = y1 < y2 ? y1 : y2;
+    const int bottom = y1 < y2 ? y2 : y1;
+    if (period <= 0)
+    {
+        return;
+    }
+    if (nstops > 6)
+    {
+        nstops = 6;
+    }
+
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+
+    auto stripe = [&](const int t) {
+        int m = t % period;
+        if (m < 0)
+        {
+            m += period;
+        }
+        // last stop at or below m owns the pixel; below the first
+        // stop wraps into the previous period's tail (which lerps
+        // into this period's head)
+        int seg = -1;
+        for (int i = 0; i < nstops; ++i)
+        {
+            if (stop_pos[i] <= m)
+            {
+                seg = i;
+            }
+        }
+        int lo = 0;
+        int hi = 0;
+        const Color *c0 = &stop_col[nstops - 1];
+        const Color *c1 = &stop_col[0];
+        if (seg < 0)
+        {
+            lo = stop_pos[nstops - 1] - period;
+            hi = stop_pos[0];
+            m += period;
+        }
+        else if (seg >= nstops - 1)
+        {
+            lo = stop_pos[nstops - 1];
+            hi = stop_pos[0] + period;
+            c0 = &stop_col[nstops - 1];
+            c1 = &stop_col[0];
+        }
+        else
+        {
+            lo = stop_pos[seg];
+            hi = stop_pos[seg + 1];
+            c0 = &stop_col[seg];
+            c1 = &stop_col[seg + 1];
+        }
+        Color c = (hi <= lo) ? *c0 : lerp_color(*c0, *c1, m - lo, hi - lo);
+        // no faint-stop gate here: on binary-alpha depths the authored
+        // translucency is already lost in the color (any nonzero alpha
+        // sets the bit), so every stop follows the standard binary
+        // rule like all other paint — see the contract note
+        return c;
+    };
+
+    if (r == 0)
+    {
+        // square fast path: the color rides one axis, so whole spans
+        // paint at once (the translucent stops still blend per pixel
+        // through draw_line -> draw_pixel)
+        if (horizontal)
+        {
+            for (int col = left; col <= right; ++col)
+            {
+                draw_line(col, top, col, bottom, stripe(col - left));
+            }
+        }
+        else
+        {
+            for (int row = top; row <= bottom; ++row)
+            {
+                draw_line(left, row, right, row, stripe(row - top));
+            }
+        }
+        return;
+    }
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int frac8) {
+        if (frac8 > 0)
+        {
+            plot_aa(lx - 1, row, frac8, lc);
+            plot_aa(rx + 1, row, frac8, rc);
+        }
+    };
+    for (int row = top; row <= bottom; ++row)
+    {
+        int dy = 0;
+        if (row < top + r)
+        {
+            dy = top + r - row;
+        }
+        else if (row > bottom - r)
+        {
+            dy = row - (bottom - r);
+        }
+        int lx = left;
+        int rx = right;
+        int frac8 = 0;
+        if (dy > 0)
+        {
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            lx = left + r - dx;
+            rx = right - r + dx;
+        }
+        for (int col = lx; col <= rx; ++col)
+        {
+            draw_pixel(col, row, horizontal ? stripe(col - left) : stripe(row - top));
+        }
+        if (frac8 > 0)
+        {
+            const Color lc = horizontal ? stripe(lx - left) : stripe(row - top);
+            const Color rc = horizontal ? stripe(rx - left) : stripe(row - top);
+            fringe(lx, rx, row, lc, rc, frac8);
+        }
+    }
+}
+
 void Graphics::draw_line_aa(int x1, int y1, int x2, int y2, const Color &colr)
 {
     if (x1 == x2 || y1 == y2)

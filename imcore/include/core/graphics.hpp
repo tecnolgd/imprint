@@ -271,6 +271,29 @@ namespace zb::ui::core
                         const Color *stop_col, int nstops, int radius = 0);
 
         /*
+         * Fill the rect with a three-stop linear ramp (P-2c): from at
+         * the start edge, mid at mid_p percent (0..100), to at the far
+         * edge; two straight 8-bit RGB segments meeting exactly at mid
+         * (degenerate mid_p clamps to the nearer end stop). Direction,
+         * radius, and wireframe rules match fill_gradient above.
+         */
+        void fill_gradient3(int x1, int y1, int x2, int y2, const Color &from, const Color &mid, int mid_p,
+                            const Color &to, bool horizontal = true, int radius = 0);
+
+        /*
+         * Fill the rect with a repeating stripe texture (P-2c): the
+         * stops (2..6 px positions, non-decreasing, last = period > 0)
+         * tile every `period` px along columns (horizontal) or rows;
+         * hard stops (zero-length segments) read flat; past the last
+         * stop the ramp lerps into the next period's first stop. On
+         * binary-alpha depths every stop follows the standard binary
+         * rule (any nonzero alpha plots). Radius and wireframe rules
+         * match fill_gradient above.
+         */
+        void fill_repeating(int x1, int y1, int x2, int y2, bool horizontal, int period, const int *stop_pos,
+                            const Color *stop_col, int nstops, int radius = 0);
+
+        /*
          * Rectangle with circular corners of the given radius (clamped to
          * half the shorter side; <= 0 falls back to the plain rect).
          * draw_round_rect outlines exactly the coverage fill_round_rect

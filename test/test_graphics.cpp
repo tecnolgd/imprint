@@ -881,6 +881,72 @@ int test_graphics()
         EXPECT(test::pixel_at(*g, 20, 20) == core::colors::White.pixel);  // face
     }
 
+    // fill_gradient3 (P-2c): ends exact, the mid column/row reads mid
+    // exactly, quarters lerp their half
+    {
+        auto g = core::Graphics::make_ptr(41, 41);
+        g->fill(core::colors::Black);
+        g->fill_gradient3(0, 0, 40, 40, core::colors::Black,
+                          core::colors::Red, 50, core::colors::White, true);
+        EXPECT(test::pixel_at(*g, 0, 20) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g, 40, 20) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 20, 20) == core::colors::Red.pixel);
+        EXPECT(test::pixel_at(*g, 10, 20) == core::Color::from(127, 0, 0).pixel);
+        EXPECT(test::pixel_at(*g, 30, 20) == core::Color::from(255, 127, 127).pixel);
+        // vertical: the mid row is constant across the span
+        g->fill(core::colors::Black);
+        g->fill_gradient3(0, 0, 40, 40, core::colors::Black,
+                          core::colors::Red, 50, core::colors::White, false);
+        EXPECT(test::pixel_at(*g, 20, 0) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g, 20, 40) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 20, 20) == core::colors::Red.pixel);
+        EXPECT(test::pixel_at(*g, 0, 20) == test::pixel_at(*g, 40, 20));
+    }
+
+    // fill_repeating (P-2c): period-6 white[0,2]/black[2,6] stripes,
+    // hard stops flat, period wraps
+    {
+        auto g = core::Graphics::make_ptr(30, 6);
+        const int pos[4] = {0, 2, 2, 6};
+        const core::Color cols[4] = {core::colors::White,
+                                     core::colors::White,
+                                     core::colors::Black,
+                                     core::colors::Black};
+        g->fill(core::colors::Black);
+        g->fill_repeating(0, 0, 29, 5, true, 6, pos, cols, 4);
+        EXPECT(test::pixel_at(*g, 0, 2) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 1, 2) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 2, 2) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g, 5, 2) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g, 6, 2) == core::colors::White.pixel);  // wrap
+        EXPECT(test::pixel_at(*g, 8, 2) == core::colors::Black.pixel);
+        // vertical: stripes run across rows instead
+        auto g2 = core::Graphics::make_ptr(6, 30);
+        g2->fill(core::colors::Black);
+        g2->fill_repeating(0, 0, 5, 29, false, 6, pos, cols, 4);
+        EXPECT(test::pixel_at(*g2, 2, 0) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g2, 2, 2) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g2, 2, 6) == core::colors::White.pixel);
+    }
+
+    // fill_repeating: faint stops follow the depth's alpha rule —
+    // true blend on 32bpp, the binary any-bit-set rule on 16bpp
+    {
+        auto g = core::Graphics::make_ptr(12, 2);
+        const int pos[2] = {0, 4};
+        const core::Color cols[2] = {core::Color::from(255, 255, 255, 10),
+                                     core::Color::from(255, 255, 255, 10)};
+        g->fill(core::colors::Black);
+        g->enable_alpha(true);
+        g->fill_repeating(0, 0, 11, 1, true, 4, pos, cols, 2);
+        g->enable_alpha(false);
+#if COLOR_DEPTH == 32
+        EXPECT(test::pixel_at(*g, 0, 0) == core::Color::from(10, 10, 10).pixel);
+#else
+        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::White.pixel);
+#endif
+    }
+
     // fill_gradient with corner radius: middle rows interpolate
     // full-width, corner rows shrink by the chord
     {

@@ -111,12 +111,24 @@ namespace zb::ui
             blend = true;
         }
         // extended gradient colors (P-2b) and a translucent border
-        // (the knob's rgba outline) blend the same way
+        // (the knob's rgba outline) blend the same way, as do the
+        // repeating overlay stops (P-2c)
         if (const grad_ex *const g = grad())
         {
             for (int i = 0; i < 4; ++i)
             {
                 if (needs_blend(g->col[i]))
+                {
+                    blend = true;
+                    break;
+                }
+            }
+        }
+        if (const rep_ex *const r = rep())
+        {
+            for (int i = 0; i < r->n && i < 6; ++i)
+            {
+                if (needs_blend(r->col[i]))
                 {
                     blend = true;
                     break;
@@ -148,18 +160,27 @@ namespace zb::ui
             }
         }
         // extended forms override every paint_dress gradient
-        // (contract P-2b; the builder sets exactly one overall)
+        // (contract P-2b/c; the builder sets exactly one overall)
         if (const grad_ex *const g = grad();
-            g != nullptr && g->kind == 3)
+            g != nullptr && (g->kind == 3 || g->kind == 5))
         {
-            int pos[4] = {0, 0, 0, 0};
-            const int n = g->b < 2 ? 2 : (g->b > 4 ? 4 : g->b);
-            for (int i = 0; i < n; ++i)
+            if (g->kind == 3)
             {
-                pos[i] = g->pos[i];
+                int pos[4] = {0, 0, 0, 0};
+                const int n = g->b < 2 ? 2 : (g->b > 4 ? 4 : g->b);
+                for (int i = 0; i < n; ++i)
+                {
+                    pos[i] = g->pos[i];
+                }
+                area.fill_conic(0, 0, s.width - 1, s.height - 1, g->a, pos,
+                                g->col, n, radius);
             }
-            area.fill_conic(0, 0, s.width - 1, s.height - 1, g->a, pos,
-                            g->col, n, radius);
+            else
+            {
+                area.fill_gradient3(0, 0, s.width - 1, s.height - 1,
+                                    g->col[0], g->col[1], g->a, g->col[2],
+                                    (g->flags & 1) != 0, radius);
+            }
         }
         // radial wins when both kinds are set (contract P-1; the
         // builder sets exactly one, this is direct-setter misuse)
@@ -174,6 +195,20 @@ namespace zb::ui
         {
             area.fill_gradient(0, 0, s.width - 1, s.height - 1, dress_.bg_from,
                                dress_.bg_to, dress_.bg_ax != 0, radius);
+        }
+        // repeating texture overlays any base (P-2c); square mostly
+        // (vubottom/brushed), the radius rides along when set
+        if (const rep_ex *const r = rep(); r != nullptr && r->n >= 2)
+        {
+            int pos[6] = {0, 0, 0, 0, 0, 0};
+            const int n = r->n > 6 ? 6 : r->n;
+            for (int i = 0; i < n; ++i)
+            {
+                pos[i] = r->pos[i];
+            }
+            area.fill_repeating(0, 0, s.width - 1, s.height - 1,
+                                (r->flags & 1) != 0, r->period, pos, r->col,
+                                n, radius);
         }
         if (background_image.has_value())
         {

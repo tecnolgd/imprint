@@ -1476,6 +1476,13 @@ namespace zb::ui
             n.prop("bg_lin_from", colors.front());
             n.prop("bg_lin_to", colors.back());
             n.prop("bg_lin_h", horizontal);
+            // P-2c: exactly 3 stops with a %/bare middle also land a
+            // mid section (bare = 50); >3 stops stay ends-only
+            if (colors.size() == 3 && pos[1] >= -1 && pos[1] <= 100)
+            {
+                n.prop("bg_lin3_mid", colors[1]);
+                n.prop("bg_lin3_p", pos[1] < 0 ? 50 : pos[1]);
+            }
             return true;
         }
 
@@ -1585,8 +1592,9 @@ namespace zb::ui
                 fn != "conic-gradient")
             {
                 // rgb()/rgba() are solid colors in function clothing;
-                // every other function (repeating-*, url(), junk) is
-                // unsupported
+                // repeating layers ride their own overlay pass below
+                // (the fold calls parse_repeating_layer directly), url()
+                // and junk are unsupported
                 if (fn == "rgb" || fn == "rgba")
                 {
                     n.prop("background", t);
@@ -1611,19 +1619,179 @@ namespace zb::ui
             return parse_conic_layer(n, args);
         }
 
-        // whether a background prop (solid or gradient) already
-        // landed — gates the no-supported-layer warning
+        // whether a background prop (solid, base gradient, or
+        // repeating overlay) already landed — gates the
+        // no-supported-layer warning
         bool has_bg_prop(const ui_node &n)
         {
             for (const auto &p : n.props)
             {
                 if (p.first == "background" || p.first == "bg_lin_from" ||
-                    p.first == "bg_rad_from" || p.first == "bg_con_from")
+                    p.first == "bg_rad_from" || p.first == "bg_con_from" ||
+                    p.first == "bg_rep_n")
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        // a top-level repeating-linear-gradient layer (the overlay
+        // pass matches this before parsing)
+        bool is_repeating_layer(const std::string &layer)
+        {
+            const std::string t = css_trim(ascii_lower(layer));
+            return t.compare(0, 26, "repeating-linear-gradient(") == 0 &&
+                   !t.empty() && t.back() == ')';
+        }
+
+        // one px length (Npx or bare N); % and junk fail
+        bool parse_px_len(const std::string &tok, long long &v)
+        {
+            std::string t = css_trim(ascii_lower(tok));
+            if (!t.empty() && t.back() == '%')
+            {
+                return false;
+            }
+            if (t.size() > 2 && t.compare(t.size() - 2, 2, "px") == 0)
+            {
+                t = t.substr(0, t.size() - 2);
+            }
+            if (!parse_svg_num(t, v))
+            {
+                return false;
+            }
+            v = v < 0 ? 0 : v;
+            return true;
+        }
+
+        // repeating-linear-gradient (P-2c): P-1 angle rule for the
+        // axis, then 2..6 px stops (double-position "C A B" pairs
+        // welcome); period = last stop, must be > 0. Stops clamp
+        // non-decreasing. True when the overlay props landed.
+        bool parse_repeating_layer(ui_node &n, const std::string &layer)
+        {
+            const std::string t = css_trim(layer);
+            const std::size_t lp = ascii_lower(t).find('(');
+            if (lp == std::string::npos || t.back() != ')')
+            {
+                return false;
+            }
+            std::vector<std::string> args;
+            split_layers(t.substr(lp + 1, t.size() - lp - 2), args);
+            if (args.empty())
+            {
+                return false;
+            }
+            std::size_t first = 0;
+            bool horizontal = false;
+            const std::string head = css_trim(ascii_lower(args[0]));
+            const std::size_t hlp = head.find('(');
+            if (hlp == std::string::npos)
+            {
+                if (head.size() > 3 &&
+                    head.compare(head.size() - 3, 3, "deg") == 0)
+                {
+                    long long deg = 0;
+                    if (!parse_svg_num(head.substr(0, head.size() - 3),
+                                       deg))
+                    {
+                        return false;
+                    }
+                    deg = ((deg % 360) + 360) % 360;
+                    if (deg == 90 || deg == 270)
+                    {
+                        horizontal = true;
+                    }
+                    else if (deg != 0 && deg != 180)
+                    {
+                        return false;
+                    }
+                    first = 1;
+                }
+                else if (head == "to right" || head == "to left")
+                {
+                    horizontal = true;
+                    first = 1;
+                }
+                else if (head == "to top" || head == "to bottom")
+                {
+                    first = 1;
+                }
+                // otherwise the head is a bare color: no angle (but a
+                // bare repeating stop is still unsupported below)
+            }
+            else
+            {
+                return false;
+            }
+            std::vector<std::string> colors;
+            std::vector<long long> pos;
+            for (std::size_t i = first; i < args.size(); ++i)
+            {
+                const std::string a = css_trim(args[i]);
+                if (a.empty())
+                {
+                    return false;
+                }
+                const std::size_t s1 = a.rfind(' ');
+                if (s1 == std::string::npos)
+                {
+                    return false;  // bare repeating stops drop the layer
+                }
+                long long b = 0;
+                if (!parse_px_len(a.substr(s1 + 1), b))
+                {
+                    return false;
+                }
+                std::string front = css_trim(a.substr(0, s1));
+                const std::size_t s0 = front.rfind(' ');
+                if (s0 == std::string::npos)
+                {
+                    colors.push_back(front);
+                    pos.push_back(b);
+                    continue;
+                }
+                // a second trailing length makes a double-position pair
+                long long fa = 0;
+                if (parse_px_len(front.substr(s0 + 1), fa))
+                {
+                    std::string c = css_trim(front.substr(0, s0));
+                    if (c.empty())
+                    {
+                        return false;
+                    }
+                    colors.push_back(c);
+                    pos.push_back(fa);
+                    colors.push_back(c);
+                    pos.push_back(b);
+                }
+                else
+                {
+                    colors.push_back(front);
+                    pos.push_back(b);
+                }
+            }
+            if (colors.size() < 2 || colors.size() > 6 || pos.back() <= 0)
+            {
+                return false;
+            }
+            for (std::size_t i = 1; i < pos.size(); ++i)
+            {
+                if (pos[i] < pos[i - 1])
+                {
+                    pos[i] = pos[i - 1];
+                }
+            }
+            n.prop("bg_rep_h", horizontal);
+            n.prop("bg_rep_period", pos.back());
+            n.prop("bg_rep_n", static_cast<long long>(colors.size()));
+            for (std::size_t i = 0; i < colors.size(); ++i)
+            {
+                n.prop("bg_rep_p" + std::to_string(i), pos[i]);
+                n.prop("bg_rep_c" + std::to_string(i), colors[i]);
+            }
+            return true;
         }
 
         // conic-gradient (P-2b): "from Ndeg" head (default 0), then 2..4
@@ -2404,16 +2572,26 @@ namespace zb::ui
             }
             else
             {
-                // P-1 paint: the background shorthand (solid/linear/radial;
-                // contract html-path). Layers split paren-aware and scan
-                // base-first — the first supported form wins, so a texture
-                // overlay (.amp's brushed repeating layer) falls through to
-                // the linear base.
+                // P-1 paint: the background shorthand (solid/linear/
+                // radial/conic; contract html-path). Layers split
+                // paren-aware and scan base-first — the first supported
+                // non-repeating form wins as the base; the overlay pass
+                // below lands a repeating texture over it.
                 std::vector<std::string> layers;
                 split_layers(*bgs, layers);
                 for (auto it = layers.rbegin(); it != layers.rend(); ++it)
                 {
                     if (parse_bg_layer(n, *it))
+                    {
+                        break;
+                    }
+                }
+                // P-2c overlay: the topmost parseable repeating layer
+                // paints translucently over the base (or alone)
+                for (const std::string &layer : layers)
+                {
+                    if (is_repeating_layer(layer) &&
+                        parse_repeating_layer(n, layer))
                     {
                         break;
                     }

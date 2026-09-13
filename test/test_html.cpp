@@ -596,6 +596,12 @@ int test_html()
             nullptr);
         EXPECT(test::vget<std::string>(node_prop_v(r4, "bg_lin_from")) == "#aa0000");
         EXPECT(test::vget<std::string>(node_prop_v(r4, "bg_lin_to")) == "#0000aa");
+        // exactly 3 stops also land the mid section (P-2c)
+        EXPECT(test::vget<std::string>(node_prop_v(r4, "bg_lin3_mid")) == "#00aa00");
+        EXPECT(test::vget<long long>(node_prop_v(r4, "bg_lin3_p")) == 45);
+        // ...and the repeating top layer lands as the overlay (P-2c)
+        EXPECT(test::vget<long long>(node_prop_v(r4, "bg_rep_n")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(r4, "bg_rep_period")) == 2);
         // unknown var without fallback drops the whole declaration (CSS)
         ui_node r5 = parse_html(
             "<div style=\"background:var(--tex), linear-gradient(180deg,#aa0000,#0000aa)\">"
@@ -603,13 +609,20 @@ int test_html()
             nullptr);
         EXPECT(find_prop(r5, "background") < 0);
         EXPECT(find_prop(r5, "bg_lin_from") < 0);
-        // conic/repeating skip the layer; a lone texture leaves nothing
+        // conic skips the layer; a repeating layer lands as the
+        // overlay (P-2c) — double-position pairs split in two
         ui_node r6 = parse_html(
             "<div style=\"background:repeating-linear-gradient(90deg, #fff 0 2px)\">"
             "<label>x</label></div>\n",
             nullptr);
         EXPECT(find_prop(r6, "background") < 0);
         EXPECT(find_prop(r6, "bg_lin_from") < 0);
+        EXPECT(test::vget<bool>(node_prop_v(r6, "bg_rep_h")) == true);
+        EXPECT(test::vget<long long>(node_prop_v(r6, "bg_rep_period")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(r6, "bg_rep_n")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(r6, "bg_rep_p0")) == 0);
+        EXPECT(test::vget<long long>(node_prop_v(r6, "bg_rep_p1")) == 2);
+        EXPECT(test::vget<std::string>(node_prop_v(r6, "bg_rep_c0")) == "#fff");
         // solid shorthand + border + radius; shorthand beats background-color
         ui_node r7 = parse_html(
             "<div style=\"background-color:#111111;background:rgba(20,30,40,0.5);"
@@ -1181,6 +1194,66 @@ int test_html()
                core::colors::Black.pixel);
         EXPECT(test::pixel_at(g, kp.x + ks.width / 2, kp.y + ks.height - 1) ==
                core::colors::White.pixel);
+    }
+
+    // P-2c extended linear: a 3-stop face reads mid at the center;
+    // a repeating face stripes with the period
+    {
+        ui_node doc = parse_html(
+            "<div>"
+            "<div style=\"width:41px;height:41px;background:"
+            "linear-gradient(90deg, black, red 50%, white)\">"
+            "<label>x</label></div>"
+            "<div style=\"width:41px;height:12px;background:"
+            "repeating-linear-gradient(90deg, white 0 2px, black 2px 6px)\">"
+            "<label>y</label></div>"
+            "</div>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, doc);
+        host.layout();
+        auto *tri = host.get_items()[0].child.get();
+        auto *striped = host.get_items()[1].child.get();
+        EXPECT(tri->has_background() && striped->has_background());
+        core::Graphics g(200, 100, nullptr);
+        host.draw(g);
+        const auto tp = tri->get_position();
+        EXPECT(test::pixel_at(g, tp.x, tp.y + 20) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(g, tp.x + 20, tp.y + 20) == core::colors::Red.pixel);
+        EXPECT(test::pixel_at(g, tp.x + 40, tp.y + 20) == core::colors::White.pixel);
+        // right side, clear of the "y" glyph: period-6 white[0,2]/black[2,6]
+        const auto sp = striped->get_position();
+        const int sy = sp.y + striped->get_size().height / 2;
+        EXPECT(test::pixel_at(g, sp.x + 36, sy) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(g, sp.x + 39, sy) == core::colors::Black.pixel);
+    }
+
+    // P-2c: `transparent` is a legal repeating stop (alpha-0), not a
+    // malformed layer — the vubottom shape lands and paints
+    {
+        ui_node doc = parse_html(
+            "<div>"
+            "<div style=\"width:42px;height:12px;background:"
+            "repeating-linear-gradient(90deg, rgba(220,231,238,0.08) 0 2px, "
+            "transparent 2px 6px)\">"
+            "</div></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(doc.children[0], "bg_rep_n")) == 4);
+        EXPECT(test::vget<std::string>(node_prop_v(doc.children[0], "bg_rep_c2")) ==
+               "transparent");
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, doc);
+        host.layout();
+        auto *over = host.get_items()[0].child.get();
+        EXPECT(over->has_background());
+        core::Graphics g(200, 100, nullptr);
+        host.draw(g);
+        const auto op = over->get_position();
+        const int oy = op.y + over->get_size().height / 2;
+        // ice stripe vs transparent gap read differently
+        EXPECT(test::pixel_at(g, op.x, oy) != test::pixel_at(g, op.x + 3, oy));
     }
 
     return test::report("html");
