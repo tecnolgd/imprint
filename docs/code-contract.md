@@ -629,7 +629,23 @@ system (standing non-goals):
   opacity on a container affects only its own box/text paint, never its
   descendants. `border-top: Npx solid <color>` rides its own sidecar
   section and paints a full-width top band over the background
-  (radius corners are not cut); other sides stay off-whitelist.
+  (  radius corners are not cut); other sides stay off-whitelist.
+- Box shadows (P-2e): `box-shadow: [inset] ox oy [blur [spread]]
+  color` comma lists (paren-aware split; up to 2 outer + 2 inset per
+  widget, extras warn-and-drop at parse; a malformed entry drops
+  alone). Inset shadows paint as up-to-`blur` inner 1px bands with
+  linear alpha falloff (exact on 32bpp; binary depths keep/drop bands
+  by the half-coverage rule — the base alpha already reads 0/1 there),
+  starting inside the border, after the border — full inset depth
+  for dial faces, knob edges, toggle tracks. Outer shadows paint their
+  silhouette (spread-expanded, plus 2 soft bands when blurred) UNDER
+  the background — and the per-widget clip keeps only the inside part,
+  which an opaque background then covers: with no shell-level overdraw
+  in the architecture, outer glows/drop shadows on opaque boxes are
+  accepted but invisible (bulb/LED glow, amp drop; recorded as the
+  overdraw follow-up, not a parse gap). Wireframe skips shadows.
+  `Graphics::corner_chord` (the fill chord formula, integer-only) is
+  public for the band clip.
 - HTML page box: `html_page` (per-axis width/height/background presence)
   is filled by `parse_html(text, ok, page)`; the consumer resolves the
   initial screen size document → shell → app default (warn on default)

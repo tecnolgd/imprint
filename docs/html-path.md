@@ -158,6 +158,7 @@ applies unchanged.
 | `border` | `Npx solid <color>` | `set_border`; any other style/grammar drops the border |
 | `border-top` | `Npx solid <color>` | full-width top band over the background; radius corners not cut; other sides are off-whitelist |
 | `opacity` | number `0..1`, `N%` | build-time fold into the widget's own paint alphas (bg/stops/border/text); descendants are not composited |
+| `box-shadow` | `[inset] OXpx OYpx [blur] [spread] <color>`, comma list | inset = inner depth bands (full effect); outer = silhouette under the box (invisible on opaque boxes — no overdraw yet); max 2 + 2, extras warn-and-drop |
 | `border-radius` | `Npx` (single), `50%` | px, or half the smaller side at draw time; multi-value drops |
 | `position` | `relative`, `absolute` | `relative` = in-flow + containing block for abs descendants (its own offsets ignored); `absolute` = out of flow (code-contract P-3); anything else = static |
 | `top` / `left` / `right` / `bottom` | `Npx`, `N%`, bare `0`, `auto` | abs offsets against the containing-block content box (`auto` = unset; only read on absolutely positioned elements) |

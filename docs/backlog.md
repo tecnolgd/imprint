@@ -320,6 +320,17 @@ support "a little at a time" as the boundary demands):**
   stays nonzero; no subtree compositing) dims the LED faces, and
   `border-top` (own sidecar band) draws the footer divider (row 272
   reads uniform 132 = 189 × 0.7).
+  P-2e landed 2026-09-13: `box-shadow` lists (2 outer + 2 inset, extras
+  warn-and-drop; malformed entries drop alone). Inset paints inner
+  bands (linear falloff, exact on 32bpp, half-coverage keep/drop on
+  binary; all-sides via shrinking outlines, split sides via
+  chord-clipped lines through the newly public `corner_chord`) — dial
+  faces, knob edges, and toggle tracks gain depth. Outer paints its
+  silhouette under the box but stays invisible on opaque boxes (no
+  overdraw — bulb/LED glow + amp drop recorded as follow-up). Two
+  quantized-alpha fixes ride along: inset blend is forced on (falloff
+  manufactures translucency; radius-0 outlines overwrote raw), and
+  falloff math honors the binary half rule.
 - P-3. Absolute positioning — **landed 2026-09-13**: `position:
   relative/absolute` + `top/left/right/bottom` (`Npx`/`N%`/bare/`auto`)
   + `transform: translate()`; FlexPanel skips abs in measure/lines and
