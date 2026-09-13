@@ -919,7 +919,8 @@ namespace zb::ui
                     std::move(w), n.flex_grow,
                     (sa >= 0 && sa <= 4)
                         ? static_cast<FlexPanel::self_align>(sa)
-                        : FlexPanel::self_align::auto_);
+                        : FlexPanel::self_align::auto_,
+                    n.flex_shrink, n.flex_basis_px, n.flex_basis_pct);
             }
             else
             {

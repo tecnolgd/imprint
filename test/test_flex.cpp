@@ -522,5 +522,100 @@ int test_flex()
         EXPECT(at(*c[2].child, 0, 20));
     }
 
+    // H-7c flex-basis: explicit pixel basis overrides demand
+    {
+        FlexPanel p;
+        p.set_size(50, 100);
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, 30); // basis_px = 30
+        p.add_child(make_child(10, 10), 1);
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(c[0].child->get_size().height == 30);  // basis wins
+        EXPECT(c[1].child->get_size().height == 70);  // grow gets rest
+    }
+
+    // H-7c flex-basis: percent basis resolves against content box
+    {
+        FlexPanel p;
+        p.set_size(50, 100);
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, -1, 50); // basis_pct = 50
+        p.add_child(make_child(10, 10), 1);
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(c[0].child->get_size().height == 50);  // 50% of 100
+        EXPECT(c[1].child->get_size().height == 50);  // grow gets rest
+    }
+
+    // H-7c flex-basis: basis beats explicit size and percent child
+    {
+        FlexPanel p;
+        p.set_size(50, 100);
+        auto c1 = make_child(80, 10);  // explicit size 80
+        c1->set_height_percent(100);   // percent also 100
+        p.add_child(std::move(c1), 0, FlexPanel::self_align::auto_, 0, 30); // basis_px = 30
+        p.add_child(make_child(10, 10), 1);
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(c[0].child->get_size().height == 30);  // basis wins over both
+        EXPECT(c[1].child->get_size().height == 70);
+    }
+
+    // H-7c flex-shrink: deficit shared by shrink * claim
+    {
+        FlexPanel p;
+        p.set_size(50, 100);
+        p.add_child(make_child(10, 60), 0, FlexPanel::self_align::auto_, 1); // claim 60, shrink 1
+        p.add_child(make_child(10, 60), 0, FlexPanel::self_align::auto_, 2); // claim 60, shrink 2
+        p.layout();
+        const auto &c = p.get_items();
+        // total claim = 120, deficit = 20
+        // scaled: 1*60=60, 2*60=120, total=180
+        // cuts: 20*60/180=6, 20*120/180=13 (last takes remainder)
+        // final: 60-6=54, 60-13=47
+        EXPECT(c[0].child->get_size().height == 54);
+        EXPECT(c[1].child->get_size().height == 46); // 100 - 54
+    }
+
+    // H-7c flex-shrink: no shrink weight = historical overflow
+    {
+        FlexPanel p;
+        p.set_size(50, 100);
+        p.add_child(make_child(10, 60));
+        p.add_child(make_child(10, 60));
+        p.layout();
+        const auto &c = p.get_items();
+        // No shrink: claims stand, line overflows
+        EXPECT(c[0].child->get_size().height == 60);
+        EXPECT(c[1].child->get_size().height == 60);
+    }
+
+    // H-7c flex-shrink: baseless grower collapses to 0 in deficit
+    {
+        FlexPanel p;
+        p.set_size(50, 100);
+        p.add_child(make_child(10, 40), 0, FlexPanel::self_align::auto_, 1); // claim 40, shrink 1
+        p.add_child(make_child(10, 0), 1); // grower, no basis -> claim 0
+        p.layout();
+        const auto &c = p.get_items();
+        // total claim = 40, deficit = -60 (surplus 60)
+        // grower gets surplus over claim 0 -> 60
+        EXPECT(c[0].child->get_size().height == 40);
+        EXPECT(c[1].child->get_size().height == 60);
+    }
+
+    // H-7c: measure() counts px basis as demand, % basis as 0
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_padding(5);
+        p.set_spacing(5);
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, 30); // basis_px = 30
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, -1, 50); // basis_pct = 50
+        p.add_child(make_child(10, 10), 1); // flex grow
+        // measure: 30 (px basis) + 0 (% basis) + 5 (spacing) + 5 (spacing) + 10 (padding*2) = 50
+        // Wait, let's verify: main axis is row (width), so measure().width
+        EXPECT(p.measure().width == 50); // 30 + 0 + 5 + 5 + 10 = 50
+    }
+
     return test::report("flex");
 }

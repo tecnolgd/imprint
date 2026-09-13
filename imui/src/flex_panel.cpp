@@ -127,6 +127,22 @@ namespace zb::ui
             return pct > 0 ? pct * content_main / 100 : main_demand(w, d);
         }
 
+        // the explicit basis claim (H-7c), or -1 for auto: a pixel basis
+        // is absolute, a percent basis resolves against the content box
+        int basis_claim(const FlexPanel::flex_item &item,
+                        const FlexPanel::flex_direction d, const int content_main)
+        {
+            if (item.basis_px >= 0)
+            {
+                return item.basis_px;
+            }
+            if (item.basis_pct > 0)
+            {
+                return std::max(0, item.basis_pct * content_main / 100);
+            }
+            return -1;
+        }
+
         void set_cross_size(Widget &w, const FlexPanel::flex_direction d, const int v)
         {
             if (is_row(d))
@@ -204,10 +220,15 @@ namespace zb::ui
             }
             // flex items and percent children contribute nothing on their
             // open axis: their size only exists relative to a resolved
-            // parent size, which a measure() has no access to
-            const int m = (items[i].flex_grow > 0 || main_percent(child, direction) > 0)
-                              ? 0
-                              : main_demand(child, direction);
+            // parent size, which a measure() has no access to. A pixel
+            // basis is absolute and counts; a percent basis is relative
+            // and counts 0 like a percent child (H-7c).
+            const int m = items[i].basis_px >= 0 ? items[i].basis_px
+                              : (items[i].flex_grow > 0 ||
+                                 main_percent(child, direction) > 0 ||
+                                 items[i].basis_pct > 0)
+                                    ? 0
+                                    : main_demand(child, direction);
             main += m + (first ? 0 : spacing);
             first = false;
             cross = std::max(cross, cross_percent(child, direction) > 0
@@ -308,9 +329,14 @@ namespace zb::ui
                     continue;
                 }
                 const int pct = main_percent(*items[i].child, direction);
-                const int item_need = (items[i].flex_grow > 0 && pct == 0)
-                                          ? 0
-                                          : main_desired(*items[i].child, direction, avail_main);
+                // an explicit basis is the line claim even for growers
+                // (H-7c); otherwise growers keep contributing 0
+                const int basis = basis_claim(items[i], direction, avail_main);
+                const int item_need = basis >= 0 ? basis
+                                          : (items[i].flex_grow > 0 && pct == 0)
+                                                ? 0
+                                                : main_desired(*items[i].child, direction,
+                                                               avail_main);
                 if (wrap && !cur.empty() && need + spacing + item_need > avail_main)
                 {
                     lines.push_back(std::move(cur));
@@ -361,6 +387,14 @@ namespace zb::ui
                 for (const size_t i : line)
                 {
                     const Widget &child = *items[i].child;
+                    // an explicit basis beats the percent share: the item
+                    // claims its basis as fixed demand (H-7c)
+                    const int basis = basis_claim(items[i], direction, avail_main);
+                    if (basis >= 0)
+                    {
+                        fixed += basis;
+                        continue;
+                    }
                     if (grows(i))
                     {
                         continue;  // absorbs leftover space, no fixed claim
@@ -383,7 +417,8 @@ namespace zb::ui
                     for (const size_t i : line)
                     {
                         const int pct = main_percent(*items[i].child, direction);
-                        if (pct > 0)
+                        if (pct > 0 &&
+                            basis_claim(items[i], direction, avail_main) < 0)
                         {
                             total_pct += pct;
                             ++count;
@@ -394,7 +429,8 @@ namespace zb::ui
                     for (const size_t i : line)
                     {
                         const int pct = main_percent(*items[i].child, direction);
-                        if (pct > 0)
+                        if (pct > 0 &&
+                            basis_claim(items[i], direction, avail_main) < 0)
                         {
                             ++seen;
                             const int share = (seen == count) ? remaining - given
@@ -411,7 +447,8 @@ namespace zb::ui
                     for (const size_t i : line)
                     {
                         Widget &child = *items[i].child;
-                        if (main_percent(child, direction) > 0)
+                        if (main_percent(child, direction) > 0 &&
+                            basis_claim(items[i], direction, avail_main) < 0)
                         {
                             // shares floor at 0 like the overflow branch:
                             // a container smaller than its padding gives a
@@ -426,52 +463,156 @@ namespace zb::ui
                 }
             }
 
-            // give the flex items their share of the leftover space; integer
-            // division drops the remainder, so the last flex item takes the
-            // leftover pixels and the shares sum to exactly free
-            int fixed = 0;
-            int total_weight = 0;
-            for (const size_t i : line)
-            {
+            // finalize the main-axis sizes (H-7c, contract §flex): each
+            // item's claim is its explicit basis, else its resolved
+            // percent size, else 0 for growers, else its demand. A
+            // surplus (balance >= 0) goes to the growers over their
+            // claims with the historical exact-sum shares; a deficit
+            // shrinks the shrink-weighted items by shrink x claim (last
+            // participant takes the remainder, every final floors at 0);
+            // with no shrink weight anywhere the claims stand and the
+            // line overflows exactly as before. Without basis or shrink
+            // this is the old grow-only distribution verbatim.
+            const auto claim_of = [&](const size_t i) {
+                const int b = basis_claim(items[i], direction, avail_main);
+                if (b >= 0)
+                {
+                    return b;
+                }
                 if (grows(i))
                 {
-                    total_weight += items[i].flex_grow;
+                    return 0;
+                }
+                const Widget &child = *items[i].child;
+                return main_percent(child, direction) > 0
+                           ? main_now(child, direction)
+                           : main_demand(child, direction);
+            };
+            int used = static_cast<int>(line.size() - 1) * spacing;
+            for (const size_t i : line)
+            {
+                used += claim_of(i);
+            }
+            const int balance = avail_main - used;
+
+            if (balance >= 0)
+            {
+                // surplus to the growers over their claims; integer
+                // division drops the remainder, so the last grower takes
+                // the leftover pixels and the shares sum to exactly the
+                // surplus. Non-growers with an explicit basis land their
+                // claim here (percent/demand sizes resolve elsewhere).
+                int total_weight = 0;
+                int flex_count = 0;
+                for (const size_t i : line)
+                {
+                    if (grows(i))
+                    {
+                        total_weight += items[i].flex_grow;
+                        ++flex_count;
+                    }
+                }
+                int flex_seen = 0;
+                int distributed_size = 0;
+                for (const size_t i : line)
+                {
+                    if (grows(i) && total_weight > 0)
+                    {
+                        ++flex_seen;
+                        const int share = (flex_seen == flex_count)
+                                              ? balance - distributed_size
+                                              : balance * items[i].flex_grow / total_weight;
+                        const int final = std::max(0, claim_of(i) + share);
+                        changed |= (main_now(*items[i].child, direction) != final);
+                        set_main_size(*items[i].child, direction, final);
+                        distributed_size += share;
+                    }
+                    else if (basis_claim(items[i], direction, avail_main) >= 0)
+                    {
+                        const int final = claim_of(i);
+                        changed |= (main_now(*items[i].child, direction) != final);
+                        set_main_size(*items[i].child, direction, final);
+                    }
+                }
+            }
+            else
+            {
+                // deficit: shrink-weighted items give up shrink x claim
+                // (last participant takes the remainder, floor 0); every
+                // other item keeps its claim. No shrink weight anywhere =
+                // the historical overflow: claims stand, the far edge
+                // clips.
+                const int deficit = -balance;
+                long long total_scaled = 0;
+                int part_count = 0;
+                for (const size_t i : line)
+                {
+                    // zero-claim growers absorb nothing: they still
+                    // zero out below (the historical overflow), but
+                    // must not swallow the exact-sum remainder
+                    if (items[i].flex_shrink > 0 && claim_of(i) > 0)
+                    {
+                        total_scaled += static_cast<long long>(items[i].flex_shrink) *
+                                        claim_of(i);
+                        ++part_count;
+                    }
+                }
+                if (total_scaled > 0)
+                {
+                    int part_seen = 0;
+                    long long distributed = 0;
+                    for (const size_t i : line)
+                    {
+                        const int claim = claim_of(i);
+                        const int basis =
+                            basis_claim(items[i], direction, avail_main);
+                        if (items[i].flex_shrink > 0 && claim > 0)
+                        {
+                            ++part_seen;
+                            const long long cut =
+                                (part_seen == part_count)
+                                    ? deficit - distributed
+                                    : deficit *
+                                          static_cast<long long>(items[i].flex_shrink) *
+                                          claim / total_scaled;
+                            const int final = std::max(0, claim - static_cast<int>(cut));
+                            changed |= (main_now(*items[i].child, direction) != final);
+                            set_main_size(*items[i].child, direction, final);
+                            distributed += cut;
+                        }
+                        else if (grows(i) && basis < 0)
+                        {
+                            // historical overflow: a baseless grower
+                            // collapses to 0, keeping the far edge clip
+                            changed |= (main_now(*items[i].child, direction) != 0);
+                            set_main_size(*items[i].child, direction, 0);
+                        }
+                        else if (basis >= 0)
+                        {
+                            changed |= (main_now(*items[i].child, direction) != claim);
+                            set_main_size(*items[i].child, direction, claim);
+                        }
+                        // percent/demand claims already landed elsewhere
+                    }
                 }
                 else
                 {
-                    const Widget &child = *items[i].child;
-                    // a percent child's size was just resolved: its actual
-                    // size is the fixed claim (not its desired share)
-                    fixed += main_percent(child, direction) > 0
-                                 ? main_now(child, direction)
-                                 : main_demand(child, direction);
-                }
-            }
-            fixed += static_cast<int>(line.size() - 1) * spacing;
-            const int free = avail_main - fixed;
-
-            int flex_count = 0;
-            int flex_seen = 0;
-            int distributed_size = 0;
-            for (const size_t i : line)
-            {
-                if (grows(i))
-                {
-                    ++flex_count;
-                }
-            }
-            for (const size_t i : line)
-            {
-                if (grows(i) && total_weight > 0)
-                {
-                    ++flex_seen;
-                    const int grow = (flex_seen == flex_count)
-                                         ? std::max(0, free) - distributed_size
-                                         : std::max(0, free) * items[i].flex_grow / total_weight;
-                    const int grown = std::max(0, grow);
-                    changed |= (main_now(*items[i].child, direction) != grown);
-                    set_main_size(*items[i].child, direction, grown);
-                    distributed_size += grow;
+                    for (const size_t i : line)
+                    {
+                        const int basis =
+                            basis_claim(items[i], direction, avail_main);
+                        if (grows(i) && basis < 0)
+                        {
+                            changed |= (main_now(*items[i].child, direction) != 0);
+                            set_main_size(*items[i].child, direction, 0);
+                        }
+                        else if (basis >= 0)
+                        {
+                            const int final = claim_of(i);
+                            changed |= (main_now(*items[i].child, direction) != final);
+                            set_main_size(*items[i].child, direction, final);
+                        }
+                    }
                 }
             }
 
@@ -486,7 +627,8 @@ namespace zb::ui
                 const bool main_explicit = row ? child.is_width_explicit() : child.is_height_explicit();
                 const bool cross_explicit = row ? child.is_height_explicit() : child.is_width_explicit();
                 if (!main_explicit && main_percent(child, direction) == 0
-                    && items[i].flex_grow == 0)
+                    && items[i].flex_grow == 0
+                    && basis_claim(items[i], direction, avail_main) < 0)
                 {
                     const int demand = main_demand(child, direction);
                     changed |= (main_now(child, direction) != demand);
@@ -577,11 +719,11 @@ namespace zb::ui
             {
                 if (justify_content == justify::end)
                 {
-                    lead = free;
+                    lead = slack;
                 }
                 else if (justify_content == justify::center)
                 {
-                    lead = free / 2;
+                    lead = slack / 2;
                 }
             }
             int k = 0;

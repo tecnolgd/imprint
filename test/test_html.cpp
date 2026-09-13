@@ -1444,5 +1444,99 @@ int test_html()
         EXPECT(all_white);
     }
 
+    // H-7c flex-basis: auto (default demand), px, and %
+    {
+        ui_node r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex-basis: auto\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_basis_px == -1);
+        EXPECT(r.children[0].flex_basis_pct == 0);
+        r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex-basis: 50px\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_basis_px == 50);
+        EXPECT(r.children[0].flex_basis_pct == 0);
+        r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex-basis: 25%\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_basis_px == -1);
+        EXPECT(r.children[0].flex_basis_pct == 25);
+    }
+
+    // H-7c flex-shrink: integer weight
+    {
+        ui_node r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex-shrink: 3\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_shrink == 3);
+        r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex-shrink: 0\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_shrink == 0);
+    }
+
+    // H-7c flex shorthand: 1 token (grow), 2 tokens (grow shrink), 3 tokens (grow shrink basis), none
+    {
+        ui_node r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex: 2\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_grow == 2);
+        EXPECT(r.children[0].flex_shrink == 0);
+        EXPECT(r.children[0].flex_basis_px == -1);
+        EXPECT(r.children[0].flex_basis_pct == 0);
+        r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex: 1 2\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_grow == 1);
+        EXPECT(r.children[0].flex_shrink == 2);
+        EXPECT(r.children[0].flex_basis_px == -1);
+        EXPECT(r.children[0].flex_basis_pct == 0);
+        r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex: 1 2 50px\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_grow == 1);
+        EXPECT(r.children[0].flex_shrink == 2);
+        EXPECT(r.children[0].flex_basis_px == 50);
+        EXPECT(r.children[0].flex_basis_pct == 0);
+        r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex: 1 2 33%\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_grow == 1);
+        EXPECT(r.children[0].flex_shrink == 2);
+        EXPECT(r.children[0].flex_basis_px == -1);
+        EXPECT(r.children[0].flex_basis_pct == 33);
+        r = parse_html(
+            "<div style=\"display:flex\"><label style=\"flex: none\">x</label></div>\n",
+            nullptr);
+        EXPECT(r.children[0].flex_grow == 0);
+        EXPECT(r.children[0].flex_shrink == 0);
+        EXPECT(r.children[0].flex_basis_px == -1);
+        EXPECT(r.children[0].flex_basis_pct == 0);
+    }
+
+    // H-7c end-to-end: flex-basis beats explicit size in layout
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body><div style=\"display:flex; flex-direction:column; width:200px; height:100px\">"
+            "<label style=\"flex-basis: 30px; width:80px\">x</label>"
+            "<label style=\"flex-grow: 1\">y</label>"
+            "</div></body>\n",
+            &ok);
+        EXPECT(ok);
+        // root is the single container (row/column) per .ui convention
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, root);
+        host.layout();
+        // root is a FlexPanel (column), its items are the two labels
+        const auto &items = host.get_items();
+        EXPECT(items.size() == 2);
+        // First child: flex-basis:30px beats width:80px -> gets 30px
+        // Second child: flex-grow:1 gets the rest (70px)
+        EXPECT(items[0].child->get_size().height == 30);
+        EXPECT(items[1].child->get_size().height == 70);
+    }
+
     return test::report("html");
 }

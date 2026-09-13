@@ -33,6 +33,9 @@ namespace zb::ui
         std::vector<ui_node> children;  // container tags only
         std::vector<std::string> items;  // static string model (list_box)
         int flex_grow = 0;               // container layout hint
+        int flex_shrink = 0;             // deficit share weight (H-7c)
+        int flex_basis_px = -1;          // explicit pixel basis (H-7c)
+        int flex_basis_pct = 0;          // percent basis 1..100 (H-7c)
         int align_self = 0;              // per-item cross hint (H-7b:
                                          // 0 = auto/inherit, else
                                          // FlexPanel::align ordinal + 1)
@@ -100,6 +103,21 @@ namespace zb::ui
         ui_node &flex(const int g)
         {
             flex_grow = g;
+            return *this;
+        }
+        ui_node &shrink(const int s)
+        {
+            flex_shrink = s;
+            return *this;
+        }
+        ui_node &basis_px(const int px)
+        {
+            flex_basis_px = px;
+            return *this;
+        }
+        ui_node &basis_pct(const int pct)
+        {
+            flex_basis_pct = pct;
             return *this;
         }
         ui_node &self_align(const int a)

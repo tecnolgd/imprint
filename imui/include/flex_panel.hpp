@@ -66,6 +66,11 @@ namespace zb::ui
             // container's align_items, anything else wins for this item
             // (honored only by the flex parent, like flex_grow)
             self_align align_self = self_align::auto_;
+            // shrink weight (H-7c, default 0 = historical overflow
+            // clips) and main-axis basis override (auto = demand)
+            int flex_shrink = 0;
+            int basis_px = -1;   // >= 0 = explicit pixel basis
+            int basis_pct = 0;   // 1..100 = percent of the content box
         };
 
         FlexPanel() = default;
@@ -118,12 +123,17 @@ namespace zb::ui
         }
         [[nodiscard]] align get_align_items() const { return align_items; }
 
-        /* flex_grow > 0 makes the child share the leftover main-axis space */
+        /* flex_grow > 0 makes the child share the leftover main-axis space;
+         * flex_shrink > 0 shares a deficit; an explicit basis (px >= 0 or
+         * pct 1..100) replaces the demand as the line claim (H-7c) */
         void add_child(std::unique_ptr<Widget> child, const int flex_grow = 0,
-                       const self_align self = self_align::auto_)
+                       const self_align self = self_align::auto_,
+                       const int flex_shrink = 0, const int basis_px = -1,
+                       const int basis_pct = 0)
         {
             child->parent = this;
-            items.push_back({std::move(child), flex_grow, self});
+            items.push_back({std::move(child), flex_grow, self, flex_shrink,
+                             basis_px, basis_pct});
             mark_layout_dirty();
         }
 
