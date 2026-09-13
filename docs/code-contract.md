@@ -468,9 +468,32 @@ system (standing non-goals):
   `stretch → stretch` onto the container prop; `align-self` maps the
   same plus `auto` onto the per-item hint (honored only under a flex
   parent, ignored elsewhere like `flex_grow`); `baseline` and anything
-  else warn once and keep the current value. `.ui`/builder flows use the
+  else warn once and keep the current value.   `.ui`/builder flows use the
   `align` node prop (container, integer code) and the `align_self` node
   hint (item).
+- **FlexPanel basis & shrink (H-7c)**: a per-item `flex-basis` (auto =
+  the historical demand, explicit px, or % of the content-box main
+  size) replaces the item's demand as its line claim — for packing,
+  wrap breaking, and the grow base — while `flex-shrink` (default 0,
+  preserving the historical overflow-clips behavior) weights deficit
+  sharing. Final main sizes resolve per line from
+  `free = content_main − Σclaims − gaps`: `free ≥ 0` distributes the
+  surplus to grow items over their claims (the historical exact-sum
+  rule, last grower takes the remainder); `free < 0` distributes the
+  deficit by the scaled factors `shrink × claim` (last participant
+  takes the remainder, every final floors at 0), and with no shrink
+  weight anywhere the line keeps its claims and overflows as before. An
+  explicit basis beats an explicit size, a percent declaration, and the
+  grow-zero claim alike; `measure()` counts a px basis as demand and a
+  % basis as 0 (relative, like a percent child). HTML `flex:` takes one
+  (`grow`), two (`grow shrink`), or three (`grow shrink basis`) tokens
+  plus `none` (= `0 0 auto`); the historical single-number form keeps
+  basis-auto (not CSS's `0%`) and shrink-0 (not CSS's `1`) — additive,
+  documented deviations. `flex-basis: auto/px/%` and `flex-shrink: N`
+  set the same channels alone; negative or malformed values warn once
+  and keep the current values. Min/max constraints stay unscheduled
+  (H-7d): nothing on the gating page uses them, and
+  `min-height:100vh` needs viewport units plus root-fill first.
 - Keyboard constraints: with a modal open, keyboard focus and
   Tab/arrow navigation are confined to the modal subtree (`focus_next`
   scopes to the modal); if the focused widget lies outside the modal
