@@ -110,6 +110,23 @@ namespace zb::ui
         {
             blend = true;
         }
+        // extended gradient colors (P-2b) and a translucent border
+        // (the knob's rgba outline) blend the same way
+        if (const grad_ex *const g = grad())
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                if (needs_blend(g->col[i]))
+                {
+                    blend = true;
+                    break;
+                }
+            }
+        }
+        if (dress_.border_w > 0 && needs_blend(dress_.border_color))
+        {
+            blend = true;
+        }
         const bool bak = area.is_alpha_enabled();
         if (blend)
         {
@@ -130,9 +147,23 @@ namespace zb::ui
                 area.fill_rect(0, 0, s.width - 1, s.height - 1, *background);
             }
         }
+        // extended forms override every paint_dress gradient
+        // (contract P-2b; the builder sets exactly one overall)
+        if (const grad_ex *const g = grad();
+            g != nullptr && g->kind == 3)
+        {
+            int pos[4] = {0, 0, 0, 0};
+            const int n = g->b < 2 ? 2 : (g->b > 4 ? 4 : g->b);
+            for (int i = 0; i < n; ++i)
+            {
+                pos[i] = g->pos[i];
+            }
+            area.fill_conic(0, 0, s.width - 1, s.height - 1, g->a, pos,
+                            g->col, n, radius);
+        }
         // radial wins when both kinds are set (contract P-1; the
         // builder sets exactly one, this is direct-setter misuse)
-        if (dress_.bg_kind == 2)
+        else if (dress_.bg_kind == 2)
         {
             area.fill_radial(0, 0, s.width - 1, s.height - 1,
                              s.width * dress_.bg_ax / 100,
@@ -326,7 +357,9 @@ namespace zb::ui
         // included. The zero-spacing run path below stays untouched so
         // plain text is bit-identical (splitting is safe — no provider
         // kerns — but the runs also skip one measure call per glyph)
-        if (letter_px_ > 0)
+        const int letter =
+            (ext_ != nullptr && ext_->has_text != 0) ? ext_->letter_px : 0;
+        if (letter > 0)
         {
             int spaced = 0;
             for (int i = 0; i < len; ++i)
@@ -334,7 +367,7 @@ namespace zb::ui
                 const GlyphProvider *const p = pick(data[i]);
                 if (p != nullptr)
                 {
-                    spaced += p->measure(data + i, 1).width + letter_px_;
+                    spaced += p->measure(data + i, 1).width + letter;
                 }
             }
             return spaced;
@@ -385,9 +418,18 @@ namespace zb::ui
         // one run of glyphs at (x0, y0): the provider-run fast path
         // when tracking is off, per-unit pen (unit advance + spacing)
         // when on. Uncovered units keep the pen position either way
+        const int letter =
+            (ext_ != nullptr && ext_->has_text != 0) ? ext_->letter_px : 0;
+        const bool is_bold = bold();
+        const core::Color shadow =
+            has_text_shadow() ? ext_->shadow_color : core::Color{};
+        const int sh_dx =
+            has_text_shadow() ? static_cast<int>(ext_->shadow_dx) : 0;
+        const int sh_dy =
+            has_text_shadow() ? static_cast<int>(ext_->shadow_dy) : 0;
         const auto pass = [&](const int x0, const int y0, const core::Color &c)
         {
-            if (letter_px_ <= 0)
+            if (letter <= 0)
             {
                 int pen = 0;
                 for (int i = 0; i < len;)
@@ -414,7 +456,7 @@ namespace zb::ui
                 if (p != nullptr)
                 {
                     p->write(area, data + i, 1, x0 + pen, y0, c);
-                    pen += p->measure(data + i, 1).width + letter_px_;
+                    pen += p->measure(data + i, 1).width + letter;
                 }
             }
         };
@@ -422,8 +464,8 @@ namespace zb::ui
         // the bitmap provider plots without blending, so a translucent
         // pass color (the title's rgba shadow) needs the enable here;
         // the TTF providers self-enable (their own save/restore nests)
-        const bool blend = color.a() < 255 ||
-                           (has_text_shadow() && shadow_color_.a() < 255);
+        const bool blend =
+            color.a() < 255 || (has_text_shadow() && shadow.a() < 255);
         const bool bak = area.is_alpha_enabled();
         if (blend)
         {
@@ -433,14 +475,14 @@ namespace zb::ui
         // face; bold adds a +1px second face pass (P-2a double-strike)
         if (has_text_shadow())
         {
-            pass(x + shadow_dx_, y + shadow_dy_, shadow_color_);
-            if (bold())
+            pass(x + sh_dx, y + sh_dy, shadow);
+            if (is_bold)
             {
-                pass(x + shadow_dx_ + 1, y + shadow_dy_, shadow_color_);
+                pass(x + sh_dx + 1, y + sh_dy, shadow);
             }
         }
         pass(x, y, color);
-        if (bold())
+        if (is_bold)
         {
             pass(x + 1, y, color);
         }

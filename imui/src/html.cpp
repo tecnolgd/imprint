@@ -1561,9 +1561,11 @@ namespace zb::ui
             return true;
         }
 
-        // one background layer value: solid passthrough, linear/radial
-        // gradients, everything else (repeating-*, conic-*, url()
-        // textures, junk) unsupported. True when a prop landed.
+        // one background layer value: solid passthrough,
+        // linear/radial/conic gradients, everything else (repeating-*,
+        // url() textures, junk) unsupported. True when a prop landed.
+        bool parse_conic_layer(ui_node &n,
+                               const std::vector<std::string> &args);
         bool parse_bg_layer(ui_node &n, const std::string &layer)
         {
             const std::string t = css_trim(layer);
@@ -1579,11 +1581,12 @@ namespace zb::ui
                 return true;
             }
             const std::string fn = css_trim(low.substr(0, lp));
-            if (fn != "linear-gradient" && fn != "radial-gradient")
+            if (fn != "linear-gradient" && fn != "radial-gradient" &&
+                fn != "conic-gradient")
             {
                 // rgb()/rgba() are solid colors in function clothing;
-                // every other function (repeating-*, conic-*, url(),
-                // junk) is unsupported
+                // every other function (repeating-*, url(), junk) is
+                // unsupported
                 if (fn == "rgb" || fn == "rgba")
                 {
                     n.prop("background", t);
@@ -1601,7 +1604,11 @@ namespace zb::ui
             {
                 return parse_linear_layer(n, args);
             }
-            return parse_radial_layer(n, args);
+            if (fn == "radial-gradient")
+            {
+                return parse_radial_layer(n, args);
+            }
+            return parse_conic_layer(n, args);
         }
 
         // whether a background prop (solid or gradient) already
@@ -1611,12 +1618,143 @@ namespace zb::ui
             for (const auto &p : n.props)
             {
                 if (p.first == "background" || p.first == "bg_lin_from" ||
-                    p.first == "bg_rad_from")
+                    p.first == "bg_rad_from" || p.first == "bg_con_from")
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        // conic-gradient (P-2b): "from Ndeg" head (default 0), then 2..4
+        // stops "color Ndeg" (bare N = degrees; % positions, `at`
+        // centers, and >4 stops drop the layer). Stop positions clamp
+        // non-decreasing (CSS clamp rule); first defaults 0, last 360.
+        bool parse_conic_layer(ui_node &n, const std::vector<std::string> &args)
+        {
+            if (args.empty())
+            {
+                return false;
+            }
+            std::size_t first = 0;
+            long long from = 0;
+            const std::string head = css_trim(ascii_lower(args[0]));
+            if (head.compare(0, 4, "from") == 0 &&
+                (head.size() == 4 || head[4] == ' '))
+            {
+                std::string deg = css_trim(head.substr(4));
+                if (deg.size() < 4 ||
+                    deg.compare(deg.size() - 3, 3, "deg") != 0)
+                {
+                    return false;
+                }
+                if (!parse_svg_num(deg.substr(0, deg.size() - 3), from))
+                {
+                    return false;
+                }
+                first = 1;
+            }
+            else if (head.compare(0, 3, "at ") == 0 ||
+                     head.find(" at ") != std::string::npos ||
+                     head.find('(') != std::string::npos)
+            {
+                return false;  // `at` centers are P-2b-out
+            }
+            // otherwise the head is the first stop (no `from`)
+            std::vector<std::string> colors;
+            std::vector<long long> pos;
+            for (std::size_t i = first; i < args.size(); ++i)
+            {
+                const std::string t = css_trim(args[i]);
+                if (t.empty())
+                {
+                    return false;
+                }
+                const std::size_t sp = t.rfind(' ');
+                std::string c;
+                long long p = -1;
+                if (sp == std::string::npos)
+                {
+                    c = t;  // bare color: position fills in below
+                }
+                else
+                {
+                    c = css_trim(t.substr(0, sp));
+                    std::string tail =
+                        css_trim(ascii_lower(t.substr(sp + 1)));
+                    if (tail.empty() || tail.back() == '%')
+                    {
+                        return false;  // % positions are P-2b-out
+                    }
+                    if (tail.size() > 3 &&
+                        tail.compare(tail.size() - 3, 3, "deg") == 0)
+                    {
+                        tail = tail.substr(0, tail.size() - 3);
+                    }
+                    if (!parse_svg_num(tail, p) || c.empty())
+                    {
+                        return false;
+                    }
+                }
+                colors.push_back(c);
+                pos.push_back(p);
+            }
+            if (colors.size() < 2 || colors.size() > 4)
+            {
+                return false;
+            }
+            if (pos.front() < 0)
+            {
+                pos.front() = 0;
+            }
+            if (pos.back() < 0)
+            {
+                pos.back() = 360;
+            }
+            // bare runs divide their bracketing span evenly (CSS
+            // omitted-position rule, integer steps)
+            std::size_t i = 1;
+            while (i + 1 < pos.size())
+            {
+                if (pos[i] >= 0)
+                {
+                    ++i;
+                    continue;
+                }
+                std::size_t k = i;
+                while (k + 1 < pos.size() && pos[k] < 0)
+                {
+                    ++k;
+                }
+                const long long step =
+                    (pos[k] - pos[i - 1]) /
+                    static_cast<long long>(k - i + 1);
+                for (std::size_t m = i; m < k; ++m)
+                {
+                    pos[m] =
+                        pos[i - 1] +
+                        step * static_cast<long long>(m - i + 1);
+                }
+                i = k;
+            }
+            for (std::size_t i = 1; i < pos.size(); ++i)
+            {
+                if (pos[i] < pos[i - 1])
+                {
+                    pos[i] = pos[i - 1];  // CSS clamp rule
+                }
+                if (pos[i] > 360)
+                {
+                    pos[i] = 360;
+                }
+            }
+            n.prop("bg_con_from", from);
+            for (std::size_t i = 0; i < colors.size(); ++i)
+            {
+                n.prop("bg_con_p" + std::to_string(i), pos[i]);
+                n.prop("bg_con_c" + std::to_string(i), colors[i]);
+            }
+            return true;
         }
 
         // transform: only translate(X[, Y]) is P-3 (percent of self or
@@ -1688,12 +1826,15 @@ namespace zb::ui
         bool parse_text_shadow(const std::string &s, long long &dx,
                                long long &dy, std::string &color)
         {
-            std::string first = css_trim(s);
-            const std::size_t comma = first.find(',');
-            if (comma != std::string::npos)
+            // a comma list keeps the first shadow only — split
+            // paren-aware so rgba() commas never divide the list
+            std::vector<std::string> shadows;
+            split_layers(s, shadows);
+            if (shadows.empty())
             {
-                first = css_trim(first.substr(0, comma));
+                return false;
             }
+            std::string first = css_trim(shadows.front());
             const auto len_of = [](const std::string &tok, long long &v) {
                 std::string t = css_trim(ascii_lower(tok));
                 if (t.size() > 2 && t.compare(t.size() - 2, 2, "px") == 0)

@@ -1074,7 +1074,7 @@ int test_html()
         ui_node r = parse_html(
             "<div style=\"display:flex;flex-direction:row\">"
             "<label style=\"letter-spacing:3px;font-weight:700;"
-            "text-shadow:1px 1px rgba(255,0,0,255)\">AB</label>"
+            "text-shadow:1px 1px rgba(255,0,0,1)\">AB</label>"
             "<label style=\"font-weight:400\">C</label>"
             "<label style=\"letter-spacing:big;text-shadow:red\">D</label>"
             "</div>\n",
@@ -1084,7 +1084,7 @@ int test_html()
         EXPECT(test::vget<long long>(node_prop_v(r.children[0], "shadow_dx")) == 1);
         EXPECT(test::vget<long long>(node_prop_v(r.children[0], "shadow_dy")) == 1);
         EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "shadow_color")) ==
-               "rgba(255,0,0,255)");
+               "rgba(255,0,0,1)");
         EXPECT(test::vget<bool>(node_prop_v(r.children[1], "bold")) == false);
         EXPECT(find_prop(r.children[2], "letter_px") < 0);
         EXPECT(find_prop(r.children[2], "shadow_color") < 0);
@@ -1144,6 +1144,43 @@ int test_html()
         EXPECT(host.get_size().width == 200);
         EXPECT(host.get_size().height == 60);
         EXPECT(host.get_items().size() == 1);
+    }
+
+    // P-2b conic: from + deg stops land as props; % positions, `at`
+    // centers, and >4 stops drop the layer; the built widget paints
+    // the sweep (bottom half toward `to`)
+    {
+        ui_node r = parse_html(
+            "<div>"
+            "<div style=\"width:41px;height:41px;background:"
+            "conic-gradient(from 0deg, black 0deg, white 180deg, black 360deg)\">"
+            "<label>x</label></div>"
+            "<div style=\"background:conic-gradient(at 50% 50%, black, white)\">"
+            "<label>y</label></div>"
+            "</div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "bg_con_from")) == 0);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "bg_con_p1")) == 180);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "bg_con_c1")) == "white");
+        EXPECT(find_prop(r.children[1], "bg_con_from") < 0);
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, r);
+        host.layout();
+        auto *knob = host.get_items()[0].child.get();
+        EXPECT(knob->has_background());
+        EXPECT(knob->get_size().width == 41);
+        core::Graphics g(200, 100, nullptr);
+        host.draw(g);
+        const auto kp = knob->get_position();
+        const auto ks = knob->get_size();
+        // face center column: top reads the 0 stop, bottom the 180
+        // stop (both axis-exact in either trig path, whatever the
+        // cross-axis width settles at)
+        EXPECT(test::pixel_at(g, kp.x + ks.width / 2, kp.y) ==
+               core::colors::Black.pixel);
+        EXPECT(test::pixel_at(g, kp.x + ks.width / 2, kp.y + ks.height - 1) ==
+               core::colors::White.pixel);
     }
 
     return test::report("html");

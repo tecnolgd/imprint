@@ -220,20 +220,18 @@ namespace zb::ui
          * descendants; absolute leaves the flow (resolved by the
          * FlexPanel against the containing block). Offsets are px
          * (INT16_MIN = unset) or % of the containing block; translate
-         * shifts after placement (% of self). Storage is a heap side
-         * struct, allocated only for positioned widgets, so the bare
-         * Widget stays allocation-free and +8/64-bit (+4 NDS).
+         * shifts after placement (% of self). Storage is the heap
+         * sidecar below, allocated only for dressed widgets, so the
+         * bare Widget stays allocation-free and lean (batch J).
          */
         void set_relative()
         {
-            ensure_pos();
-            pos_->kind = 1;
+            mut_pos()->kind = 1;
             mark_layout_dirty();
         }
         void set_absolute()
         {
-            ensure_pos();
-            pos_->kind = 2;
+            mut_pos()->kind = 2;
             mark_layout_dirty();
         }
         // side: 0 left, 1 top, 2 right, 3 bottom; translate: 0 x, 1 y
@@ -243,20 +241,20 @@ namespace zb::ui
             {
                 return;
             }
-            ensure_pos();
+            abs_spec *const p = mut_pos();
             int c = v < -32767 ? -32767 : (v > 32767 ? 32767 : v);
             if (pct)
             {
                 c = c < 0 ? 0 : (c > 100 ? 100 : c);
             }
-            pos_->off[side] = static_cast<int16_t>(c);
+            p->off[side] = static_cast<int16_t>(c);
             if (pct)
             {
-                pos_->pctmask |= static_cast<uint8_t>(1U << side);
+                p->pctmask |= static_cast<uint8_t>(1U << side);
             }
             else
             {
-                pos_->pctmask &= static_cast<uint8_t>(~(1U << side));
+                p->pctmask &= static_cast<uint8_t>(~(1U << side));
             }
             mark_layout_dirty();
         }
@@ -266,30 +264,32 @@ namespace zb::ui
             {
                 return;
             }
-            ensure_pos();
+            abs_spec *const p = mut_pos();
             int c = v < -32767 ? -32767 : (v > 32767 ? 32767 : v);
             if (pct)
             {
                 c = c < -100 ? -100 : (c > 100 ? 100 : c);
             }
-            pos_->tr[axis] = static_cast<int16_t>(c);
+            p->tr[axis] = static_cast<int16_t>(c);
             if (pct)
             {
-                pos_->pctmask |= static_cast<uint8_t>(1U << (4 + axis));
+                p->pctmask |= static_cast<uint8_t>(1U << (4 + axis));
             }
             else
             {
-                pos_->pctmask &= static_cast<uint8_t>(~(1U << (4 + axis)));
+                p->pctmask &= static_cast<uint8_t>(~(1U << (4 + axis)));
             }
             mark_layout_dirty();
         }
         [[nodiscard]] bool is_positioned() const
         {
-            return pos_ != nullptr && pos_->kind != 0;
+            const abs_spec *const p = pos();
+            return p != nullptr && p->kind != 0;
         }
         [[nodiscard]] bool is_absolute() const
         {
-            return pos_ != nullptr && pos_->kind == 2;
+            const abs_spec *const p = pos();
+            return p != nullptr && p->kind == 2;
         }
         // nearest positioned ancestor (relative or absolute) or null;
         // the FlexPanel resolver falls back to the direct parent box
@@ -308,23 +308,27 @@ namespace zb::ui
         // pct bit per side in mask order l/t/r/b/tx/ty)
         [[nodiscard]] int16_t abs_off(const int side) const
         {
-            return (pos_ && side >= 0 && side <= 3) ? pos_->off[side]
-                                                   : INT16_MIN;
+            const abs_spec *const p = pos();
+            return (p != nullptr && side >= 0 && side <= 3) ? p->off[side]
+                                                           : INT16_MIN;
         }
         [[nodiscard]] bool abs_off_pct(const int side) const
         {
-            return pos_ && side >= 0 && side <= 3 &&
-                   (pos_->pctmask & (1U << side)) != 0;
+            const abs_spec *const p = pos();
+            return p != nullptr && side >= 0 && side <= 3 &&
+                   (p->pctmask & (1U << side)) != 0;
         }
         [[nodiscard]] int16_t abs_tr(const int axis) const
         {
-            return (pos_ && axis >= 0 && axis <= 1) ? pos_->tr[axis]
-                                                   : INT16_MIN;
+            const abs_spec *const p = pos();
+            return (p != nullptr && axis >= 0 && axis <= 1) ? p->tr[axis]
+                                                           : INT16_MIN;
         }
         [[nodiscard]] bool abs_tr_pct(const int axis) const
         {
-            return pos_ && axis >= 0 && axis <= 1 &&
-                   (pos_->pctmask & (1U << (4 + axis))) != 0;
+            const abs_spec *const p = pos();
+            return p != nullptr && axis >= 0 && axis <= 1 &&
+                   (p->pctmask & (1U << (4 + axis))) != 0;
         }
         [[nodiscard]] int aspect_w() const { return aspect_w_; }
         [[nodiscard]] int aspect_h() const { return aspect_h_; }
@@ -476,9 +480,33 @@ namespace zb::ui
         [[nodiscard]] bool has_background() const
         {
             return background.has_value() || background_image.has_value() ||
-                   dress_.bg_kind != 0;
+                   dress_.bg_kind != 0 || grad() != nullptr;
         }
         [[nodiscard]] bool has_border() const { return dress_.border_w > 0; }
+        // conic-dressing background (P-2b): `from_deg` start angle (CSS
+        // degrees), 2..4 {deg, color} stops (center fixed at 50%/50%).
+        // Rides the sidecar (flags its section); overrides every
+        // paint_dress gradient at draw time
+        void set_background_conic(const int from_deg, const int *stop_deg,
+                                  const core::Color *stop_col, const int nstops)
+        {
+            if (stop_deg == nullptr || stop_col == nullptr || nstops < 2 ||
+                nstops > 4)
+            {
+                return;
+            }
+            grad_ex *const g = mut_grad();
+            g->kind = 3;
+            g->a = static_cast<uint16_t>(from_deg);
+            g->b = static_cast<uint16_t>(nstops);
+            for (int i = 0; i < nstops; ++i)
+            {
+                const int d = stop_deg[i] < 0 ? 0 : stop_deg[i];
+                g->pos[i] = static_cast<uint16_t>(d > 360 ? 360 : d);
+                g->col[i] = stop_col[i];
+            }
+            mark_dirty();
+        }
 
         // text (input is UTF-8, see docs/code-contract.md section 2)
         void set_text(const char *text);
@@ -514,43 +542,58 @@ namespace zb::ui
         }
         // text dressing (P-2a, all default-off): tracking in px
         // (negative clamps to 0), bold = double-strike +1px, one solid
-        // offset shadow copy (shadow alpha 0 = none). Every setter
-        // clears the advance cache (measure depends on them)
+        // offset shadow copy (shadow alpha 0 = none). Rides the
+        // sidecar; every setter clears the advance cache (measure
+        // depends on them)
         void set_letter_spacing(const int px)
         {
-            letter_px_ = px < 0 ? 0 : (px > 32767 ? 32767 : px);
+            widget_ext *const e = mut_text();
+            const int c = px < 0 ? 0 : (px > 32767 ? 32767 : px);
+            e->letter_px = static_cast<int16_t>(c);
             advance_cache_ = -1;
             mark_dirty();
             mark_layout_dirty();
         }
-        [[nodiscard]] int letter_spacing() const { return letter_px_; }
+        [[nodiscard]] int letter_spacing() const
+        {
+            return (ext_ != nullptr && ext_->has_text != 0)
+                       ? ext_->letter_px
+                       : 0;
+        }
         void set_bold(const bool on)
         {
+            widget_ext *const e = mut_text();
             if (on)
             {
-                text_flags_ |= 1;
+                e->text_flags |= 1;
             }
             else
             {
-                text_flags_ &= ~1;
+                e->text_flags &= ~1;
             }
             advance_cache_ = -1;
             mark_dirty();
             mark_layout_dirty();
         }
-        [[nodiscard]] bool bold() const { return (text_flags_ & 1) != 0; }
+        [[nodiscard]] bool bold() const
+        {
+            return ext_ != nullptr && ext_->has_text != 0 &&
+                   (ext_->text_flags & 1) != 0;
+        }
         void set_text_shadow(const core::Color &c, const int dx, const int dy)
         {
-            shadow_color_ = c;
+            widget_ext *const e = mut_text();
+            e->shadow_color = c;
             const int cx = dx < -128 ? -128 : (dx > 127 ? 127 : dx);
             const int cy = dy < -128 ? -128 : (dy > 127 ? 127 : dy);
-            shadow_dx_ = static_cast<int8_t>(cx);
-            shadow_dy_ = static_cast<int8_t>(cy);
+            e->shadow_dx = static_cast<int8_t>(cx);
+            e->shadow_dy = static_cast<int8_t>(cy);
             mark_dirty();
         }
         [[nodiscard]] bool has_text_shadow() const
         {
-            return shadow_color_.a() != 0;
+            return ext_ != nullptr && ext_->has_text != 0 &&
+                   ext_->shadow_color.a() != 0;
         }
 
         /*
@@ -883,8 +926,7 @@ namespace zb::ui
         };
         paint_dress dress_;
 
-        // positioning spec (P-3): heap side struct, only for positioned
-        // widgets (see setters above); offsets l/t/r/b then translate
+        // positioning spec (P-3): offsets l/t/r/b then translate
         // x/y, INT16_MIN = unset, pctmask bits l/t/r/b/tx/ty
         struct abs_spec
         {
@@ -893,22 +935,74 @@ namespace zb::ui
             uint8_t kind = 0;  // 1 relative, 2 absolute
             uint8_t pctmask = 0;
         };
-        std::unique_ptr<abs_spec> pos_;
-        void ensure_pos()
+        // extended gradient (P-2b/c): forms the packed paint_dress
+        // cannot hold. kind 3 = conic (a = from deg, b = nstops,
+        // pos/col = stops); kinds 4/5 reserved for P-2c (repeating /
+        // three-stop linear)
+        struct grad_ex
         {
-            if (pos_ == nullptr)
+            uint8_t kind = 0;
+            uint8_t flags = 0;
+            uint16_t a = 0;
+            uint16_t b = 0;
+            uint16_t pos[4] = {0, 0, 0, 0};
+            core::Color col[4]{};
+        };
+        // one heap sidecar for every optional dressing section (batch
+        // J): a bare widget keeps ext_ null (zero-alloc ctor, lean
+        // inline); each setter allocates once and flags its section,
+        // so positioned, gradient, and tracked widgets share one
+        // allocation instead of three pointers inline
+        struct widget_ext
+        {
+            abs_spec pos{};
+            grad_ex grad{};
+            int16_t letter_px = 0;
+            uint8_t text_flags = 0;  // bit0 = bold (double-strike)
+            core::Color shadow_color{};
+            int8_t shadow_dx = 0;
+            int8_t shadow_dy = 0;
+            uint8_t has_pos = 0;
+            uint8_t has_grad = 0;
+            uint8_t has_text = 0;
+        };
+        std::unique_ptr<widget_ext> ext_;
+        void ensure_ext()
+        {
+            if (ext_ == nullptr)
             {
-                pos_ = std::make_unique<abs_spec>();
+                ext_ = std::make_unique<widget_ext>();
             }
         }
+        [[nodiscard]] const abs_spec *pos() const
+        {
+            return (ext_ != nullptr && ext_->has_pos != 0) ? &ext_->pos
+                                                          : nullptr;
+        }
+        abs_spec *mut_pos()
+        {
+            ensure_ext();
+            ext_->has_pos = 1;
+            return &ext_->pos;
+        }
+        [[nodiscard]] const grad_ex *grad() const
+        {
+            return (ext_ != nullptr && ext_->has_grad != 0) ? &ext_->grad
+                                                           : nullptr;
+        }
+        grad_ex *mut_grad()
+        {
+            ensure_ext();
+            ext_->has_grad = 1;
+            return &ext_->grad;
+        }
+        widget_ext *mut_text()
+        {
+            ensure_ext();
+            ext_->has_text = 1;
+            return ext_.get();
+        }
 
-        // text dressing (P-2a): tracking px, bit0 of flags = bold
-        // (double-strike), shadow color (alpha 0 = none) + int8 offset
-        int letter_px_ = 0;
-        uint8_t text_flags_ = 0;
-        core::Color shadow_color_{};
-        int8_t shadow_dx_ = 0;
-        int8_t shadow_dy_ = 0;
         // text
         std::u16string text_;
         // unset = follow the active theme's `text` token (contract 10.3)

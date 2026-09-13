@@ -844,6 +844,43 @@ int test_graphics()
         EXPECT(test::pixel_at(*g, 10, 1) != core::colors::Black.pixel);  // flat edge kept
     }
 
+    // fill_conic (P-2b): 41x41 box, center (20,20), stops 0 black /
+    // 180 white / 360 black. Axis pixels read exact angles in both
+    // trig paths (off-boundary interiors may differ by the 1-degree
+    // integer-path tolerance, so only axes assert here)
+    {
+        auto g = core::Graphics::make_ptr(41, 41);
+        const int degs[3] = {0, 180, 360};
+        const core::Color cols[3] = {core::colors::Black,
+                                     core::colors::White,
+                                     core::colors::Black};
+        g->fill(core::colors::Black);
+        g->fill_conic(0, 0, 40, 40, 0, degs, cols, 3);
+        EXPECT(test::pixel_at(*g, 20, 0) == core::colors::Black.pixel);  // up: 0
+        EXPECT(test::pixel_at(*g, 20, 40) == core::colors::White.pixel);  // down: 180
+        EXPECT(test::pixel_at(*g, 20, 20) == core::colors::Black.pixel);  // center: 0
+        // left/right sit halfway down their segments: (0*90+255*90)/180
+        EXPECT(test::pixel_at(*g, 40, 20) == core::Color::from(127, 127, 127).pixel);
+        EXPECT(test::pixel_at(*g, 0, 20) == core::Color::from(127, 127, 127).pixel);
+        // the `from` origin rotates the sweep: from 90 puts gray up top
+        g->fill(core::colors::Black);
+        g->fill_conic(0, 0, 40, 40, 90, degs, cols, 3);
+        EXPECT(test::pixel_at(*g, 20, 0) == core::Color::from(127, 127, 127).pixel);
+        EXPECT(test::pixel_at(*g, 20, 40) == core::Color::from(127, 127, 127).pixel);
+    }
+
+    // fill_conic with corner radius: corners cut, sweep face kept
+    {
+        auto g = core::Graphics::make_ptr(42, 42);
+        const int degs[2] = {0, 360};
+        const core::Color cols[2] = {core::colors::White,
+                                     core::colors::White};
+        g->fill(core::colors::Black);
+        g->fill_conic(1, 1, 40, 40, 0, degs, cols, 2, 10);
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Black.pixel);  // cut
+        EXPECT(test::pixel_at(*g, 20, 20) == core::colors::White.pixel);  // face
+    }
+
     // fill_gradient with corner radius: middle rows interpolate
     // full-width, corner rows shrink by the chord
     {

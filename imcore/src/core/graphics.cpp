@@ -181,6 +181,67 @@ namespace
         oy = cy + static_cast<int>(std::floor(radius * std::sin(a) + 0.5));
 #endif
     }
+
+    /*
+     * CSS conic degrees of the pixel offset (dx, dy, y down): 0 = up,
+     * clockwise, into [0, 360). Dual-path like arc_point above: the
+     * integer path folds the y-up vector (dx, -dy) into the first
+     * octant and binary-searches the 1-degree sin LUT (monotonic on
+     * [0, 45]; compared 256-scaled against the isqrt hypotenuse), the
+     * float path is one atan2. The two agree within 1 degree.
+     */
+    inline int conic_theta(const int dx, const int dy)
+    {
+        if (dx == 0 && dy == 0)
+        {
+            return 0;
+        }
+#if defined(USE_INTEGER_GEOMETRY)
+        const int ax = dx >= 0 ? dx : -dx;
+        const int ay = dy >= 0 ? dy : -dy;
+        const bool swap = ay > ax;
+        const int big = swap ? ay : ax;
+        const int small = swap ? ax : ay;
+        const int64_t hyp = isqrt_floor(1LL * big * big + 1LL * small * small);
+        const int64_t target = 1LL * small * 256;
+        int lo = 0;
+        int hi = 45;
+        while (lo < hi)
+        {
+            const int mid = (lo + hi) / 2;
+            if (1LL * arc_sin_q(mid) * hyp < target)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+        const int small_a = swap ? 90 - lo : lo;
+        // unfold by the quadrant of (dx, -dy)
+        int alpha = small_a;
+        if (dx < 0)
+        {
+            alpha = 180 - small_a;
+            if (dy > 0)
+            {
+                alpha = 180 + small_a;
+            }
+        }
+        else if (dy > 0)
+        {
+            alpha = 360 - small_a;
+        }
+        return norm_deg(90 - alpha);
+#else
+        constexpr double kRadToDeg = 180.0 / 3.14159265358979323846;
+        const double a =
+            std::atan2(static_cast<double>(dx), static_cast<double>(-dy)) * kRadToDeg;
+        int t = static_cast<int>(a >= 0.0 ? a + 0.5 : a - 0.5);
+        return norm_deg(t);
+#endif
+    }
 }  // namespace
 
 Graphics::Graphics(uint32_t width, uint32_t height, void *data)
@@ -1153,6 +1214,106 @@ void Graphics::fill_radial(int x1, int y1, int x2, int y2, const int cx, const i
             return to;
         }
         return lerp_color(from, to, pct - from_p, span);
+    };
+
+    for (int row = top; row <= bottom; ++row)
+    {
+        int dy = 0;
+        if (r > 0)
+        {
+            if (row < top + r)
+            {
+                dy = top + r - row;
+            }
+            else if (row > bottom - r)
+            {
+                dy = row - (bottom - r);
+            }
+        }
+        int lx = left;
+        int rx = right;
+        int frac8 = 0;
+        if (dy > 0)
+        {
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            lx = left + r - dx;
+            rx = right - r + dx;
+        }
+        for (int col = lx; col <= rx; ++col)
+        {
+            draw_pixel(col, row, shade(col, row));
+        }
+        if (frac8 > 0)
+        {
+            plot_aa(lx - 1, row, frac8, shade(lx, row));
+            plot_aa(rx + 1, row, frac8, shade(rx, row));
+        }
+    }
+}
+
+void Graphics::fill_conic(int x1, int y1, int x2, int y2, int from_deg, const int *stop_deg,
+                           const Color *stop_col, int nstops, int radius)
+{
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_rect(x1, y1, x2, y2, nstops > 0 ? stop_col[0] : Color{});
+        return;
+    }
+    const int left = x1 < x2 ? x1 : x2;
+    const int right = x1 < x2 ? x2 : x1;
+    const int top = y1 < y2 ? y1 : y2;
+    const int bottom = y1 < y2 ? y2 : y1;
+    if (stop_deg == nullptr || stop_col == nullptr || nstops < 2)
+    {
+        return;
+    }
+
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+
+    // rect-midpoint center (contract: no `at` yet); the sweep origin
+    // normalizes like the stop positions (any integer degree)
+    const int acx = (left + right) / 2;
+    const int acy = (top + bottom) / 2;
+    int from = from_deg % 360;
+    if (from < 0)
+    {
+        from += 360;
+    }
+
+    auto shade = [&](const int x, const int y) {
+        int t = conic_theta(x - acx, y - acy) - from;
+        t %= 360;
+        if (t < 0)
+        {
+            t += 360;
+        }
+        // last stop at or below t owns the pixel (stops arrive
+        // clamped non-decreasing from the builder)
+        int seg = 0;
+        for (int i = 1; i < nstops; ++i)
+        {
+            if (stop_deg[i] <= t)
+            {
+                seg = i;
+            }
+        }
+        if (seg >= nstops - 1)
+        {
+            return stop_col[nstops - 1];
+        }
+        const int span = stop_deg[seg + 1] - stop_deg[seg];
+        if (span <= 0)
+        {
+            return stop_col[seg];
+        }
+        return lerp_color(stop_col[seg], stop_col[seg + 1], t - stop_deg[seg], span);
     };
 
     for (int row = top; row <= bottom; ++row)

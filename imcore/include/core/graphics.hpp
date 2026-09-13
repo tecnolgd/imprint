@@ -255,6 +255,22 @@ namespace zb::ui::core
                          const Color &to, int to_p, int radius = 0);
 
         /*
+         * Fill the rect with a conic (angular) sweep (P-2b): `from_deg`
+         * is the start angle in CSS degrees (0 = up, clockwise), stops
+         * are `nstops` (2..4) non-decreasing degree positions with one
+         * color each; the pixel angle picks its segment, colors lerp
+         * straight in 8-bit RGB (a zero-length segment reads its first
+         * stop). The center is the rect midpoint. Angle math is
+         * dual-path (integer octant-fold + 1-degree-LUT binary search
+         * under USE_INTEGER_GEOMETRY, atan2 otherwise; agree within
+         * 1 degree). Per-pixel draw_pixel like fill_gradient (clip /
+         * damage / alpha conventions hold); `radius` rounds the corners
+         * the same way. Wireframe degrades to the outline.
+         */
+        void fill_conic(int x1, int y1, int x2, int y2, int from_deg, const int *stop_deg,
+                        const Color *stop_col, int nstops, int radius = 0);
+
+        /*
          * Rectangle with circular corners of the given radius (clamped to
          * half the shorter side; <= 0 falls back to the plain rect).
          * draw_round_rect outlines exactly the coverage fill_round_rect

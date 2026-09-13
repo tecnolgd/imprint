@@ -352,6 +352,41 @@ namespace zb::ui
                                             prop_of(n, "bg_lin_h", true));
                 }
             }
+            // P-2b conic: 2..4 stops ride bg_con_pN/cN (any missing
+            // half drops the form, like the radial mistype rule)
+            if (has_prop(n, "bg_con_from"))
+            {
+                int degs[4] = {0, 0, 0, 0};
+                core::Color cols[4]{};
+                int nstops = 0;
+                for (int i = 0; i < 4; ++i)
+                {
+                    const std::string ps =
+                        "bg_con_p" + std::to_string(i);
+                    const std::string cs =
+                        "bg_con_c" + std::to_string(i);
+                    if (!has_prop(n, ps.c_str()) ||
+                        !has_prop(n, cs.c_str()))
+                    {
+                        break;
+                    }
+                    if (!parse_color(prop_of(n, cs.c_str(), std::string{}),
+                                     cols[i]))
+                    {
+                        nstops = 0;
+                        break;
+                    }
+                    degs[i] =
+                        static_cast<int>(prop_of(n, ps.c_str(), 0LL));
+                    ++nstops;
+                }
+                if (nstops >= 2)
+                {
+                    w.set_background_conic(
+                        static_cast<int>(prop_of(n, "bg_con_from", 0LL)),
+                        degs, cols, nstops);
+                }
+            }
             if (has_prop(n, "border_w") && has_prop(n, "border_color"))
             {
                 core::Color bc;
