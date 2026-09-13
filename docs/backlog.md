@@ -315,6 +315,11 @@ support "a little at a time" as the boundary demands):**
   `transparent` is an explicit alpha-0 stop inside stop lists
   (`parse_stop_color`; solid backgrounds still reject it). Binary-alpha
   depths follow the standard any-bit-set rule for every stop.
+  P-2d landed 2026-09-13: element `opacity` (fixed-point 0..1000,
+  build-time fold into the widget's own paint alphas, ceil so nonzero
+  stays nonzero; no subtree compositing) dims the LED faces, and
+  `border-top` (own sidecar band) draws the footer divider (row 272
+  reads uniform 132 = 189 × 0.7).
 - P-3. Absolute positioning — **landed 2026-09-13**: `position:
   relative/absolute` + `top/left/right/bottom` (`Npx`/`N%`/bare/`auto`)
   + `transform: translate()`; FlexPanel skips abs in measure/lines and

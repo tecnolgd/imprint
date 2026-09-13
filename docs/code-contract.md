@@ -618,6 +618,18 @@ system (standing non-goals):
   every stop follows the standard binary rule (any nonzero authored
   alpha sets the bit and plots — a 4% brushed sheen reads as pinstripes
   there, same as any other translucent paint); desktop blends truly.
+- Element opacity + top border (P-2d): `opacity: N (0..1)` / `N%`
+  parses to fixed-point 0..1000 (`elem_opacity`, integer-only parse,
+  malformed drops) and the builder folds it into the widget's OWN paint
+  alphas at build time — solid background, every gradient stop of every
+  form, border (+ top), text and text-shadow (`(a * op + 999) / 1000`,
+  rounded up so any nonzero stays nonzero — the `set_a(v > 0)` binary
+  rule, which also keeps a dimmed LED painted (solid) on 16bpp). There
+  is no subtree compositing (the architecture has no offscreen buffer):
+  opacity on a container affects only its own box/text paint, never its
+  descendants. `border-top: Npx solid <color>` rides its own sidecar
+  section and paints a full-width top band over the background
+  (radius corners are not cut); other sides stay off-whitelist.
 - HTML page box: `html_page` (per-axis width/height/background presence)
   is filled by `parse_html(text, ok, page)`; the consumer resolves the
   initial screen size document → shell → app default (warn on default)
