@@ -322,6 +322,23 @@ namespace zb::ui
         {
             return 0;
         }
+        // letter-spacing (P-2a): per covered code unit, trailing unit
+        // included. The zero-spacing run path below stays untouched so
+        // plain text is bit-identical (splitting is safe — no provider
+        // kerns — but the runs also skip one measure call per glyph)
+        if (letter_px_ > 0)
+        {
+            int spaced = 0;
+            for (int i = 0; i < len; ++i)
+            {
+                const GlyphProvider *const p = pick(data[i]);
+                if (p != nullptr)
+                {
+                    spaced += p->measure(data + i, 1).width + letter_px_;
+                }
+            }
+            return spaced;
+        }
         int total = 0;
         for (int i = 0; i < len;)
         {
@@ -365,22 +382,71 @@ namespace zb::ui
             return nullptr;
         };
 
-        // draw run by run; uncovered units keep the pen position
-        int pen = 0;
-        for (int i = 0; i < len;)
+        // one run of glyphs at (x0, y0): the provider-run fast path
+        // when tracking is off, per-unit pen (unit advance + spacing)
+        // when on. Uncovered units keep the pen position either way
+        const auto pass = [&](const int x0, const int y0, const core::Color &c)
         {
-            const GlyphProvider *cur = pick(data[i]);
-            int j = i;
-            while (j < len && pick(data[j]) == cur)
+            if (letter_px_ <= 0)
             {
-                ++j;
+                int pen = 0;
+                for (int i = 0; i < len;)
+                {
+                    const GlyphProvider *cur = pick(data[i]);
+                    int j = i;
+                    while (j < len && pick(data[j]) == cur)
+                    {
+                        ++j;
+                    }
+                    if (cur != nullptr)
+                    {
+                        cur->write(area, data + i, j - i, x0 + pen, y0, c);
+                        pen += cur->measure(data + i, j - i).width;
+                    }
+                    i = j;
+                }
+                return;
             }
-            if (cur != nullptr)
+            int pen = 0;
+            for (int i = 0; i < len; ++i)
             {
-                cur->write(area, data + i, j - i, x + pen, y, color);
-                pen += cur->measure(data + i, j - i).width;
+                const GlyphProvider *const p = pick(data[i]);
+                if (p != nullptr)
+                {
+                    p->write(area, data + i, 1, x0 + pen, y0, c);
+                    pen += p->measure(data + i, 1).width + letter_px_;
+                }
             }
-            i = j;
+        };
+
+        // the bitmap provider plots without blending, so a translucent
+        // pass color (the title's rgba shadow) needs the enable here;
+        // the TTF providers self-enable (their own save/restore nests)
+        const bool blend = color.a() < 255 ||
+                           (has_text_shadow() && shadow_color_.a() < 255);
+        const bool bak = area.is_alpha_enabled();
+        if (blend)
+        {
+            area.enable_alpha(true);
+        }
+        // shadow first (spacing + double-strike included), then the
+        // face; bold adds a +1px second face pass (P-2a double-strike)
+        if (has_text_shadow())
+        {
+            pass(x + shadow_dx_, y + shadow_dy_, shadow_color_);
+            if (bold())
+            {
+                pass(x + shadow_dx_ + 1, y + shadow_dy_, shadow_color_);
+            }
+        }
+        pass(x, y, color);
+        if (bold())
+        {
+            pass(x + 1, y, color);
+        }
+        if (blend)
+        {
+            area.enable_alpha(bak);
         }
     }
 

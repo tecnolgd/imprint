@@ -1068,5 +1068,83 @@ int test_html()
         EXPECT(v->view_w() == 100 && v->view_h() == 50);
     }
 
+    // P-2a text dressing: tracking px, bold (700/600/bold on,
+    // 400/normal off), one solid offset shadow; malformed drops
+    {
+        ui_node r = parse_html(
+            "<div style=\"display:flex;flex-direction:row\">"
+            "<label style=\"letter-spacing:3px;font-weight:700;"
+            "text-shadow:1px 1px rgba(255,0,0,255)\">AB</label>"
+            "<label style=\"font-weight:400\">C</label>"
+            "<label style=\"letter-spacing:big;text-shadow:red\">D</label>"
+            "</div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "letter_px")) == 3);
+        EXPECT(test::vget<bool>(node_prop_v(r.children[0], "bold")) == true);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "shadow_dx")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "shadow_dy")) == 1);
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "shadow_color")) ==
+               "rgba(255,0,0,255)");
+        EXPECT(test::vget<bool>(node_prop_v(r.children[1], "bold")) == false);
+        EXPECT(find_prop(r.children[2], "letter_px") < 0);
+        EXPECT(find_prop(r.children[2], "shadow_color") < 0);
+
+        // build: tracking widens the measure (2 chars x (6 + 3)),
+        // bold + shadow add pixels over the plain face
+        FlexPanel host;
+        host.set_size(200, 60);
+        build(host, r);
+        host.layout();
+        auto *dressed = static_cast<Label *>(host.get_items()[0].child.get());
+        auto *plain = static_cast<Label *>(host.get_items()[1].child.get());
+        EXPECT(dressed->get_size().width == 2 * (6 + 3));
+        EXPECT(plain->get_size().width == 6);
+        EXPECT(dressed->bold());
+        EXPECT(!plain->bold());
+        EXPECT(dressed->has_text_shadow());
+        core::Graphics g(200, 60, nullptr);
+        host.draw(g);
+        const auto dp = dressed->get_position();
+        const auto ds = dressed->get_size();
+        const uint32_t red_px = core::Color::from(255, 0, 0).pixel;
+        int ink = 0;
+        int red = 0;
+        for (int y = dp.y; y < dp.y + ds.height; ++y)
+        {
+            for (int x = dp.x; x < dp.x + ds.width; ++x)
+            {
+                const uint32_t p = test::pixel_at(g, x, y);
+                if (p == red_px)
+                {
+                    ++red;
+                }
+                else if (p != 0)
+                {
+                    ++ink;
+                }
+            }
+        }
+        // face pixels plus a red offset copy inside the same box
+        EXPECT(ink > 0 && red > 0);
+    }
+
+    // build(): the root's box dress styles the host, geometry never
+    // transfers (a fixed host buffer always wins)
+    {
+        ui_node doc = parse_html(
+            "<div style=\"width:620px;background:#dfdfda;"
+            "border:2px solid #0a0b09;border-radius:10px\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(200, 60);
+        build(host, doc);
+        EXPECT(host.has_background());
+        EXPECT(host.has_border());
+        EXPECT(host.get_size().width == 200);
+        EXPECT(host.get_size().height == 60);
+        EXPECT(host.get_items().size() == 1);
+    }
+
     return test::report("html");
 }

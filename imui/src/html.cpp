@@ -62,7 +62,9 @@ namespace zb::ui
                    p == "border" || p == "border-radius" || p == "color" ||
                    p == "position" || p == "top" || p == "left" ||
                    p == "right" || p == "bottom" || p == "transform" ||
-                   p == "font-size" || p == "aspect-ratio";
+                   p == "font-size" || p == "aspect-ratio" ||
+                   p == "letter-spacing" || p == "font-weight" ||
+                   p == "text-shadow";
         }
 
         // --- text helpers --------------------------------------------------
@@ -1680,6 +1682,55 @@ namespace zb::ui
             color = css_trim(rest.substr(s2 + 1));
             return !color.empty();
         }
+        // text-shadow: "DXpx DYpx [blur] <color>" (a comma list keeps
+        // the first shadow only, per contract P-2a). Lengths are Npx or
+        // bare numbers; the blur (when 4 tokens) is parsed-and-ignored.
+        bool parse_text_shadow(const std::string &s, long long &dx,
+                               long long &dy, std::string &color)
+        {
+            std::string first = css_trim(s);
+            const std::size_t comma = first.find(',');
+            if (comma != std::string::npos)
+            {
+                first = css_trim(first.substr(0, comma));
+            }
+            const auto len_of = [](const std::string &tok, long long &v) {
+                std::string t = css_trim(ascii_lower(tok));
+                if (t.size() > 2 && t.compare(t.size() - 2, 2, "px") == 0)
+                {
+                    t = t.substr(0, t.size() - 2);
+                }
+                return parse_svg_num(t, v);
+            };
+            const std::size_t s1 = first.find(' ');
+            if (s1 == std::string::npos || !len_of(first.substr(0, s1), dx))
+            {
+                return false;
+            }
+            const std::string rest = css_trim(first.substr(s1 + 1));
+            const std::size_t s2 = rest.find(' ');
+            if (s2 == std::string::npos || !len_of(rest.substr(0, s2), dy))
+            {
+                return false;
+            }
+            std::string tail = css_trim(rest.substr(s2 + 1));
+            if (tail.empty())
+            {
+                return false;
+            }
+            // a fourth token is the blur radius: drop it, keep the color
+            const std::size_t s3 = tail.find(' ');
+            if (s3 != std::string::npos)
+            {
+                long long blur = 0;
+                if (len_of(tail.substr(0, s3), blur))
+                {
+                    tail = css_trim(tail.substr(s3 + 1));
+                }
+            }
+            color = tail;
+            return !color.empty();
+        }
         // aspect-ratio: "W / H", "W/H", or a bare number N (= N/1);
         // "auto" and malformed values stay absent
         bool parse_aspect(const std::string &s, long long &w, long long &h)
@@ -2309,6 +2360,49 @@ namespace zb::ui
             if (const std::string *fg = fold_lookup(folded, "color"))
             {
                 n.prop("color", *fg);
+            }
+            // P-2a text dressing: tracking px, bold (700/600/bold),
+            // one solid offset shadow (blur ignored)
+            if (const std::string *ls = fold_lookup(folded, "letter-spacing"))
+            {
+                std::string t = css_trim(ascii_lower(*ls));
+                if (t.size() > 2 && t.compare(t.size() - 2, 2, "px") == 0)
+                {
+                    t = t.substr(0, t.size() - 2);
+                }
+                long long px = 0;
+                if (parse_svg_num(t, px))
+                {
+                    n.prop("letter_px", px);
+                }
+            }
+            if (const std::string *fw = fold_lookup(folded, "font-weight"))
+            {
+                const std::string t = css_trim(ascii_lower(*fw));
+                if (t == "bold")
+                {
+                    n.prop("bold", true);
+                }
+                else
+                {
+                    long long w = 0;
+                    if (parse_svg_num(t, w))
+                    {
+                        n.prop("bold", w >= 600);
+                    }
+                }
+            }
+            if (const std::string *ts = fold_lookup(folded, "text-shadow"))
+            {
+                long long dx = 0;
+                long long dy = 0;
+                std::string c;
+                if (parse_text_shadow(*ts, dx, dy, c))
+                {
+                    n.prop("shadow_dx", dx);
+                    n.prop("shadow_dy", dy);
+                    n.prop("shadow_color", c);
+                }
             }
             // font-size: parsed and ignored (no per-widget size seam yet)
 

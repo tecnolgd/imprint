@@ -320,6 +320,58 @@ namespace zb::ui
 
         // --- common properties (every widget) ---------------------------
 
+        // box dress shared by apply_common and build(): gradient,
+        // border, radius (the solid background and text color stay at
+        // the call sites; this keeps the two paths from drifting)
+        void apply_box_dress(Widget &w, const ui_node &n)
+        {
+            // P-1 paint dressing: radial wins over linear when both are
+            // set (contract); a mistyped half leaves the color unset
+            if (has_prop(n, "bg_rad_from") && has_prop(n, "bg_rad_to"))
+            {
+                core::Color from;
+                core::Color to;
+                if (parse_color(prop_of(n, "bg_rad_from", std::string{}), from) &&
+                    parse_color(prop_of(n, "bg_rad_to", std::string{}), to))
+                {
+                    w.set_background_radial(
+                        static_cast<int>(prop_of(n, "bg_rad_cx", 50LL)),
+                        static_cast<int>(prop_of(n, "bg_rad_cy", 50LL)), from,
+                        static_cast<int>(prop_of(n, "bg_rad_from_p", 0LL)), to,
+                        static_cast<int>(prop_of(n, "bg_rad_to_p", 100LL)));
+                }
+            }
+            else if (has_prop(n, "bg_lin_from") && has_prop(n, "bg_lin_to"))
+            {
+                core::Color from;
+                core::Color to;
+                if (parse_color(prop_of(n, "bg_lin_from", std::string{}), from) &&
+                    parse_color(prop_of(n, "bg_lin_to", std::string{}), to))
+                {
+                    w.set_background_linear(from, to,
+                                            prop_of(n, "bg_lin_h", true));
+                }
+            }
+            if (has_prop(n, "border_w") && has_prop(n, "border_color"))
+            {
+                core::Color bc;
+                if (parse_color(prop_of(n, "border_color", std::string{}), bc))
+                {
+                    w.set_border(
+                        static_cast<int>(prop_of(n, "border_w", 0LL)), bc);
+                }
+            }
+            if (prop_of(n, "radius_half", false))
+            {
+                w.set_corner_radius_half();
+            }
+            else if (has_prop(n, "radius_px"))
+            {
+                w.set_corner_radius(
+                    static_cast<int>(prop_of(n, "radius_px", 0LL)));
+            }
+        }
+
         void apply_common(Widget &w, const ui_node &n)
         {
             if (!n.id.empty())
@@ -398,51 +450,7 @@ namespace zb::ui
             {
                 w.set_background_color(c);
             }
-            // P-1 paint dressing: radial wins over linear when both are
-            // set (contract); a mistyped half leaves the color unset
-            if (has_prop(n, "bg_rad_from") && has_prop(n, "bg_rad_to"))
-            {
-                core::Color from;
-                core::Color to;
-                if (parse_color(prop_of(n, "bg_rad_from", std::string{}), from) &&
-                    parse_color(prop_of(n, "bg_rad_to", std::string{}), to))
-                {
-                    w.set_background_radial(
-                        static_cast<int>(prop_of(n, "bg_rad_cx", 50LL)),
-                        static_cast<int>(prop_of(n, "bg_rad_cy", 50LL)), from,
-                        static_cast<int>(prop_of(n, "bg_rad_from_p", 0LL)), to,
-                        static_cast<int>(prop_of(n, "bg_rad_to_p", 100LL)));
-                }
-            }
-            else if (has_prop(n, "bg_lin_from") && has_prop(n, "bg_lin_to"))
-            {
-                core::Color from;
-                core::Color to;
-                if (parse_color(prop_of(n, "bg_lin_from", std::string{}), from) &&
-                    parse_color(prop_of(n, "bg_lin_to", std::string{}), to))
-                {
-                    w.set_background_linear(from, to,
-                                            prop_of(n, "bg_lin_h", true));
-                }
-            }
-            if (has_prop(n, "border_w") && has_prop(n, "border_color"))
-            {
-                core::Color bc;
-                if (parse_color(prop_of(n, "border_color", std::string{}), bc))
-                {
-                    w.set_border(
-                        static_cast<int>(prop_of(n, "border_w", 0LL)), bc);
-                }
-            }
-            if (prop_of(n, "radius_half", false))
-            {
-                w.set_corner_radius_half();
-            }
-            else if (has_prop(n, "radius_px"))
-            {
-                w.set_corner_radius(
-                    static_cast<int>(prop_of(n, "radius_px", 0LL)));
-            }
+            apply_box_dress(w, n);
             // P-3 positioning: relative anchors, absolute leaves the flow
             // (offsets/translate resolve at layout against the anchor)
             const std::string ppos = prop_of(n, "position", std::string{});
@@ -485,6 +493,30 @@ namespace zb::ui
             if (parse_color(prop_of(n, "color", std::string{}), c))
             {
                 w.set_text_color(c);
+            }
+            // P-2a text dressing: tracking, double-strike bold, one
+            // solid offset shadow (shadow color through parse_color,
+            // so malformed drops the whole shadow)
+            if (has_prop(n, "letter_px"))
+            {
+                w.set_letter_spacing(
+                    static_cast<int>(prop_of(n, "letter_px", 0LL)));
+            }
+            if (prop_of(n, "bold", false))
+            {
+                w.set_bold(true);
+            }
+            if (has_prop(n, "shadow_color"))
+            {
+                core::Color sc;
+                if (parse_color(prop_of(n, "shadow_color", std::string{}),
+                                sc))
+                {
+                    w.set_text_shadow(
+                        sc,
+                        static_cast<int>(prop_of(n, "shadow_dx", 0LL)),
+                        static_cast<int>(prop_of(n, "shadow_dy", 0LL)));
+                }
             }
         }
 
@@ -949,6 +981,18 @@ namespace zb::ui
             Panel &p = *as_panel(host);
             p.set_spacing(static_cast<int>(prop_of(root, "spacing", 0LL)));
             p.set_padding(static_cast<int>(prop_of(root, "padding", 0LL)));
+        }
+        // the root's own box dress styles the host (contract: document
+        // frame paints on the host; geometry never transfers)
+        core::Color c;
+        if (parse_color(prop_of(root, "background", std::string{}), c))
+        {
+            host.set_background_color(c);
+        }
+        apply_box_dress(host, root);
+        if (parse_color(prop_of(root, "color", std::string{}), c))
+        {
+            host.set_text_color(c);
         }
         for (const ui_node &c : root.children)
         {

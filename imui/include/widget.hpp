@@ -512,6 +512,46 @@ namespace zb::ui
             valign = a;
             mark_dirty();
         }
+        // text dressing (P-2a, all default-off): tracking in px
+        // (negative clamps to 0), bold = double-strike +1px, one solid
+        // offset shadow copy (shadow alpha 0 = none). Every setter
+        // clears the advance cache (measure depends on them)
+        void set_letter_spacing(const int px)
+        {
+            letter_px_ = px < 0 ? 0 : (px > 32767 ? 32767 : px);
+            advance_cache_ = -1;
+            mark_dirty();
+            mark_layout_dirty();
+        }
+        [[nodiscard]] int letter_spacing() const { return letter_px_; }
+        void set_bold(const bool on)
+        {
+            if (on)
+            {
+                text_flags_ |= 1;
+            }
+            else
+            {
+                text_flags_ &= ~1;
+            }
+            advance_cache_ = -1;
+            mark_dirty();
+            mark_layout_dirty();
+        }
+        [[nodiscard]] bool bold() const { return (text_flags_ & 1) != 0; }
+        void set_text_shadow(const core::Color &c, const int dx, const int dy)
+        {
+            shadow_color_ = c;
+            const int cx = dx < -128 ? -128 : (dx > 127 ? 127 : dx);
+            const int cy = dy < -128 ? -128 : (dy > 127 ? 127 : dy);
+            shadow_dx_ = static_cast<int8_t>(cx);
+            shadow_dy_ = static_cast<int8_t>(cy);
+            mark_dirty();
+        }
+        [[nodiscard]] bool has_text_shadow() const
+        {
+            return shadow_color_.a() != 0;
+        }
 
         /*
          * Sets the primary glyph provider (e.g. a TtfRuntimeProvider).
@@ -862,6 +902,13 @@ namespace zb::ui
             }
         }
 
+        // text dressing (P-2a): tracking px, bit0 of flags = bold
+        // (double-strike), shadow color (alpha 0 = none) + int8 offset
+        int letter_px_ = 0;
+        uint8_t text_flags_ = 0;
+        core::Color shadow_color_{};
+        int8_t shadow_dx_ = 0;
+        int8_t shadow_dy_ = 0;
         // text
         std::u16string text_;
         // unset = follow the active theme's `text` token (contract 10.3)
