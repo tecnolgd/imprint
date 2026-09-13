@@ -308,6 +308,13 @@ support "a little at a time" as the boundary demands):**
   vs atan2, agree 1°; center 50/50; straight-RGB segment lerp) into the
   single `Widget::ext_` heap sidecar (pos+grad+text sections share one
   allocation; bare widgets stay null — the size gates hold at 264/192).
+  P-2c landed 2026-09-13: exactly-3-stop linear mid section
+  (`fill_gradient3`, bare mid = 50; the sheen shape) + topmost
+  repeating layer as a translucent overlay (`fill_repeating`, period =
+  last stop, double-position pairs; brushed + vubottom stripes).
+  `transparent` is an explicit alpha-0 stop inside stop lists
+  (`parse_stop_color`; solid backgrounds still reject it). Binary-alpha
+  depths follow the standard any-bit-set rule for every stop.
 - P-3. Absolute positioning — **landed 2026-09-13**: `position:
   relative/absolute` + `top/left/right/bottom` (`Npx`/`N%`/bare/`auto`)
   + `transform: translate()`; FlexPanel skips abs in measure/lines and

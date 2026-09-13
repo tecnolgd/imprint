@@ -604,7 +604,20 @@ system (standing non-goals):
   overall). Angle math is dual-path like the V-5 arcs: integer
   octant-fold + 1°-LUT binary search under `USE_INTEGER_GEOMETRY` (no
   libm), `atan2` otherwise; the two agree within 1° (tests stay off
-  exact stop boundaries). `has_background()` covers the sidecar.
+  exact stop boundaries).   `has_background()` covers the sidecar.
+- Three-stop linear + repeating overlay (P-2c): exactly 3 linear stops
+  with a `%`/bare middle emit the ends (compat) plus a mid section in
+  the sidecar (`set_background_linear3`, full from/mid/to + mid `%`;
+  bare mid = 50; a px-positioned mid falls back to ends-only); >3
+  stops stay ends-only (P-1 rule). `set_background_repeating` (up to 6
+  px-positioned stops incl. double-position `C A B` pairs, period =
+  last stop, horizontal/vertical by the P-1 angle rule) paints a
+  translucent texture OVER any base (solid/dress/extended) — the topmost
+  repeating layer wins; one extended-replace form (conic/lin3) per
+  widget, the overlay section is independent. On binary-alpha depths
+  every stop follows the standard binary rule (any nonzero authored
+  alpha sets the bit and plots — a 4% brushed sheen reads as pinstripes
+  there, same as any other translucent paint); desktop blends truly.
 - HTML page box: `html_page` (per-axis width/height/background presence)
   is filled by `parse_html(text, ok, page)`; the consumer resolves the
   initial screen size document → shell → app default (warn on default)
