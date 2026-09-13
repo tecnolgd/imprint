@@ -593,6 +593,18 @@ system (standing non-goals):
   side; `50%` resolves at draw time. A background whose color carries
   alpha < 255 paints with alpha enabled around the fill (opaque path
   unchanged). Wireframe degrades every form to an outline (S-1).
+- Extended gradients (P-2b/c): one heap sidecar (`Widget::ext_`,
+  flagged sections for positioning, extended gradients, and text
+  dressing — a bare widget keeps it null, so the zero-alloc ctor and
+  the 64-bit/32-bit size gates hold) carries forms the 24B
+  `paint_dress` cannot: `set_background_conic(from_deg, stops)` — up
+  to 4 `{deg, color}` stops, center fixed at 50%/50%, segment colors
+  lerped straight in 8-bit RGB. An extended form overrides every
+  `paint_dress` gradient (the builder still sets exactly one form
+  overall). Angle math is dual-path like the V-5 arcs: integer
+  octant-fold + 1°-LUT binary search under `USE_INTEGER_GEOMETRY` (no
+  libm), `atan2` otherwise; the two agree within 1° (tests stay off
+  exact stop boundaries). `has_background()` covers the sidecar.
 - HTML page box: `html_page` (per-axis width/height/background presence)
   is filled by `parse_html(text, ok, page)`; the consumer resolves the
   initial screen size document → shell → app default (warn on default)

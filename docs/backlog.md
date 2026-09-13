@@ -303,6 +303,11 @@ support "a little at a time" as the boundary demands):**
   gradient backgrounds have no `html_page` carrier (H-8 holds colors
   only); GIF review captures band smooth ramps (216-cube) — review from
   the raw framebuffer.
+  P-2b landed 2026-09-13: `conic-gradient(from Ndeg, 2–4 deg stops)`
+  through `Graphics::fill_conic` (dual-path angle: integer LUT search
+  vs atan2, agree 1°; center 50/50; straight-RGB segment lerp) into the
+  single `Widget::ext_` heap sidecar (pos+grad+text sections share one
+  allocation; bare widgets stay null — the size gates hold at 264/192).
 - P-3. Absolute positioning — **landed 2026-09-13**: `position:
   relative/absolute` + `top/left/right/bottom` (`Npx`/`N%`/bare/`auto`)
   + `transform: translate()`; FlexPanel skips abs in measure/lines and
