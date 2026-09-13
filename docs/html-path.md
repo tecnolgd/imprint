@@ -153,7 +153,10 @@ applies unchanged.
 | `padding` | `Npx` (single value) | `padding` |
 | `flex-wrap` | `wrap` | `wrap=true` |
 | `aspect-ratio` | `W / H`, `N`, `auto` | derived-axis size from the cross axis (only when the derived axis is auto with no percent and the cross axis is explicit or percent — e.g. `.vu`'s `2/1` turns a `width: 100%` into a height; explicit declarations always win; the cross value may settle during the same layout — convergent passes re-read it, H-9); `auto`/malformed = absent |
-| `background-color` | `#rgb`, `#rrggbb`, named subset, `transparent` | the shared `background` property (see design-file) |
+| `background-color` | `#rgb`, `#rrggbb`, named subset, `rgb()`, `rgba()`, `transparent` | the shared `background` property (see design-file) |
+| `background` | solid color form, `linear-gradient()` (2+ stops → first+last, `90/270deg`/`to left/right` = horizontal, `0/180deg`/`to top/bottom` = vertical), `radial-gradient(circle at X% Y%, A p%, B q%)` | comma layers split paren-aware; scanned base-first (last layer first), first supported form wins — texture overlays (`repeating-*`, `conic-*`, `url(`) are skipped with a warning, so `.amp`'s brushed layer falls through to its linear base; unknown angles/px offsets/ellipse skip the layer the same way |
+| `border` | `Npx solid <color>` | `set_border`; any other style/grammar drops the border |
+| `border-radius` | `Npx` (single), `50%` | px, or half the smaller side at draw time; multi-value drops |
 | `color` | same color forms | the shared `color` property (text color) |
 | `font-size` | `Npx` | **parsed and ignored** (no per-widget size seam; deferred with a future `set_font_size`) |
 

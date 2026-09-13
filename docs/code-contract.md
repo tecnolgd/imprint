@@ -560,9 +560,21 @@ system (standing non-goals):
   property set lands on the same table rows.
 - Shared color resolution: `parse_color` (declared in `html.hpp` so
   `ui_builder.hpp` stays light for the ui_embed host tool) resolves
-  `#rgb` / `#rrggbb` / the named subset / `transparent` (names
-  case-insensitive; false = malformed, transparent, or absent) for the
-  background/color props and the HTML page box alike.
+  `#rgb` / `#rrggbb` / the named subset / `rgb()` / `rgba()` /
+  `transparent` (names case-insensitive; comma form only, alpha 0..1;
+  false = malformed, transparent, or absent) for the background/color
+  props and the HTML page box alike.
+- Widget paint dressing (P-1): `set_background_linear(from, to,
+  horizontal)`, `set_background_radial(cx_pct, cy_pct, from, from_pos,
+  to, to_pos)` (circle, farthest-corner radius, stop offsets 0..100),
+  `set_border(width_px, color)`, `set_corner_radius(px)` /
+  `set_corner_radius_half()`. Draw order in `draw_background`: solid,
+  then gradient, then image, border on top; a gradient never clears the
+  solid (builder sets exactly one form). Paint precedence when several
+  are set: radial > linear > solid. Radius clamps to half the smaller
+  side; `50%` resolves at draw time. A background whose color carries
+  alpha < 255 paints with alpha enabled around the fill (opaque path
+  unchanged). Wireframe degrades every form to an outline (S-1).
 - HTML page box: `html_page` (per-axis width/height/background presence)
   is filled by `parse_html(text, ok, page)`; the consumer resolves the
   initial screen size document → shell → app default (warn on default)

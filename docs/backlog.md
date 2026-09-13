@@ -282,6 +282,18 @@ support "a little at a time" as the boundary demands):**
   single pass). Dial *visibility* still needs paint (dark dial face:
   `background:` gradients) + positioning (`absolute` out-of-flow, so
   `.vubottom` stops stealing 28%→13px from the svg's 100%).
+- P-1. Paint dressing — **landed 2026-09-13**: `background` shorthand
+  (solid/`rgb()/rgba()` + linear 2-end + radial circle, base-first
+  layer rule so `.amp`'s brushed texture falls through to its linear
+  base), `border: Npx solid`, `border-radius: Npx|50%`, Widget
+  `paint_dress` (24B packed, 64-bit gate 248→264; wasm32 176 / NDS ARM
+  184 keep headroom). model500 VU bank + dial faces now paint dark and
+  the strokes read. Remainder → P-2.
+- P-2. Paint remainder (gated by a real page): `conic-gradient` (knob
+  faces), `repeating-linear-gradient` (brushed texture, vubottom
+  stripes), element-level `opacity` (LED dimming), `box-shadow` /
+  `text-shadow`, side-specific `border-top`, 3+-stop linear mid colors
+  (P-1 keeps first+last), `font-weight` / `letter-spacing`.
 - H-8. Page-level box (landed 2026-09-12, B2 review): the `<body>` style
   feeds an `html_page` (per-axis Npx size + background) beside the tree;
   `parse_html(text, ok, page)` fills it; consumers resolve document →
