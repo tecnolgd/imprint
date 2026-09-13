@@ -101,6 +101,10 @@ namespace zb::ui
         // Wrap is ignored — the natural size is the unwrapped line
         [[nodiscard]] core::imsize_t measure() const override;
 
+        // inset of the content box (P-3 anchor math for abs descendants
+        // nested under static intermediates)
+        [[nodiscard]] int content_inset() const override { return padding; }
+
         void layout() override;
 
     protected:
@@ -117,6 +121,9 @@ namespace zb::ui
         // convergence loop in layout() re-runs while it returns false
         // (contract §7, H-9)
         bool layout_pass();
+        // absolute resolution for one abs child against its containing
+        // block (P-3); records deltas into changed like every write
+        void resolve_abs(Widget &child, bool &changed);
 
         flex_direction direction = flex_direction::column;
         int spacing = 0;

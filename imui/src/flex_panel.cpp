@@ -192,19 +192,27 @@ namespace zb::ui
     {
         int main = 0;
         int cross = 0;
+        // abs children (P-3) live outside the flow: zero demand on both
+        // axes, not even spacing
+        bool first = true;
         for (size_t i = 0; i < items.size(); ++i)
         {
             const Widget &child = *items[i].child;
+            if (child.is_absolute())
+            {
+                continue;
+            }
             // flex items and percent children contribute nothing on their
             // open axis: their size only exists relative to a resolved
             // parent size, which a measure() has no access to
             const int m = (items[i].flex_grow > 0 || main_percent(child, direction) > 0)
                               ? 0
                               : main_demand(child, direction);
-            main += m + (i == 0 ? 0 : spacing);
+            main += m + (first ? 0 : spacing);
+            first = false;
             cross = std::max(cross, cross_percent(child, direction) > 0
-                                        ? 0
-                                        : cross_demand(child, direction));
+                                         ? 0
+                                         : cross_demand(child, direction));
         }
         const int pad = 2 * padding;
         if (is_row(direction))
@@ -248,9 +256,14 @@ namespace zb::ui
 
         // cross-axis percent sizes resolve first, against the content-box
         // cross size: they have no sibling interaction and do not depend
-        // on the line packing (batch L-4)
+        // on the line packing (batch L-4). Abs children (P-3) resolve
+        // later against their containing block, never here.
         for (const auto &item : items)
         {
+            if (item.child->is_absolute())
+            {
+                continue;
+            }
             const int pct = cross_percent(*item.child, direction);
             if (pct > 0)
             {
@@ -263,9 +276,14 @@ namespace zb::ui
         // aspect-ratio write pass (H-5): derived main-axis sizes land here
         // so percent grandchildren below resolve against a real base;
         // packing further down re-derives the identical values through
-        // main_demand (pure function, no drift between passes)
+        // main_demand (pure function, no drift between passes). Abs
+        // children resolve in resolve_abs, never here.
         for (auto &item : items)
         {
+            if (item.child->is_absolute())
+            {
+                continue;
+            }
             int derived = 0;
             if (aspect_derive_main(*item.child, direction, derived))
             {
@@ -277,13 +295,18 @@ namespace zb::ui
         // split the items into lines: a line breaks when the fixed demands
         // (plus spacing) exceed the available main-axis space; a percent
         // child participates with its desired share (the flex items absorb
-        // leftover space, so they keep contributing 0)
+        // leftover space, so they keep contributing 0). Abs children
+        // (P-3) are outside the flow and never break lines.
         std::vector<std::vector<size_t>> lines;
         {
             std::vector<size_t> cur;
             int need = 0;
             for (size_t i = 0; i < items.size(); ++i)
             {
+                if (items[i].child->is_absolute())
+                {
+                    continue;
+                }
                 const int pct = main_percent(*items[i].child, direction);
                 const int item_need = (items[i].flex_grow > 0 && pct == 0)
                                           ? 0
@@ -304,7 +327,15 @@ namespace zb::ui
         }
         if (lines.empty())
         {
-            return true;
+            // no normal flow, but abs children still resolve (P-3)
+            for (auto &item : items)
+            {
+                if (item.child->is_absolute())
+                {
+                    resolve_abs(*item.child, changed);
+                }
+            }
+            return !changed;
         }
 
         // a line item claims main-axis space either as a flex grow
@@ -512,7 +543,114 @@ namespace zb::ui
             }
             cross_pos += line_cross + spacing;
         }
+        // absolute children resolve after the normal flow (P-3)
+        for (auto &item : items)
+        {
+            if (item.child->is_absolute())
+            {
+                resolve_abs(*item.child, changed);
+            }
+        }
         return !changed;
+    }
+
+    // one abs child against its containing block (P-3, contract §7):
+    // the anchor is the nearest positioned ancestor (this panel is the
+    // common case); offsets resolve against the anchor content box in
+    // this panel's coordinates. Sizes write per-axis so percent/explicit
+    // declarations survive for the next pass (the measure-defaults-to-
+    // size invariant keeps later passes stable, like the normal flow).
+    void FlexPanel::resolve_abs(Widget &child, bool &changed)
+    {
+        static constexpr int16_t kUnset = INT16_MIN;
+        const auto &s = get_size();
+        int cbw = std::max(0, s.width - 2 * padding);
+        int cbh = std::max(0, s.height - 2 * padding);
+        int orgx = padding;
+        int orgy = padding;
+        if (const Widget *anchor = child.positioned_ancestor();
+            anchor != nullptr && anchor != this)
+        {
+            const int apad = anchor->content_inset();
+            const auto asz = anchor->get_size();
+            cbw = std::max(0, asz.width - 2 * apad);
+            cbh = std::max(0, asz.height - 2 * apad);
+            const auto aa = anchor->get_absolute_position();
+            const auto ta = get_absolute_position();
+            orgx = aa.x - ta.x + apad;
+            orgy = aa.y - ta.y + apad;
+        }
+        auto off_px = [&](const int side, const int base) {
+            return child.abs_off_pct(side)
+                       ? child.abs_off(side) * base / 100
+                       : child.abs_off(side);
+        };
+        const bool has_l = child.abs_off(0) != kUnset;
+        const bool has_t = child.abs_off(1) != kUnset;
+        const bool has_r = child.abs_off(2) != kUnset;
+        const bool has_b = child.abs_off(3) != kUnset;
+        const int l = has_l ? off_px(0, cbw) : 0;
+        const int t = has_t ? off_px(1, cbh) : 0;
+        const int r = has_r ? off_px(2, cbw) : 0;
+        const int b = has_b ? off_px(3, cbh) : 0;
+        int w = 0;
+        if (has_l && has_r && !child.is_width_explicit() &&
+            !child.is_width_percent())
+        {
+            w = std::max(0, cbw - l - r);
+        }
+        else if (child.is_width_explicit())
+        {
+            w = child.get_size().width;
+        }
+        else if (child.is_width_percent())
+        {
+            w = child.width_percent() * cbw / 100;
+        }
+        else
+        {
+            w = std::max(0, child.measure().width);
+        }
+        int h = 0;
+        if (has_t && has_b && !child.is_height_explicit() &&
+            !child.is_height_percent())
+        {
+            h = std::max(0, cbh - t - b);
+        }
+        else if (child.is_height_explicit())
+        {
+            h = child.get_size().height;
+        }
+        else if (child.is_height_percent())
+        {
+            h = child.height_percent() * cbh / 100;
+        }
+        else
+        {
+            h = std::max(0, child.measure().height);
+        }
+        int x = orgx + (has_l ? l : (has_r ? cbw - r - w : 0));
+        int y = orgy + (has_t ? t : (has_b ? cbh - b - h : 0));
+        if (child.abs_tr(0) != kUnset)
+        {
+            x += child.abs_tr_pct(0) ? w * child.abs_tr(0) / 100
+                                     : child.abs_tr(0);
+        }
+        if (child.abs_tr(1) != kUnset)
+        {
+            y += child.abs_tr_pct(1) ? h * child.abs_tr(1) / 100
+                                     : child.abs_tr(1);
+        }
+        const auto size_before = child.get_size();
+        const auto pos_before = child.get_position();
+        const auto measure_before = child.measure();
+        child.set_width_auto(w);
+        child.set_height_auto(h);
+        child.set_position(x, y);
+        child.layout();
+        changed |= !same_size(size_before, child.get_size());
+        changed |= !same_pos(pos_before, child.get_position());
+        changed |= !same_size(measure_before, child.measure());
     }
 
     void FlexPanel::draw_at(core::Graphics &area) const

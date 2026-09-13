@@ -274,5 +274,100 @@ int test_flex()
         EXPECT(cap_ptr->get_size().height == 110);
     }
 
+    // P-3 absolute positioning: the abs child leaves the flow (anchor
+    // keeps label height only) and resolves against the anchor box —
+    // the .vubottom shape (left/right/bottom + % height overlay)
+    {
+        FlexPanel anchor;
+        anchor.set_size(200, 200);
+        anchor.set_relative();
+        auto title = std::make_unique<Widget>();
+        title->set_size(200, 20);
+        anchor.add_child(std::move(title));
+        auto strip = std::make_unique<Widget>();
+        strip->set_absolute();
+        strip->set_abs_offset(0, 0, false);
+        strip->set_abs_offset(2, 0, false);
+        strip->set_abs_offset(3, 0, false);
+        strip->set_height_percent(25);
+        const Widget *strip_ptr = strip.get();
+        anchor.add_child(std::move(strip));
+        anchor.layout();
+        EXPECT(strip_ptr->get_size().width == 200);
+        EXPECT(strip_ptr->get_size().height == 50);
+        const auto sp = strip_ptr->get_position();
+        EXPECT(sp.x == 0 && sp.y == 150);
+        // an auto-height anchor measures the flow only, not the overlay
+        auto auto_anchor = std::make_unique<FlexPanel>();
+        auto_anchor->set_relative();
+        auto t2 = std::make_unique<Widget>();
+        t2->set_size(60, 20);
+        auto_anchor->add_child(std::move(t2));
+        auto s2 = std::make_unique<Widget>();
+        s2->set_absolute();
+        s2->set_abs_offset(3, 0, false);
+        s2->set_height_percent(50);
+        auto_anchor->add_child(std::move(s2));
+        FlexPanel root;
+        root.set_size(200, 200);
+        root.add_child(std::move(auto_anchor));
+        root.layout();
+        const auto &ritems = root.get_items();
+        EXPECT(ritems[0].child->get_size().height == 20);
+        // steady state: a relayout changes nothing
+        anchor.layout();
+        EXPECT(strip_ptr->get_size().height == 50);
+        EXPECT(strip_ptr->get_position().y == 150);
+    }
+
+    // P-3 centering: left/top 50% of the anchor + translate(-50%,-50%)
+    // of self lands centered (the .knob-dot shape)
+    {
+        FlexPanel knob;
+        knob.set_size(54, 54);
+        knob.set_relative();
+        auto dot = std::make_unique<Widget>();
+        dot->set_size(20, 20);
+        dot->set_absolute();
+        dot->set_abs_offset(0, 50, true);
+        dot->set_abs_offset(1, 50, true);
+        dot->set_translate(0, -50, true);
+        dot->set_translate(1, -50, true);
+        const Widget *dot_ptr = dot.get();
+        knob.add_child(std::move(dot));
+        knob.layout();
+        EXPECT(dot_ptr->get_size().width == 20);
+        const auto dp = dot_ptr->get_position();
+        EXPECT(dp.x == 17 && dp.y == 17);
+    }
+
+    // P-3 nested anchor: an abs child under a static intermediate
+    // resolves against the positioned ancestor above, converted into
+    // the parent's coordinates
+    {
+        FlexPanel card;
+        card.set_size(300, 300);
+        card.set_relative();
+        auto mid = std::make_unique<FlexPanel>();
+        mid->set_width_percent(100);
+        auto badge = std::make_unique<Widget>();
+        badge->set_size(40, 10);
+        badge->set_absolute();
+        badge->set_abs_offset(2, 5, false);
+        badge->set_abs_offset(1, 5, false);
+        const Widget *badge_ptr = badge.get();
+        mid->add_child(std::move(badge));
+        FlexPanel *mid_ptr = mid.get();
+        card.add_child(std::move(mid));
+        card.layout();
+        // mid fills the card (only child, auto); badge hugs the card's
+        // top-right corner through the intermediate
+        const auto mp = mid_ptr->get_position();
+        const auto bp = badge_ptr->get_position();
+        const auto ms = mid_ptr->get_size();
+        EXPECT(bp.x == mp.x + ms.width - 5 - 40);
+        EXPECT(bp.y == mp.y + 5);
+    }
+
     return test::report("flex");
 }

@@ -75,6 +75,9 @@ namespace zb::ui
 
         void layout() override;
 
+        // inset of the content box (P-3 anchor math, see FlexPanel)
+        [[nodiscard]] int content_inset() const override { return padding; }
+
     protected:
         void draw_at(core::Graphics &area) const override;
         Widget *pick(const int x, const int y) override;

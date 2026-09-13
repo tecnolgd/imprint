@@ -627,6 +627,78 @@ int test_html()
         EXPECT(test::vget<long long>(node_prop_v(r8, "radius_px")) == 10);
     }
 
+    // P-3 positioning: relative/absolute, offsets, translate
+    {
+        ui_node r = parse_html(
+            "<div style=\"position:relative\"><div style=\"position:absolute;left:0;right:0;"
+            "bottom:0;height:28%\"><label>x</label></div></div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r, "position")) == "relative");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "position")) == "absolute");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "abs_l")) == "0");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "abs_r")) == "0");
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[0], "abs_b")) == "0");
+        EXPECT(find_prop(r.children[0], "abs_t") < 0);
+        ui_node r2 = parse_html(
+            "<div style=\"position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r2, "abs_l")) == "50%");
+        EXPECT(test::vget<std::string>(node_prop_v(r2, "abs_t")) == "50%");
+        EXPECT(test::vget<std::string>(node_prop_v(r2, "translate_x")) == "-50%");
+        EXPECT(test::vget<std::string>(node_prop_v(r2, "translate_y")) == "-50%");
+        // static/fixed are not positioned; auto offsets drop;
+        // non-translate transforms drop
+        ui_node r3 = parse_html(
+            "<div style=\"position:fixed;top:auto;transform:rotate(10deg)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(find_prop(r3, "position") < 0);
+        EXPECT(find_prop(r3, "abs_t") < 0);
+        EXPECT(find_prop(r3, "translate_x") < 0);
+        // end-to-end: the overlay leaves the flow and the flow child
+        // keeps the full height (the anchor div instantiates: the abs
+        // child resolves against its positioned parent)
+        ui_node doc = parse_html(
+            "<div style=\"width:200px;height:200px\">"
+            "<div style=\"position:relative;width:200px;height:200px\">"
+            "<div style=\"width:100%;aspect-ratio:2/1\"><label>x</label></div>"
+            "<div style=\"position:absolute;left:0;right:0;bottom:0;height:28%\">"
+            "<label>y</label></div></div></div>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(200, 200);
+        build(host, doc);
+        host.layout();
+        EXPECT(host.get_items().size() == 1);
+        auto *anchor =
+            static_cast<FlexPanel *>(host.get_items()[0].child.get());
+        EXPECT(anchor->get_size().height == 200);
+        const auto &akids = anchor->get_items();
+        EXPECT(akids.size() == 2);
+        EXPECT(akids[0].child->get_size().width == 200);
+        EXPECT(akids[0].child->get_size().height == 100);
+        EXPECT(akids[1].child->is_absolute());
+        EXPECT(akids[1].child->get_size().width == 200);
+        EXPECT(akids[1].child->get_size().height == 56);
+        EXPECT(akids[1].child->get_position().y == 144);
+        // no positioned ancestor: the direct parent box is the fallback
+        // (the abs div is a child here: roots never instantiate)
+        ui_node doc2 = parse_html(
+            "<div style=\"width:200px;height:200px\">"
+            "<div style=\"position:absolute;left:10px;top:10px\">"
+            "<label>z</label></div></div>\n",
+            nullptr);
+        FlexPanel host2;
+        host2.set_size(200, 200);
+        build(host2, doc2);
+        host2.layout();
+        EXPECT(host2.get_items().size() == 1);
+        EXPECT(host2.get_items()[0].child->get_position().x == 10);
+        EXPECT(host2.get_items()[0].child->get_position().y == 10);
+    }
+
+
     // C4: an unquoted value ends at whitespace or '/': value=30/> is
     // value "30", self-closed
     {

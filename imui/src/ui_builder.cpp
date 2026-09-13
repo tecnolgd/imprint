@@ -255,6 +255,69 @@ namespace zb::ui
         // color value parsing lives at zb::ui scope below (parse_color,
         // shared by the background/color props and the HTML page box).
 
+        // P-3 offset form: "N%" percent, "Npx"/bare pixels (signed);
+        // false = malformed/unset. Range fits the int16 spec (the
+        // Widget setter clamps percent/pixel ranges).
+        bool parse_abs_offset(const std::string &s, int &v, bool &pct)
+        {
+            std::size_t i = 0;
+            while (i < s.size() && (s[i] == ' ' || s[i] == '\t'))
+            {
+                ++i;
+            }
+            std::size_t j = s.size();
+            while (j > i && (s[j - 1] == ' ' || s[j - 1] == '\t'))
+            {
+                --j;
+            }
+            if (i >= j)
+            {
+                return false;
+            }
+            std::string t = s.substr(i, j - i);
+            pct = false;
+            if (!t.empty() && t.back() == '%')
+            {
+                pct = true;
+                t.pop_back();
+            }
+            else if (t.size() > 2 && t[t.size() - 2] == 'p' &&
+                     t[t.size() - 1] == 'x')
+            {
+                t.erase(t.size() - 2);
+            }
+            if (t.empty())
+            {
+                return false;
+            }
+            std::size_t k = 0;
+            bool neg = false;
+            if (t[0] == '+' || t[0] == '-')
+            {
+                neg = t[0] == '-';
+                k = 1;
+            }
+            if (k >= t.size())
+            {
+                return false;
+            }
+            int n = 0;
+            for (; k < t.size(); ++k)
+            {
+                if (t[k] < '0' || t[k] > '9')
+                {
+                    return false;
+                }
+                n = n * 10 + (t[k] - '0');
+                if (n > 32767)
+                {
+                    return false;
+                }
+            }
+            v = neg ? -n : n;
+            return true;
+        }
+
         // --- common properties (every widget) ---------------------------
 
         void apply_common(Widget &w, const ui_node &n)
@@ -379,6 +442,45 @@ namespace zb::ui
             {
                 w.set_corner_radius(
                     static_cast<int>(prop_of(n, "radius_px", 0LL)));
+            }
+            // P-3 positioning: relative anchors, absolute leaves the flow
+            // (offsets/translate resolve at layout against the anchor)
+            const std::string ppos = prop_of(n, "position", std::string{});
+            if (ppos == "absolute" || ppos == "relative")
+            {
+                if (ppos == "absolute")
+                {
+                    w.set_absolute();
+                }
+                else
+                {
+                    w.set_relative();
+                }
+                const char *const keys[6] = {"abs_l", "abs_t", "abs_r",
+                                             "abs_b", "translate_x",
+                                             "translate_y"};
+                for (int k = 0; k < 6; ++k)
+                {
+                    if (!has_prop(n, keys[k]))
+                    {
+                        continue;
+                    }
+                    int v = 0;
+                    bool pct = false;
+                    if (!parse_abs_offset(
+                            prop_of(n, keys[k], std::string{}), v, pct))
+                    {
+                        continue;
+                    }
+                    if (k < 4)
+                    {
+                        w.set_abs_offset(k, v, pct);
+                    }
+                    else
+                    {
+                        w.set_translate(k - 4, v, pct);
+                    }
+                }
             }
             if (parse_color(prop_of(n, "color", std::string{}), c))
             {

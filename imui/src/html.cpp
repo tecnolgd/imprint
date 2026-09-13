@@ -60,6 +60,8 @@ namespace zb::ui
                    p == "padding" || p == "flex-wrap" ||
                    p == "background" || p == "background-color" ||
                    p == "border" || p == "border-radius" || p == "color" ||
+                   p == "position" || p == "top" || p == "left" ||
+                   p == "right" || p == "bottom" || p == "transform" ||
                    p == "font-size" || p == "aspect-ratio";
         }
 
@@ -1615,6 +1617,37 @@ namespace zb::ui
             return false;
         }
 
+        // transform: only translate(X[, Y]) is P-3 (percent of self or
+        // px); outputs the raw trimmed components for the builder.
+        // Anything else (rotate/scale/…) is unsupported.
+        bool parse_translate(const std::string &s, std::string &tx,
+                             std::string &ty)
+        {
+            const std::string t = css_trim(s);
+            const std::string low = ascii_lower(t);
+            const std::string fn = "translate";
+            if (low.compare(0, fn.size(), fn) != 0)
+            {
+                return false;
+            }
+            std::string rest = css_trim(t.substr(fn.size()));
+            if (rest.size() < 2 || rest.front() != '(' || rest.back() != ')')
+            {
+                return false;
+            }
+            rest = rest.substr(1, rest.size() - 2);
+            if (rest.find('(') != std::string::npos)
+            {
+                return false;
+            }
+            const std::size_t comma = rest.find(',');
+            tx = css_trim(rest.substr(0, comma));
+            ty = comma == std::string::npos
+                     ? std::string{}
+                     : css_trim(rest.substr(comma + 1));
+            return !tx.empty();
+        }
+
         // border: "Npx solid <color>" (the color keeps inner spaces for
         // rgba()); any other style/grammar drops the border
         bool parse_border(const std::string &s, long long &w, std::string &color)
@@ -2225,6 +2258,52 @@ namespace zb::ui
                     {
                         n.prop("radius_px", px);
                     }
+                }
+            }
+            // P-3 positioning: relative/absolute establish/leave the flow;
+            // offsets pass through raw ("Npx"/"N%"/bare/"auto" resolved
+            // by the builder); translate() only, other transforms drop
+            if (const std::string *ps = fold_lookup(folded, "position"))
+            {
+                const std::string t = css_trim(ascii_lower(*ps));
+                if (t == "absolute" || t == "relative")
+                {
+                    n.prop("position", t);
+                }
+            }
+            const char *const sides[4] = {"left", "top", "right", "bottom"};
+            const char *const side_props[4] = {"abs_l", "abs_t", "abs_r",
+                                               "abs_b"};
+            for (int si = 0; si < 4; ++si)
+            {
+                if (const std::string *sv = fold_lookup(folded, sides[si]))
+                {
+                    const std::string t = css_trim(*sv);
+                    if (!t.empty() && ascii_lower(t) != "auto")
+                    {
+                        n.prop(side_props[si], t);
+                    }
+                }
+            }
+            if (const std::string *tf = fold_lookup(folded, "transform"))
+            {
+                std::string tx;
+                std::string ty;
+                if (parse_translate(*tf, tx, ty))
+                {
+                    if (!tx.empty())
+                    {
+                        n.prop("translate_x", tx);
+                    }
+                    if (!ty.empty())
+                    {
+                        n.prop("translate_y", ty);
+                    }
+                }
+                else
+                {
+                    LW << "html: line " << e.line << ": transform '"
+                       << *tf << "' is not translate(); ignored";
                 }
             }
             if (const std::string *fg = fold_lookup(folded, "color"))

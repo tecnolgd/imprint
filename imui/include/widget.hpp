@@ -116,6 +116,13 @@ namespace zb::ui
          */
         [[nodiscard]] virtual core::imsize_t measure() const { return size; }
 
+        /*
+         * Inset of the content box from the border box (P-3): containers
+         * with padding override (FlexPanel/Panel return padding);
+         * the abs resolver reads the anchor's content box through it.
+         */
+        [[nodiscard]] virtual int content_inset() const { return 0; }
+
         // layout-driven resize: does not mark the size as explicit, so a
         // flex-assigned size never overrides the widget's measure()
         void set_size_auto(const int w, const int h)
@@ -207,6 +214,118 @@ namespace zb::ui
             mark_layout_dirty();
         }
         [[nodiscard]] bool has_aspect() const { return aspect_w_ > 0 && aspect_h_ > 0; }
+
+        /*
+         * Positioning (P-3): relative lays out in flow and anchors abs
+         * descendants; absolute leaves the flow (resolved by the
+         * FlexPanel against the containing block). Offsets are px
+         * (INT16_MIN = unset) or % of the containing block; translate
+         * shifts after placement (% of self). Storage is a heap side
+         * struct, allocated only for positioned widgets, so the bare
+         * Widget stays allocation-free and +8/64-bit (+4 NDS).
+         */
+        void set_relative()
+        {
+            ensure_pos();
+            pos_->kind = 1;
+            mark_layout_dirty();
+        }
+        void set_absolute()
+        {
+            ensure_pos();
+            pos_->kind = 2;
+            mark_layout_dirty();
+        }
+        // side: 0 left, 1 top, 2 right, 3 bottom; translate: 0 x, 1 y
+        void set_abs_offset(const int side, const int v, const bool pct)
+        {
+            if (side < 0 || side > 3)
+            {
+                return;
+            }
+            ensure_pos();
+            int c = v < -32767 ? -32767 : (v > 32767 ? 32767 : v);
+            if (pct)
+            {
+                c = c < 0 ? 0 : (c > 100 ? 100 : c);
+            }
+            pos_->off[side] = static_cast<int16_t>(c);
+            if (pct)
+            {
+                pos_->pctmask |= static_cast<uint8_t>(1U << side);
+            }
+            else
+            {
+                pos_->pctmask &= static_cast<uint8_t>(~(1U << side));
+            }
+            mark_layout_dirty();
+        }
+        void set_translate(const int axis, const int v, const bool pct)
+        {
+            if (axis < 0 || axis > 1)
+            {
+                return;
+            }
+            ensure_pos();
+            int c = v < -32767 ? -32767 : (v > 32767 ? 32767 : v);
+            if (pct)
+            {
+                c = c < -100 ? -100 : (c > 100 ? 100 : c);
+            }
+            pos_->tr[axis] = static_cast<int16_t>(c);
+            if (pct)
+            {
+                pos_->pctmask |= static_cast<uint8_t>(1U << (4 + axis));
+            }
+            else
+            {
+                pos_->pctmask &= static_cast<uint8_t>(~(1U << (4 + axis)));
+            }
+            mark_layout_dirty();
+        }
+        [[nodiscard]] bool is_positioned() const
+        {
+            return pos_ != nullptr && pos_->kind != 0;
+        }
+        [[nodiscard]] bool is_absolute() const
+        {
+            return pos_ != nullptr && pos_->kind == 2;
+        }
+        // nearest positioned ancestor (relative or absolute) or null;
+        // the FlexPanel resolver falls back to the direct parent box
+        [[nodiscard]] const Widget *positioned_ancestor() const
+        {
+            for (const Widget *a = parent; a != nullptr; a = a->parent)
+            {
+                if (a->is_positioned())
+                {
+                    return a;
+                }
+            }
+            return nullptr;
+        }
+        // abs-spec readers for the FlexPanel resolver (INT16_MIN = unset;
+        // pct bit per side in mask order l/t/r/b/tx/ty)
+        [[nodiscard]] int16_t abs_off(const int side) const
+        {
+            return (pos_ && side >= 0 && side <= 3) ? pos_->off[side]
+                                                   : INT16_MIN;
+        }
+        [[nodiscard]] bool abs_off_pct(const int side) const
+        {
+            return pos_ && side >= 0 && side <= 3 &&
+                   (pos_->pctmask & (1U << side)) != 0;
+        }
+        [[nodiscard]] int16_t abs_tr(const int axis) const
+        {
+            return (pos_ && axis >= 0 && axis <= 1) ? pos_->tr[axis]
+                                                   : INT16_MIN;
+        }
+        [[nodiscard]] bool abs_tr_pct(const int axis) const
+        {
+            return pos_ && axis >= 0 && axis <= 1 &&
+                   (pos_->pctmask & (1U << (4 + axis))) != 0;
+        }
         [[nodiscard]] int aspect_w() const { return aspect_w_; }
         [[nodiscard]] int aspect_h() const { return aspect_h_; }
 
@@ -723,6 +842,25 @@ namespace zb::ui
             core::Color border_color{};
         };
         paint_dress dress_;
+
+        // positioning spec (P-3): heap side struct, only for positioned
+        // widgets (see setters above); offsets l/t/r/b then translate
+        // x/y, INT16_MIN = unset, pctmask bits l/t/r/b/tx/ty
+        struct abs_spec
+        {
+            int16_t off[4] = {INT16_MIN, INT16_MIN, INT16_MIN, INT16_MIN};
+            int16_t tr[2] = {INT16_MIN, INT16_MIN};
+            uint8_t kind = 0;  // 1 relative, 2 absolute
+            uint8_t pctmask = 0;
+        };
+        std::unique_ptr<abs_spec> pos_;
+        void ensure_pos()
+        {
+            if (pos_ == nullptr)
+            {
+                pos_ = std::make_unique<abs_spec>();
+            }
+        }
 
         // text
         std::u16string text_;
