@@ -711,6 +711,25 @@ dispatcher's raw pointers against dangling/UAF:
 - Invalidation propagation only sets the layout flag and does not
   additionally mark render dirty (geometry changes produce damage
   naturally when layout writes sizes back through its setters).
+- **Absolute positioning (P-3)**: `position: relative` lays out in flow
+  and establishes the containing block for abs descendants (its own
+  offsets are ignored); `position: absolute` takes the child out of flow.
+  The containing block is the nearest ancestor with relative/absolute
+  position, else the direct parent's content box (narrowing). A FlexPanel
+  skips abs children in measure/packing/lines (zero demand, no spacing)
+  and resolves them after normal layout against the anchor content box
+  (`max(0, size - 2*padding)`, the same base as L-4 percents): width =
+  left+right+auto → stretch, else declared (explicit/percent), else
+  `measure()` fallback; x = left ?? right-computed ?? padding origin
+  (y likewise); `translate` shifts after (percent of self). Paint order
+  is document order   (no z-index); the anchor does not clip
+  (`overflow` unsupported); abs inside a Panel lays out as normal
+  (FlexPanel-only feature). Storage is a heap side struct only for
+  positioned widgets (init-path alloc; bare-widget ctor stays
+  zero-alloc): +8 bytes 64-bit / +4 NDS per Widget. Anchor lookup is
+  `Widget::positioned_ancestor()` (nearest positioned ancestor or
+  null); offset/translate readers serve the FlexPanel resolver, anchor
+  content boxes read through `content_inset()` (padding, else 0).
 - **Convergent passes (H-9)**: one `FlexPanel::layout()` pass cannot fit
   an auto size to a child whose input only settles top-down during that
   same pass (an aspect-derived height whose cross width resolves in the
