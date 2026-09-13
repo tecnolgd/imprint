@@ -294,6 +294,15 @@ support "a little at a time" as the boundary demands):**
   stripes), element-level `opacity` (LED dimming), `box-shadow` /
   `text-shadow`, side-specific `border-top`, 3+-stop linear mid colors
   (P-1 keeps first+last), `font-weight` / `letter-spacing`.
+- P-3. Absolute positioning — **landed 2026-09-13**: `position:
+  relative/absolute` + `top/left/right/bottom` (`Npx`/`N%`/bare/`auto`)
+  + `transform: translate()`; FlexPanel skips abs in measure/lines and
+  resolves against the containing block after normal flow (anchor =
+  nearest positioned ancestor else parent box; stretch/declared/measure
+  width, translate last; contract §7). model500 `.vubottom` overlays at
+  28% again (svg back to full height, dB visible), knob-dot centered
+  (17,17), toggle thumbs at 1px/13px. Storage is a heap side struct
+  for positioned widgets only (bare ctor still zero-alloc).
 - H-8. Page-level box (landed 2026-09-12, B2 review): the `<body>` style
   feeds an `html_page` (per-axis Npx size + background) beside the tree;
   `parse_html(text, ok, page)` fills it; consumers resolve document →

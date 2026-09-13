@@ -157,6 +157,9 @@ applies unchanged.
 | `background` | solid color form, `linear-gradient()` (2+ stops → first+last, `90/270deg`/`to left/right` = horizontal, `0/180deg`/`to top/bottom` = vertical), `radial-gradient(circle at X% Y%, A p%, B q%)` | comma layers split paren-aware; scanned base-first (last layer first), first supported form wins — texture overlays (`repeating-*`, `conic-*`, `url(`) are skipped with a warning, so `.amp`'s brushed layer falls through to its linear base; unknown angles/px offsets/ellipse skip the layer the same way |
 | `border` | `Npx solid <color>` | `set_border`; any other style/grammar drops the border |
 | `border-radius` | `Npx` (single), `50%` | px, or half the smaller side at draw time; multi-value drops |
+| `position` | `relative`, `absolute` | `relative` = in-flow + containing block for abs descendants (its own offsets ignored); `absolute` = out of flow (code-contract P-3); anything else = static |
+| `top` / `left` / `right` / `bottom` | `Npx`, `N%`, bare `0`, `auto` | abs offsets against the containing-block content box (`auto` = unset; only read on absolutely positioned elements) |
+| `transform` | `translate(X[, Y])` (`%` of self or px) | shift after abs placement; any other function drops the declaration |
 | `color` | same color forms | the shared `color` property (text color) |
 | `font-size` | `Npx` | **parsed and ignored** (no per-widget size seam; deferred with a future `set_font_size`) |
 
