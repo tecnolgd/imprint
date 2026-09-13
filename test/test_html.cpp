@@ -1313,5 +1313,92 @@ int test_html()
         EXPECT(test::pixel_at(g, rp.x + 20, rp.y + 5) != red_px);
     }
 
+    // P-2e box-shadow: list parse (1 outer + 2 inset, cap, malformed
+    // entries drop alone), inset bands paint, outer leaves an opaque
+    // face alone (clip — contract)
+    {
+        ui_node r = parse_html(
+            "<div style=\"box-shadow: 0 3px 6px rgba(0,0,0,0.5), "
+            "inset 0 1px 2px rgba(255,255,255,0.8), "
+            "inset 0 -2px 4px rgba(0,0,0,0.5)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r, "sh_o0_ox")) == 0);
+        EXPECT(test::vget<long long>(node_prop_v(r, "sh_o0_oy")) == 3);
+        EXPECT(test::vget<long long>(node_prop_v(r, "sh_o0_blur")) == 6);
+        EXPECT(test::vget<std::string>(node_prop_v(r, "sh_o0_color")) ==
+               "rgba(0,0,0,0.5)");
+        EXPECT(test::vget<long long>(node_prop_v(r, "sh_i0_oy")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r, "sh_i1_oy")) == -2);
+        EXPECT(test::vget<long long>(node_prop_v(r, "sh_i1_blur")) == 4);
+        // a third inset drops, junk entries drop alone
+        ui_node r2 = parse_html(
+            "<div style=\"box-shadow: inset 0 0 1px black, "
+            "inset 0 0 2px black, inset 0 0 3px black, junk entry here\">"
+            "<label>y</label></div>\n",
+            nullptr);
+        EXPECT(find_prop(r2, "sh_i0_ox") >= 0);
+        EXPECT(find_prop(r2, "sh_i1_ox") >= 0);
+        EXPECT(find_prop(r2, "sh_i2_ox") < 0);
+
+        // inset 0 0 4px black on white: hard edge, fading bands,
+        // untouched center
+        ui_node doc = parse_html(
+            "<div>"
+            "<div style=\"width:41px;height:21px;background:#ffffff;"
+            "box-shadow: inset 0 0 4px black\">"
+            "<label>x</label></div>"
+            "<div style=\"width:41px;height:21px;background:#ffffff;"
+            "box-shadow: 0 3px 6px black\">"
+            "<label>y</label></div>"
+            "</div>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, doc);
+        host.layout();
+        auto *sunk = host.get_items()[0].child.get();
+        auto *cast = host.get_items()[1].child.get();
+        core::Graphics g(200, 100, nullptr);
+        host.draw(g);
+        const auto sp = sunk->get_position();
+        EXPECT(test::pixel_at(g, sp.x + 20, sp.y) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(g, sp.x + 20, sp.y + 10) ==
+               core::colors::White.pixel);
+#if COLOR_DEPTH == 32
+        // band 3 of 4: alpha 63 over white -> 192
+        EXPECT(test::pixel_at(g, sp.x + 20, sp.y + 3) ==
+               core::Color::from(192, 192, 192).pixel);
+#else
+        // binary depths keep/drop bands by the half-coverage rule:
+        // bands 0..2 stay black, band 3 drops to white
+        EXPECT(test::pixel_at(g, sp.x + 20, sp.y + 2) ==
+               core::colors::Black.pixel);
+        EXPECT(test::pixel_at(g, sp.x + 20, sp.y + 3) ==
+               core::colors::White.pixel);
+#endif
+        // outer-only shadow changes nothing on the opaque face
+        const auto cp = cast->get_position();
+        const auto cs = cast->get_size();
+        bool all_white = true;
+        for (int y = cp.y; y < cp.y + cs.height && all_white; ++y)
+        {
+            for (int x = cp.x; x < cp.x + cs.width; ++x)
+            {
+                const uint32_t p = test::pixel_at(g, x, y);
+                if (p != core::colors::White.pixel && p != 0)
+                {
+                    // the "y" glyph paints black text: only fail on
+                    // shadow-colored strays (dark non-glyph gray)
+                    if (p != core::colors::Black.pixel)
+                    {
+                        all_white = false;
+                    }
+                }
+            }
+        }
+        EXPECT(all_white);
+    }
+
     return test::report("html");
 }

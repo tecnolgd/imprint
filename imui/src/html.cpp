@@ -65,7 +65,7 @@ namespace zb::ui
                    p == "font-size" || p == "aspect-ratio" ||
                    p == "letter-spacing" || p == "font-weight" ||
                    p == "text-shadow" || p == "opacity" ||
-                   p == "border-top";
+                   p == "border-top" || p == "box-shadow";
         }
 
         // --- text helpers --------------------------------------------------
@@ -2058,6 +2058,110 @@ namespace zb::ui
             out = v < 0 ? 0 : (v > 1000 ? 1000 : v);
             return true;
         }
+        // whitespace split that keeps paren groups whole (spaced
+        // rgba() colors survive as one token stream to rejoin)
+        void split_ws_paren(const std::string &s, std::vector<std::string> &out)
+        {
+            std::string cur;
+            int depth = 0;
+            for (const char c : s)
+            {
+                if (c == '(')
+                {
+                    ++depth;
+                }
+                else if (c == ')' && depth > 0)
+                {
+                    --depth;
+                }
+                if ((c == ' ' || c == '\t') && depth == 0)
+                {
+                    if (!cur.empty())
+                    {
+                        out.push_back(cur);
+                        cur.clear();
+                    }
+                }
+                else
+                {
+                    cur.push_back(c);
+                }
+            }
+            if (!cur.empty())
+            {
+                out.push_back(cur);
+            }
+        }
+        // one shadow length: Npx or bare (signed); false = not a length
+        bool parse_shadow_len(const std::string &tok, long long &v)
+        {
+            std::string t = css_trim(ascii_lower(tok));
+            if (t.empty())
+            {
+                return false;
+            }
+            if (t.size() > 2 && t.compare(t.size() - 2, 2, "px") == 0)
+            {
+                t = t.substr(0, t.size() - 2);
+            }
+            return parse_svg_num(t, v);
+        }
+        // one box-shadow entry (P-2e): "[inset] ox oy [blur [spread]]
+        // color". Lengths beyond the fourth start the color; a token
+        // where a length belongs that is not one starts the color
+        // early (so 2-length + color is the common case). False =
+        // malformed, skip the entry only.
+        bool parse_one_shadow(const std::string &s, bool &inset, long long &ox,
+                              long long &oy, long long &blur, long long &spread,
+                              std::string &color)
+        {
+            std::vector<std::string> tok;
+            split_ws_paren(css_trim(s), tok);
+            std::size_t k = 0;
+            inset = false;
+            if (k < tok.size() && ascii_lower(tok[k]) == "inset")
+            {
+                inset = true;
+                ++k;
+            }
+            if (tok.size() - k < 3)
+            {
+                return false;
+            }
+            if (!parse_shadow_len(tok[k], ox) ||
+                !parse_shadow_len(tok[k + 1], oy))
+            {
+                return false;
+            }
+            k += 2;
+            blur = 0;
+            spread = 0;
+            long long v = 0;
+            if (k < tok.size() && parse_shadow_len(tok[k], v))
+            {
+                blur = v < 0 ? 0 : v;
+                ++k;
+                if (k < tok.size() && parse_shadow_len(tok[k], v))
+                {
+                    spread = v < 0 ? 0 : v;
+                    ++k;
+                }
+            }
+            if (k >= tok.size())
+            {
+                return false;
+            }
+            color.clear();
+            for (std::size_t i = k; i < tok.size(); ++i)
+            {
+                if (i > k)
+                {
+                    color.push_back(' ');
+                }
+                color += tok[i];
+            }
+            return !color.empty();
+        }
         // text-shadow: "DXpx DYpx [blur] <color>" (a comma list keeps
         // the first shadow only, per contract P-2a). Lengths are Npx or
         // bare numbers; the blur (when 4 tokens) is parsed-and-ignored.
@@ -2701,6 +2805,57 @@ namespace zb::ui
                 if (parse_opacity_fixed(*op, v))
                 {
                     n.prop("elem_opacity", v);
+                }
+            }
+            // P-2e box shadows: comma list, first two per kind win
+            // (extras warn once and drop); a malformed entry drops
+            // alone, never the declaration
+            if (const std::string *bs = fold_lookup(folded, "box-shadow"))
+            {
+                std::vector<std::string> entries;
+                split_layers(*bs, entries);
+                int outs = 0;
+                int ins = 0;
+                bool warned = false;
+                for (const std::string &sh : entries)
+                {
+                    bool inset = false;
+                    long long ox = 0;
+                    long long oy = 0;
+                    long long blur = 0;
+                    long long spread = 0;
+                    std::string c;
+                    if (!parse_one_shadow(sh, inset, ox, oy, blur, spread, c))
+                    {
+                        continue;
+                    }
+                    if ((inset && ins >= 2) || (!inset && outs >= 2))
+                    {
+                        if (!warned)
+                        {
+                            warned = true;
+                            LW << "html: line " << e.line
+                               << ": box-shadow keeps 2 outer + 2 inset; "
+                                  "the rest is dropped";
+                        }
+                        continue;
+                    }
+                    const std::string tag =
+                        (inset ? "sh_i" : "sh_o") +
+                        std::to_string(inset ? ins : outs);
+                    n.prop(tag + "_ox", ox);
+                    n.prop(tag + "_oy", oy);
+                    n.prop(tag + "_blur", blur);
+                    n.prop(tag + "_spread", spread);
+                    n.prop(tag + "_color", c);
+                    if (inset)
+                    {
+                        ++ins;
+                    }
+                    else
+                    {
+                        ++outs;
+                    }
                 }
             }
             if (const std::string *br = fold_lookup(folded, "border-radius"))

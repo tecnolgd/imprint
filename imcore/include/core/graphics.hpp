@@ -305,6 +305,14 @@ namespace zb::ui::core
         void fill_round_rect(int x1, int y1, int x2, int y2, int radius, const Color &colr);
 
         /*
+         * Half-chord of the corner circle (radius `r`) `dy` px from the
+         * arc-center row (P-2e): the rounded-rect row-span clip shared
+         * by the fills above and the widget inset-shadow bands.
+         * Integer-only (isqrt, no FPU); `dy <= 0` reads the full `r`.
+         */
+        static int corner_chord(int r, int dy);
+
+        /*
          * Anti-aliased opt-in variants (Batch V-1): Wu's two-pixel
          * coverage split for lines, exact-chord coverage for circles.
          * They ALWAYS blend -- the coverage is the weight -- regardless

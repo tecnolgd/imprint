@@ -244,6 +244,28 @@ namespace
     }
 }  // namespace
 
+// public chord alias for widget-level paint (P-2e): inset bands clip
+// band rows/columns to the same chords the fills use (same formula as
+// the file-local corner_chord above, restated: the member body cannot
+// name it — class scope would recurse into this very member)
+int Graphics::corner_chord(const int r, const int dy)
+{
+    if (dy <= 0)
+    {
+        return r;
+    }
+    const int64_t sq = static_cast<int64_t>(r) * r - static_cast<int64_t>(dy) * dy;
+    if (sq <= 0)
+    {
+        return 0;
+    }
+#if defined(USE_INTEGER_GEOMETRY)
+    return static_cast<int>(isqrt_u64(static_cast<uint64_t>(sq)));
+#else
+    return static_cast<int>(std::sqrt(static_cast<double>(sq)));
+#endif
+}
+
 Graphics::Graphics(uint32_t width, uint32_t height, void *data)
     : pixels{nullptr}
     , is_wrapper_mode{false}

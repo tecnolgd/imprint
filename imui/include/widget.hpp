@@ -256,6 +256,17 @@ namespace zb::ui
             uint8_t w = 0;
             core::Color c{};
         };
+        // one box shadow (P-2e): px offset, blur/spread px, color.
+        // Inset paints inner bands (full effect); outer paints its
+        // silhouette under the box (clip-bound — see the contract).
+        struct shadow_spec
+        {
+            int8_t ox = 0;
+            int8_t oy = 0;
+            uint8_t blur = 0;
+            uint8_t spread = 0;
+            core::Color c{};
+        };
 
         /*
          * Positioning (P-3): relative lays out in flow and anchors abs
@@ -545,6 +556,43 @@ namespace zb::ui
         [[nodiscard]] const bord_t *top_border() const
         {
             return has_top_border() ? &ext_->bord : nullptr;
+        }
+        // box shadows (P-2e): incremental init-path setters, first two
+        // per kind win, further calls are ignored. Lengths clamp to
+        // int8, blur/spread to uint8
+        void add_shadow_outer(const int ox, const int oy, const int blur,
+                              const int spread, const core::Color &c)
+        {
+            if (ext_ != nullptr && ext_->n_sh_out >= 2)
+            {
+                return;
+            }
+            ensure_ext();
+            shadow_spec *const s = &ext_->sh_out[ext_->n_sh_out++];
+            s->ox = static_cast<int8_t>(ox < -128 ? -128 : (ox > 127 ? 127 : ox));
+            s->oy = static_cast<int8_t>(oy < -128 ? -128 : (oy > 127 ? 127 : oy));
+            s->blur = static_cast<uint8_t>(blur < 0 ? 0 : (blur > 255 ? 255 : blur));
+            s->spread =
+                static_cast<uint8_t>(spread < 0 ? 0 : (spread > 255 ? 255 : spread));
+            s->c = c;
+            mark_dirty();
+        }
+        void add_shadow_inset(const int ox, const int oy, const int blur,
+                              const int spread, const core::Color &c)
+        {
+            if (ext_ != nullptr && ext_->n_sh_in >= 2)
+            {
+                return;
+            }
+            ensure_ext();
+            shadow_spec *const s = &ext_->sh_in[ext_->n_sh_in++];
+            s->ox = static_cast<int8_t>(ox < -128 ? -128 : (ox > 127 ? 127 : ox));
+            s->oy = static_cast<int8_t>(oy < -128 ? -128 : (oy > 127 ? 127 : oy));
+            s->blur = static_cast<uint8_t>(blur < 0 ? 0 : (blur > 255 ? 255 : blur));
+            s->spread =
+                static_cast<uint8_t>(spread < 0 ? 0 : (spread > 255 ? 255 : spread));
+            s->c = c;
+            mark_dirty();
         }
         // conic-dressing background (P-2b): `from_deg` start angle (CSS
         // degrees), 2..4 {deg, color} stops (center fixed at 50%/50%).
@@ -1043,6 +1091,8 @@ namespace zb::ui
             grad_ex grad{};
             rep_ex rep{};
             bord_t bord{};
+            shadow_spec sh_out[2]{};
+            shadow_spec sh_in[2]{};
             int16_t letter_px = 0;
             uint8_t text_flags = 0;  // bit0 = bold (double-strike)
             core::Color shadow_color{};
@@ -1053,6 +1103,8 @@ namespace zb::ui
             uint8_t has_rep = 0;
             uint8_t has_bord = 0;
             uint8_t has_text = 0;
+            uint8_t n_sh_out = 0;
+            uint8_t n_sh_in = 0;
         };
         std::unique_ptr<widget_ext> ext_;
         void ensure_ext()

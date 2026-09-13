@@ -526,6 +526,48 @@ namespace zb::ui
                         fold_opacity(bc, op));
                 }
             }
+            // P-2e box shadows: up to two per kind ride sh_oN_/sh_iN_;
+            // a mistyped color drops that shadow alone
+            const char *const kinds[2] = {"sh_o", "sh_i"};
+            for (int kd = 0; kd < 2; ++kd)
+            {
+                for (int i = 0; i < 2; ++i)
+                {
+                    const std::string base =
+                        std::string(kinds[kd]) + std::to_string(i);
+                    const std::string oxk = base + "_ox";
+                    const std::string cyk = base + "_color";
+                    if (!has_prop(n, oxk.c_str()) ||
+                        !has_prop(n, cyk.c_str()))
+                    {
+                        break;
+                    }
+                    core::Color sc;
+                    if (!parse_color(prop_of(n, cyk.c_str(), std::string{}),
+                                     sc))
+                    {
+                        continue;
+                    }
+                    const int ox = static_cast<int>(
+                        prop_of(n, oxk.c_str(), 0LL));
+                    const int oy = static_cast<int>(
+                        prop_of(n, (base + "_oy").c_str(), 0LL));
+                    const int blur = static_cast<int>(
+                        prop_of(n, (base + "_blur").c_str(), 0LL));
+                    const int spread = static_cast<int>(
+                        prop_of(n, (base + "_spread").c_str(), 0LL));
+                    if (kd == 0)
+                    {
+                        w.add_shadow_outer(ox, oy, blur, spread,
+                                           fold_opacity(sc, op));
+                    }
+                    else
+                    {
+                        w.add_shadow_inset(ox, oy, blur, spread,
+                                           fold_opacity(sc, op));
+                    }
+                }
+            }
             if (has_prop(n, "border_w") && has_prop(n, "border_color"))
             {
                 core::Color bc;

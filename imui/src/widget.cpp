@@ -145,10 +145,73 @@ namespace zb::ui
         {
             blend = true;
         }
+        // shadow colors blend too (P-2e); inset bands always blend
+        // (the falloff manufactures translucency even from opaque
+        // base colors — without this the radius-0 aliased outlines
+        // overwrite raw), outer silhouettes blend when translucent
+        // or blurred (soft bands)
+        if (ext_ != nullptr)
+        {
+            if (ext_->n_sh_in > 0)
+            {
+                blend = true;
+            }
+            for (int i = 0; i < ext_->n_sh_out && i < 2; ++i)
+            {
+                if (needs_blend(ext_->sh_out[i].c) ||
+                    ext_->sh_out[i].blur > 0)
+                {
+                    blend = true;
+                    break;
+                }
+            }
+        }
         const bool bak = area.is_alpha_enabled();
         if (blend)
         {
             area.enable_alpha(true);
+        }
+        // outer silhouettes first (P-2e): spread-expanded rounded box
+        // at the offset + two soft bands when blurred, all under the
+        // background (the widget clip keeps the inside part — see the
+        // contract's overdraw note). Wireframe skips shadows (bones).
+        const bool shadows =
+            area.get_render_mode() == core::Graphics::render_mode::full;
+        if (shadows && ext_ != nullptr)
+        {
+            for (int i = 0; i < ext_->n_sh_out && i < 2; ++i)
+            {
+                const shadow_spec &sh = ext_->sh_out[i];
+                const int x0 = sh.ox - sh.spread;
+                const int y0 = sh.oy - sh.spread;
+                const int x1 = s.width - 1 + sh.ox + sh.spread;
+                const int y1 = s.height - 1 + sh.oy + sh.spread;
+                area.fill_round_rect_aa(x0, y0, x1, y1, radius + sh.spread,
+                                        sh.c);
+                if (sh.blur > 0 && sh.c.a() > 0)
+                {
+                    // soft bands halve twice; binary depths keep/drop
+                    // by the same half rule (the block already knows
+                    // the base alpha is nonzero)
+                    core::Color soft = sh.c;
+                    if constexpr (core::Color::per_channel_blend)
+                    {
+                        soft.set_a(static_cast<uint8_t>(sh.c.a() / 2));
+                    }
+                    area.draw_round_rect_aa(x0 - 1, y0 - 1, x1 + 1, y1 + 1,
+                                            radius + sh.spread + 1, soft);
+                    if constexpr (core::Color::per_channel_blend)
+                    {
+                        soft.set_a(static_cast<uint8_t>(sh.c.a() / 4));
+                    }
+                    else
+                    {
+                        soft.set_a(0);
+                    }
+                    area.draw_round_rect_aa(x0 - 2, y0 - 2, x1 + 2, y1 + 2,
+                                            radius + sh.spread + 2, soft);
+                }
+            }
         }
         if (background.has_value())
         {
@@ -247,6 +310,166 @@ namespace zb::ui
         {
             const int bh = b->w > s.height ? s.height : b->w;
             area.fill_rect(0, 0, s.width - 1, bh - 1, b->c);
+        }
+        // inset shadows (P-2e): bands hug the sides picked by the
+        // offset sign (zero offset = both sides), alpha falling off
+        // inward; the all-sides case rides shrinking outlines
+        // (radius-aware), single sides ride chord-clipped lines
+        if (shadows && ext_ != nullptr)
+        {
+            for (int k = 0; k < ext_->n_sh_in && k < 2; ++k)
+            {
+                const shadow_spec &sh = ext_->sh_in[k];
+                const int bands = sh.blur <= 0 ? 1 : sh.blur;
+                const int base = dress_.border_w + sh.spread;
+                const bool left = sh.ox >= 0;
+                const bool right = sh.ox <= 0;
+                const bool top = sh.oy >= 0;
+                const bool bottom = sh.oy <= 0;
+                const bool all = left && right && top && bottom;
+                // band alpha: exact falloff on 32bpp; on binary depths
+                // the base alpha already reads 0/1, so bands keep or
+                // drop by the half-coverage rule (plot_aa precedent)
+                auto band_color = [&](const int i) {
+                    core::Color c = sh.c;
+                    if (bands > 1)
+                    {
+                        if constexpr (core::Color::per_channel_blend)
+                        {
+                            c.set_a(static_cast<uint8_t>(sh.c.a() *
+                                                         (bands - i) / bands));
+                        }
+                        else if ((bands - i) * 2 < bands)
+                        {
+                            c.set_a(0);
+                        }
+                    }
+                    return c;
+                };
+                if (all)
+                {
+                    for (int i = 0; i < bands; ++i)
+                    {
+                        const int o = base + i;
+                        if (o * 2 >= s.width || o * 2 >= s.height)
+                        {
+                            break;
+                        }
+                        area.draw_round_rect_aa(
+                            o, o, s.width - 1 - o, s.height - 1 - o,
+                            radius > o ? radius - o : 0, band_color(i));
+                    }
+                    continue;
+                }
+                // paintable x-span of a band row (rounded corners cut)
+                auto row_span = [&](const int row, int &lx, int &rx) {
+                    lx = 0;
+                    rx = s.width - 1;
+                    if (radius <= 0)
+                    {
+                        return;
+                    }
+                    int dy = 0;
+                    if (row < radius)
+                    {
+                        dy = radius - row;
+                    }
+                    else if (row > s.height - 1 - radius)
+                    {
+                        dy = row - (s.height - 1 - radius);
+                    }
+                    if (dy > 0)
+                    {
+                        const int dx = core::Graphics::corner_chord(radius, dy);
+                        lx = radius - dx;
+                        rx = s.width - 1 - radius + dx;
+                    }
+                };
+                // paintable y-span of a band column (transposed)
+                auto col_span = [&](const int col, int &ty, int &by) {
+                    ty = 0;
+                    by = s.height - 1;
+                    if (radius <= 0)
+                    {
+                        return;
+                    }
+                    int dx = 0;
+                    if (col < radius)
+                    {
+                        dx = radius - col;
+                    }
+                    else if (col > s.width - 1 - radius)
+                    {
+                        dx = col - (s.width - 1 - radius);
+                    }
+                    if (dx > 0)
+                    {
+                        const int dy = core::Graphics::corner_chord(radius, dx);
+                        ty = radius - dy;
+                        by = s.height - 1 - radius + dy;
+                    }
+                };
+                if (top)
+                {
+                    for (int i = 0; i < bands; ++i)
+                    {
+                        const int row = base + i;
+                        if (row >= s.height)
+                        {
+                            break;
+                        }
+                        int lx = 0;
+                        int rx = 0;
+                        row_span(row, lx, rx);
+                        area.draw_line(lx, row, rx, row, band_color(i));
+                    }
+                }
+                if (bottom)
+                {
+                    for (int i = 0; i < bands; ++i)
+                    {
+                        const int row = s.height - 1 - base - i;
+                        if (row < 0)
+                        {
+                            break;
+                        }
+                        int lx = 0;
+                        int rx = 0;
+                        row_span(row, lx, rx);
+                        area.draw_line(lx, row, rx, row, band_color(i));
+                    }
+                }
+                if (left)
+                {
+                    for (int i = 0; i < bands; ++i)
+                    {
+                        const int col = base + i;
+                        if (col >= s.width)
+                        {
+                            break;
+                        }
+                        int ty = 0;
+                        int by = 0;
+                        col_span(col, ty, by);
+                        area.draw_line(col, ty, col, by, band_color(i));
+                    }
+                }
+                if (right)
+                {
+                    for (int i = 0; i < bands; ++i)
+                    {
+                        const int col = s.width - 1 - base - i;
+                        if (col < 0)
+                        {
+                            break;
+                        }
+                        int ty = 0;
+                        int by = 0;
+                        col_span(col, ty, by);
+                        area.draw_line(col, ty, col, by, band_color(i));
+                    }
+                }
+            }
         }
         if (blend)
         {
