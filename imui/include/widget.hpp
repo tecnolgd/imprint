@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -179,6 +180,35 @@ namespace zb::ui
         [[nodiscard]] virtual bool is_size_explicit() const { return size_explicit_w_ || size_explicit_h_; }
         [[nodiscard]] bool is_width_explicit() const { return size_explicit_w_; }
         [[nodiscard]] bool is_height_explicit() const { return size_explicit_h_; }
+
+        /*
+         * Aspect ratio (H-5): when set (w,h > 0), a FlexPanel derives the
+         * child's open main axis from its settled cross axis
+         * (width = height * w/h in a row, height = width * h/w in a
+         * column) -- but only while that axis is auto with no percent
+         * declaration and the cross axis is explicit or percent-settled.
+         * Explicit sizes and percent declarations always win; without a
+         * settled cross axis the widget keeps its measured size.
+         */
+        void set_aspect_ratio(const int w, const int h)
+        {
+            mark_dirty();
+            if (w > 0 && h > 0)
+            {
+                aspect_w_ = w > 65535 ? uint16_t{65535} : static_cast<uint16_t>(w);
+                aspect_h_ = h > 65535 ? uint16_t{65535} : static_cast<uint16_t>(h);
+            }
+            else
+            {
+                aspect_w_ = 0;
+                aspect_h_ = 0;
+            }
+            mark_dirty();
+            mark_layout_dirty();
+        }
+        [[nodiscard]] bool has_aspect() const { return aspect_w_ > 0 && aspect_h_ > 0; }
+        [[nodiscard]] int aspect_w() const { return aspect_w_; }
+        [[nodiscard]] int aspect_h() const { return aspect_h_; }
 
         void set_visible(const bool v)
         {
@@ -550,6 +580,10 @@ namespace zb::ui
         // FlexPanel parent's content box
         unsigned char width_percent_ = 0;
         unsigned char height_percent_ = 0;
+        // aspect ratio declaration (H-5): 0 = none, otherwise w/h pair
+        // (uint16_t pair: 4 bytes against the J1 size gate)
+        uint16_t aspect_w_ = 0;
+        uint16_t aspect_h_ = 0;
         bool layout_dirty_ = true;  // first paint lays out the tree
 
         static unsigned char percent_clamp(const int pct)

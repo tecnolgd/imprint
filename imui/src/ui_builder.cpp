@@ -297,16 +297,24 @@ namespace zb::ui
                         w.set_width_auto(w.get_size().width);
                     }
                 }
-                const int w_pct = as_percent(prop_of(n, "width", std::string{}));
-                const int h_pct = as_percent(prop_of(n, "height", std::string{}));
-                if (w_pct > 0)
-                {
-                    w.set_width_percent(w_pct);
-                }
-                if (h_pct > 0)
-                {
-                    w.set_height_percent(h_pct);
-                }
+            const int w_pct = as_percent(prop_of(n, "width", std::string{}));
+            const int h_pct = as_percent(prop_of(n, "height", std::string{}));
+            if (w_pct > 0)
+            {
+                w.set_width_percent(w_pct);
+            }
+            if (h_pct > 0)
+            {
+                w.set_height_percent(h_pct);
+            }
+            }
+            // aspect-ratio declaration (H-5): independent of the pixel
+            // gate above (it needs no width/height prop of its own --
+            // the cross axis may come from anywhere settled)
+            if (prop_of(n, "aspect_w", 0LL) > 0 && prop_of(n, "aspect_h", 0LL) > 0)
+            {
+                w.set_aspect_ratio(static_cast<int>(prop_of(n, "aspect_w", 0LL)),
+                                   static_cast<int>(prop_of(n, "aspect_h", 0LL)));
             }
             if (has_prop(n, "pos_x") || has_prop(n, "pos_y"))
             {

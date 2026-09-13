@@ -405,5 +405,67 @@ int test_percent()
         EXPECT(items[0].child->get_size().height == 100);
     }
 
+    // aspect-ratio (H-5): an auto main axis with no percent derives from
+    // the settled cross axis; explicit and percent declarations win, and
+    // an unsettled cross axis keeps the measured size
+    {
+        // column: width 50% of 200 settles first, height derives 100x50
+        FlexPanel p;
+        p.set_size(200, 200);
+        auto c = pct_w(50);
+        Widget *cw = c.get();
+        cw->set_aspect_ratio(2, 1);
+        EXPECT(cw->has_aspect());
+        p.add_child(std::move(c));
+        p.layout();
+        EXPECT(cw->get_size().width == 100);
+        EXPECT(cw->get_size().height == 50);
+        // explicit main axis wins over aspect
+        cw->set_size(30, 30);
+        p.layout();
+        EXPECT(cw->get_size().width == 30 && cw->get_size().height == 30);
+        // percent main axis wins over aspect
+        cw->set_size(30, 30);
+        cw->set_height_percent(25);
+        p.layout();
+        EXPECT(cw->get_size().height == 50);
+        // cleared aspect behaves as before
+        cw->set_aspect_ratio(0, 0);
+        EXPECT(!cw->has_aspect());
+    }
+    {
+        // row: height 50% of 200 settles first, width derives 50x100
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(200, 200);
+        auto c = pct_h(50);
+        Widget *cw = c.get();
+        cw->set_aspect_ratio(1, 2);
+        p.add_child(std::move(c));
+        p.layout();
+        EXPECT(cw->get_size().height == 100);
+        EXPECT(cw->get_size().width == 50);
+    }
+    {
+        // unsettled cross axis (auto parent): measured size kept
+        FlexPanel p;  // auto size
+        auto c = std::make_unique<Widget>();
+        Widget *cw = c.get();
+        cw->set_aspect_ratio(2, 1);
+        p.add_child(std::move(c));
+        p.layout();
+        EXPECT(cw->get_size().width == 0 && cw->get_size().height == 0);
+    }
+    {
+        // builder props land on the widget
+        ui_node doc = column({label("x").aspect(4, 3)});
+        FlexPanel host;
+        host.set_size(200, 200);
+        build(host, doc);
+        const auto &items = host.get_items();
+        EXPECT(items[0].child->has_aspect());
+        EXPECT(items[0].child->aspect_w() == 4 && items[0].child->aspect_h() == 3);
+    }
+
     return test::report("percent");
 }

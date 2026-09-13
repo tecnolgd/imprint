@@ -65,6 +65,11 @@ namespace zb::ui
         {
             return prop("height", std::to_string(pct) + "%");
         }
+        // aspect-ratio declaration (H-5): derived-axis sizing in FlexPanel
+        ui_node &aspect(const long long w, const long long h)
+        {
+            return prop("aspect_w", w).prop("aspect_h", h);
+        }
         ui_node &pos(const long long x, const long long y)
         {
             return prop("pos_x", x).prop("pos_y", y);

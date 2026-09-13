@@ -59,7 +59,7 @@ namespace zb::ui
                    p == "height" || p == "flex" || p == "gap" ||
                    p == "padding" || p == "flex-wrap" ||
                    p == "background-color" || p == "color" ||
-                   p == "font-size";
+                   p == "font-size" || p == "aspect-ratio";
         }
 
         // --- text helpers --------------------------------------------------
@@ -704,6 +704,7 @@ namespace zb::ui
         }
 
         std::string ascii_lower(std::string s);  // defined with the B4 helpers below
+        bool parse_svg_num(const std::string &s, long long &out);  // defined by widget_type
 
         // one compound: [tag][#id][.class]* in any order. ':'/'['/'>'
         // and friends fail it (pseudo/attribute/combinators stay out).
@@ -1319,6 +1320,47 @@ namespace zb::ui
             return parse_int_value(v, out) && out >= 0;
         }
 
+        // aspect-ratio: "W / H", "W/H", or a bare number N (= N/1);
+        // "auto" and malformed values stay absent
+        bool parse_aspect(const std::string &s, long long &w, long long &h)
+        {
+            const auto trim = [](std::string v) {
+                v.erase(0, v.find_first_not_of(" \t\n\r"));
+                const std::size_t t = v.find_last_not_of(" \t\n\r");
+                if (t == std::string::npos)
+                {
+                    return std::string{};
+                }
+                v.erase(t + 1);
+                return v;
+            };
+            const std::string t = trim(ascii_lower(s));
+            if (t.empty() || t == "auto")
+            {
+                return false;
+            }
+            const std::size_t slash = t.find('/');
+            long long a = 0, b = 1;
+            if (slash == std::string::npos)
+            {
+                if (!parse_svg_num(t, a) || a <= 0)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (!parse_svg_num(trim(t.substr(0, slash)), a) || a <= 0 ||
+                    !parse_svg_num(trim(t.substr(slash + 1)), b) || b <= 0)
+                {
+                    return false;
+                }
+            }
+            w = a;
+            h = b;
+            return true;
+        }
+
         // a CSS length: px -> pixels, % -> percent (1..100), "auto"/malformed
         // -> the axis stays measured (tolerance: silently not set).
         // B4: units and "auto" are ASCII case-insensitive (digits and %
@@ -1752,6 +1794,14 @@ namespace zb::ui
             if (const std::string *h = fold_lookup(folded, "height"))
             {
                 styled_height = apply_length(n, "height", *h);
+            }
+            if (const std::string *ar = fold_lookup(folded, "aspect-ratio"))
+            {
+                long long aw = 0, ah = 0;
+                if (parse_aspect(*ar, aw, ah))
+                {
+                    n.prop("aspect_w", aw).prop("aspect_h", ah);
+                }
             }
             if (const std::string *fx = fold_lookup(folded, "flex"))
             {

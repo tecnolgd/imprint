@@ -27,10 +27,60 @@ namespace zb::ui
             }
         }
 
-        // the layout demand of a child along the main axis: an explicit
-        // set_size wins on that axis, otherwise the widget's measure()
+        // aspect-ratio derivation (H-5): an auto main axis with no percent
+        // derives from the settled cross axis (explicit or percent); an
+        // explicit size, a percent declaration, or an unsettled cross
+        // axis keeps the old behavior. Pure function of widget state, so
+        // packing and the write pass below always agree.
+        bool aspect_derive_main(const Widget &w, const FlexPanel::flex_direction d,
+                                int &out)
+        {
+            if (!w.has_aspect())
+            {
+                return false;
+            }
+            const bool main_is_w = is_row(d);
+            const bool main_auto =
+                main_is_w ? (!w.is_width_explicit() && !w.is_width_percent())
+                          : (!w.is_height_explicit() && !w.is_height_percent());
+            if (!main_auto)
+            {
+                return false;
+            }
+            const bool cross_settled =
+                main_is_w ? (w.is_height_explicit() || w.is_height_percent())
+                          : (w.is_width_explicit() || w.is_width_percent());
+            if (!cross_settled)
+            {
+                return false;
+            }
+            const int cross = main_is_w ? w.get_size().height : w.get_size().width;
+            if (cross <= 0)
+            {
+                return false;
+            }
+            const long long derived =
+                static_cast<long long>(cross) *
+                (main_is_w ? w.aspect_w() : w.aspect_h()) /
+                (main_is_w ? w.aspect_h() : w.aspect_w());
+            if (derived <= 0 || derived > 1000000)
+            {
+                return false;
+            }
+            out = static_cast<int>(derived);
+            return true;
+        }
+
+        // the layout demand of a child along the main axis: aspect-ratio
+        // derivation first, then an explicit set_size on that axis,
+        // otherwise the widget's measure()
         int main_demand(const Widget &w, const FlexPanel::flex_direction d)
         {
+            int aspect = 0;
+            if (aspect_derive_main(w, d, aspect))
+            {
+                return aspect;
+            }
             const bool own = is_row(d) ? w.is_width_explicit() : w.is_height_explicit();
             const auto demand = own ? w.get_size() : w.measure();
             return is_row(d) ? demand.width : demand.height;
@@ -172,6 +222,19 @@ namespace zb::ui
             if (pct > 0)
             {
                 set_cross_size(*item.child, direction, std::max(0, pct * avail_cross / 100));
+            }
+        }
+
+        // aspect-ratio write pass (H-5): derived main-axis sizes land here
+        // so percent grandchildren below resolve against a real base;
+        // packing further down re-derives the identical values through
+        // main_demand (pure function, no drift between passes)
+        for (auto &item : items)
+        {
+            int derived = 0;
+            if (aspect_derive_main(*item.child, direction, derived))
+            {
+                set_main_size(*item.child, direction, derived);
             }
         }
 

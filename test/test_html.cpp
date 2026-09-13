@@ -515,6 +515,36 @@ int test_html()
         EXPECT(r3.type == "column");
     }
 
+    // aspect-ratio mapping: W/H, bare number, auto/malformed absent
+    {
+        ui_node r = parse_html(
+            "<div style=\"width: 100px; aspect-ratio: 2 / 1\"><label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r, "aspect_w")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(r, "aspect_h")) == 1);
+        ui_node r2 = parse_html("<div style=\"aspect-ratio: 3\"><label>x</label></div>\n", nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r2, "aspect_w")) == 3);
+        EXPECT(test::vget<long long>(node_prop_v(r2, "aspect_h")) == 1);
+        ui_node r3 = parse_html("<div style=\"aspect-ratio: auto\"><label>x</label></div>\n", nullptr);
+        EXPECT(find_prop(r3, "aspect_w") < 0);
+        ui_node r4 = parse_html("<div style=\"aspect-ratio: 2 / 0\"><label>x</label></div>\n", nullptr);
+        EXPECT(find_prop(r4, "aspect_w") < 0);
+        // end-to-end: the ratio sizes a real child from its settled width
+        ui_node doc2 = parse_html(
+            "<div><div style=\"width: 50%; aspect-ratio: 2/1\"><label>x</label></div>"
+            "<label>y</label></div>\n",
+            nullptr);
+        FlexPanel host2;
+        host2.set_size(200, 200);
+        build(host2, doc2);
+        host2.layout();
+        EXPECT(doc2.children.size() == 2);
+        const auto &items2 = host2.get_items();
+        EXPECT(items2.size() == 2);
+        EXPECT(items2[0].child->get_size().width == 100);
+        EXPECT(items2[0].child->get_size().height == 50);
+    }
+
     // H-5 variables: :root map, substitution, fallback, silent drop
     {
         ui_node r = parse_html(
