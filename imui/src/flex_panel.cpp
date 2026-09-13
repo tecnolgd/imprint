@@ -514,28 +514,61 @@ namespace zb::ui
                 }
             }
 
-            // place the line items along the main axis, spaced by their
-            // final sizes
-            int pen = padding;
+            // place the line items along the main axis: justification
+            // (H-7a, contract §flex) only moves the pen — sizes above are
+            // final. Free space sits on top of spacing (the minimum gap);
+            // F <= 0 or start keeps the padding origin. Closed forms over
+            // settled sizes, so the H-9 loop sees no drift.
+            int sum = 0;
+            for (const size_t i : line)
+            {
+                sum += main_now(*items[i].child, direction);
+            }
+            const int n = static_cast<int>(line.size());
+            const int slack = avail_main - sum - (n - 1) * spacing;
             int line_cross = 0;
             for (const size_t i : line)
             {
-                Widget &child = *items[i].child;
-                line_cross = std::max(line_cross, cross_now(child, direction));
-                pen += main_now(child, direction) + spacing;
+                line_cross = std::max(line_cross, cross_now(*items[i].child, direction));
             }
-            pen = padding;
+            int lead = 0;
+            if (slack > 0)
+            {
+                if (justify_content == justify::end)
+                {
+                    lead = free;
+                }
+                else if (justify_content == justify::center)
+                {
+                    lead = free / 2;
+                }
+            }
+            int k = 0;
+            int before = 0;
             for (const size_t i : line)
             {
                 Widget &child = *items[i].child;
+                int pos = padding + lead + before + k * spacing;
+                if (slack > 0)
+                {
+                    if (justify_content == justify::space_between && n > 1)
+                    {
+                        pos += k * slack / (n - 1);
+                    }
+                    else if (justify_content == justify::space_around)
+                    {
+                        pos += (2 * k + 1) * slack / (2 * n);
+                    }
+                }
                 // a grandchild may grow the child's measure without moving
                 // the child itself — snapshot all three so the next round
                 // re-reads fresh demands (H-9)
                 const auto size_before = child.get_size();
                 const auto pos_before = child.get_position();
                 const auto measure_before = child.measure();
-                set_main_position(child, direction, pen, cross_pos);
-                pen += main_now(child, direction) + spacing;
+                set_main_position(child, direction, pos, cross_pos);
+                before += main_now(child, direction);
+                ++k;
                 child.layout();
                 changed |= !same_size(size_before, child.get_size());
                 changed |= !same_pos(pos_before, child.get_position());

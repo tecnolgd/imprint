@@ -66,6 +66,24 @@ namespace zb::ui
             mark_layout_dirty();
         }
 
+        enum class justify
+        {
+            start = 0,  // padding origin (historical behavior)
+            center = 1,
+            end = 2,
+            space_between = 3,
+            space_around = 4
+        };
+
+        // main-axis justification (H-7a, contract §flex): positions
+        // only, per line; default start preserves current behavior
+        void set_justify_content(const justify j)
+        {
+            justify_content = j;
+            mark_layout_dirty();
+        }
+        [[nodiscard]] justify get_justify_content() const { return justify_content; }
+
         /* flex_grow > 0 makes the child share the leftover main-axis space */
         void add_child(std::unique_ptr<Widget> child, const int flex_grow = 0)
         {
@@ -126,6 +144,7 @@ namespace zb::ui
         void resolve_abs(Widget &child, bool &changed);
 
         flex_direction direction = flex_direction::column;
+        justify justify_content = justify::start;
         int spacing = 0;
         int padding = 0;
         bool wrap = false;

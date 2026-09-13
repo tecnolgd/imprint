@@ -879,6 +879,12 @@ namespace zb::ui
                 f.set_spacing(static_cast<int>(prop_of(n, "spacing", 0LL)));
                 f.set_padding(static_cast<int>(prop_of(n, "padding", 0LL)));
                 f.set_wrap(prop_of(n, "wrap", false));
+                // H-7a: integer justify code (FlexPanel::justify ordinal);
+                // out-of-range codes fall back to start, never UB
+                const long long jc = prop_of(n, "justify", 0LL);
+                f.set_justify_content((jc >= 0 && jc <= 4)
+                                          ? static_cast<FlexPanel::justify>(jc)
+                                          : FlexPanel::justify::start);
             }
         }
 

@@ -369,5 +369,87 @@ int test_flex()
         EXPECT(bp.y == mp.y + 5);
     }
 
+    // H-7a justify: row of 3x10 in 100 with spacing 5 -> used 40,
+    // free 60; each mode places the same sizes differently
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(100, 50);
+        p.set_spacing(5);
+        p.add_child(make_child(10, 10));
+        p.add_child(make_child(10, 10));
+        p.add_child(make_child(10, 10));
+        // default start: padding origin
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 0, 0));
+        EXPECT(at(*c[1].child, 15, 0));
+        EXPECT(at(*c[2].child, 30, 0));
+        // end: lead by the full free space
+        p.set_justify_content(FlexPanel::justify::end);
+        p.layout();
+        EXPECT(at(*c[0].child, 60, 0));
+        EXPECT(at(*c[1].child, 75, 0));
+        EXPECT(at(*c[2].child, 90, 0));
+        // center: lead by half (floor)
+        p.set_justify_content(FlexPanel::justify::center);
+        p.layout();
+        EXPECT(at(*c[0].child, 30, 0));
+        EXPECT(at(*c[1].child, 45, 0));
+        EXPECT(at(*c[2].child, 60, 0));
+        // space-between: k*free/(n-1) -> 0/30/60 on top of size+gap
+        p.set_justify_content(FlexPanel::justify::space_between);
+        p.layout();
+        EXPECT(at(*c[0].child, 0, 0));
+        EXPECT(at(*c[1].child, 45, 0));
+        EXPECT(at(*c[2].child, 90, 0));
+        // space-around: (2k+1)*free/2n -> 10/50/90 edges included
+        p.set_justify_content(FlexPanel::justify::space_around);
+        p.layout();
+        EXPECT(at(*c[0].child, 10, 0));
+        EXPECT(at(*c[1].child, 45, 0));
+        EXPECT(at(*c[2].child, 80, 0));
+    }
+
+    // H-7a edges: overflow falls back to start; a lone item under
+    // space-between behaves as start; each wrapped line justifies alone
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(20, 50);
+        p.set_justify_content(FlexPanel::justify::end);
+        p.add_child(make_child(15, 10));
+        p.add_child(make_child(15, 10));
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 0, 0));
+        EXPECT(at(*c[1].child, 15, 0));
+    }
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(100, 50);
+        p.set_justify_content(FlexPanel::justify::space_between);
+        p.add_child(make_child(10, 10));
+        p.layout();
+        EXPECT(at(*p.get_items()[0].child, 0, 0));
+    }
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(50, 100);
+        p.set_wrap(true);
+        p.set_justify_content(FlexPanel::justify::center);
+        p.add_child(make_child(20, 10));
+        p.add_child(make_child(20, 10));
+        p.add_child(make_child(20, 10));
+        p.layout();
+        // line one holds two (free 10 -> lead 5), line two centers alone
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 5, 0));
+        EXPECT(at(*c[1].child, 25, 0));
+        EXPECT(at(*c[2].child, 15, 10));
+    }
+
     return test::report("flex");
 }

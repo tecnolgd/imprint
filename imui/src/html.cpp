@@ -58,6 +58,7 @@ namespace zb::ui
             return p == "display" || p == "flex-direction" || p == "width" ||
                    p == "height" || p == "flex" || p == "gap" ||
                    p == "padding" || p == "flex-wrap" ||
+                   p == "justify-content" ||
                    p == "background" || p == "background-color" ||
                    p == "border" || p == "border-radius" || p == "color" ||
                    p == "position" || p == "top" || p == "left" ||
@@ -2729,6 +2730,42 @@ namespace zb::ui
                     if (ascii_lower(*wv) == "wrap")
                     {
                         n.prop("wrap", true);
+                    }
+                }
+                // H-7a main-axis justification: unknown values warn once
+                // and keep the current value (never the declaration)
+                if (const std::string *jv = fold_lookup(folded, "justify-content"))
+                {
+                    const std::string j = ascii_lower(*jv);
+                    long long code = -1;
+                    if (j == "flex-start" || j == "start" || j == "left")
+                    {
+                        code = 0;
+                    }
+                    else if (j == "center")
+                    {
+                        code = 1;
+                    }
+                    else if (j == "flex-end" || j == "end" || j == "right")
+                    {
+                        code = 2;
+                    }
+                    else if (j == "space-between")
+                    {
+                        code = 3;
+                    }
+                    else if (j == "space-around")
+                    {
+                        code = 4;
+                    }
+                    if (code >= 0)
+                    {
+                        n.prop("justify", code);
+                    }
+                    else
+                    {
+                        LW << "html: line " << e.line << ": unsupported justify-content '"
+                           << *jv << "'";
                     }
                 }
             }

@@ -93,6 +93,7 @@ namespace zb::ui
         ui_node &spacing(const long long s) { return prop("spacing", s); }
         ui_node &padding(const long long p) { return prop("padding", p); }
         ui_node &wrap(const bool w) { return prop("wrap", w); }
+        ui_node &justify(const long long j) { return prop("justify", j); }
         ui_node &flex(const int g)
         {
             flex_grow = g;

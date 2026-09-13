@@ -274,6 +274,11 @@ support "a little at a time" as the boundary demands):**
   cross-axis), so existing tests and `.ui` files stay green when a
   parameter lands. Sized individually; gated by a real page that needs
   them (see §0 step 6: not now).
+  H-7a landed 2026-09-13: `justify-content` start/center/end/
+  space-between/space-around (closed-form positions per line, spacing
+  as minimum gap, overflow falls back to start) — amp-head
+  space-between puts POWER right, knob-row space-around spreads the
+  five knobs.
 - H-9. Convergent layout passes — **landed 2026-09-13**: `layout()`
   re-runs its pass while a child size/position/measure changed (bound 3;
   contract §7), so auto ancestors fit aspect-derived children whose

@@ -220,13 +220,39 @@ int test_html()
         EXPECT(test::vget<long long>(node_prop_v(r, "padding")) == 2);
         EXPECT(test::vget<bool>(node_prop_v(r, "wrap")) == true);
         EXPECT(r.children[0].flex_grow == 1);
-
         ui_node r2 = parse_html(
             "<div style=\"display: none\"><label>x</label></div>\n", nullptr);
         EXPECT(r2.type == "column");  // single container unwraps to the root
         EXPECT(r2.children.size() == 1);
         EXPECT(r2.children[0].type == "label");
         EXPECT(test::vget<bool>(node_prop_v(r2, "visible")) == false);
+
+        // H-7a justify-content: codes follow the FlexPanel::justify
+        // ordinal; unknown values emit no prop (warn + keep)
+        ui_node j1 = parse_html(
+            "<div style=\"display: flex; justify-content: space-between\">\n"
+            "  <label>x</label>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(j1, "justify")) == 3);
+        ui_node j2 = parse_html(
+            "<div style=\"display: flex; justify-content: SPACE-AROUND\">\n"
+            "  <label>x</label>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(j2, "justify")) == 4);
+        ui_node j3 = parse_html(
+            "<div style=\"display: flex; justify-content: left\">\n"
+            "  <label>x</label>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(j3, "justify")) == 0);
+        ui_node j4 = parse_html(
+            "<div style=\"display: flex; justify-content: stretch\">\n"
+            "  <label>x</label>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(find_prop(j4, "justify") < 0);
     }
 
     // B4: CSS keyword values are ASCII case-insensitive; ids are not
