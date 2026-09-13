@@ -279,6 +279,14 @@ support "a little at a time" as the boundary demands):**
   as minimum gap, overflow falls back to start) — amp-head
   space-between puts POWER right, knob-row space-around spreads the
   five knobs.
+  H-7b landed 2026-09-13: `align-items` (container default, start keeps
+  history) + `align-self` (auto inherits) with center/end offsets and
+  `stretch` for auto-cross children (explicit/percent axes keep size,
+  CSS non-auto rule) — knob labels center under knobs, led labels
+  under LEDs, amp-head/footer rows center vertically (2304 px delta,
+  all inside the card). The viewport-centering wrapper stays a no-op:
+  the document root sizes to content, not the window (root-fill
+  follow-up, not H-7).
 - H-9. Convergent layout passes — **landed 2026-09-13**: `layout()`
   re-runs its pass while a child size/position/measure changed (bound 3;
   contract §7), so auto ancestors fit aspect-derived children whose

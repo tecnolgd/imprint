@@ -33,6 +33,9 @@ namespace zb::ui
         std::vector<ui_node> children;  // container tags only
         std::vector<std::string> items;  // static string model (list_box)
         int flex_grow = 0;               // container layout hint
+        int align_self = 0;              // per-item cross hint (H-7b:
+                                         // 0 = auto/inherit, else
+                                         // FlexPanel::align ordinal + 1)
 
         // generic property entry (all convenience setters go through it:
         // the future designer deserializer fills props the same way)
@@ -97,6 +100,11 @@ namespace zb::ui
         ui_node &flex(const int g)
         {
             flex_grow = g;
+            return *this;
+        }
+        ui_node &self_align(const int a)
+        {
+            align_self = a;
             return *this;
         }
     };

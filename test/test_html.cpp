@@ -253,6 +253,24 @@ int test_html()
             "</div>\n",
             nullptr);
         EXPECT(find_prop(j4, "justify") < 0);
+
+        // H-7b align-items maps to the container prop (FlexPanel::align
+        // ordinal); align-self rides the child node; baseline warns and
+        // emits nothing on either channel
+        ui_node a1 = parse_html(
+            "<div style=\"display: flex; align-items: center\">\n"
+            "  <label style=\"align-self: flex-end\">x</label>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(a1, "align")) == 1);
+        EXPECT(a1.children[0].align_self == 3);
+        ui_node a2 = parse_html(
+            "<div style=\"display: flex; align-items: baseline\">\n"
+            "  <label style=\"align-self: middle\">x</label>\n"
+            "</div>\n",
+            nullptr);
+        EXPECT(find_prop(a2, "align") < 0);
+        EXPECT(a2.children[0].align_self == 0);
     }
 
     // B4: CSS keyword values are ASCII case-insensitive; ids are not

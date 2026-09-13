@@ -531,6 +531,47 @@ namespace zb::ui
             {
                 line_cross = std::max(line_cross, cross_now(*items[i].child, direction));
             }
+
+            // cross-axis alignment (H-7b, contract §flex): the effective
+            // alignment is the item's override or the container default;
+            // stretch grows auto-cross children to the line extent here
+            // (explicit/percent axes keep their size and sit at the line
+            // top, the CSS non-auto rule), every other mode only offsets
+            // the placement below. Closed over settled demands, so the
+            // H-9 loop sees no drift.
+            const auto eff_align = [&](const size_t i) {
+                switch (items[i].align_self)
+                {
+                    case self_align::start:
+                        return align::start;
+                    case self_align::center:
+                        return align::center;
+                    case self_align::end:
+                        return align::end;
+                    case self_align::stretch:
+                        return align::stretch;
+                    case self_align::auto_:
+                    default:
+                        return align_items;
+                }
+            };
+            for (const size_t i : line)
+            {
+                if (eff_align(i) != align::stretch)
+                {
+                    continue;
+                }
+                Widget &child = *items[i].child;
+                const bool row = is_row(direction);
+                const bool cross_explicit =
+                    row ? child.is_height_explicit() : child.is_width_explicit();
+                if (cross_explicit || cross_percent(child, direction) > 0)
+                {
+                    continue;
+                }
+                changed |= (cross_now(child, direction) != line_cross);
+                set_cross_size(child, direction, line_cross);
+            }
             int lead = 0;
             if (slack > 0)
             {
@@ -548,8 +589,7 @@ namespace zb::ui
             for (const size_t i : line)
             {
                 Widget &child = *items[i].child;
-                int pos = padding + lead + before + k * spacing;
-                if (slack > 0)
+                int pos = padding + lead + before + k * spacing;                if (slack > 0)
                 {
                     if (justify_content == justify::space_between && n > 1)
                     {
@@ -566,7 +606,25 @@ namespace zb::ui
                 const auto size_before = child.get_size();
                 const auto pos_before = child.get_position();
                 const auto measure_before = child.measure();
-                set_main_position(child, direction, pos, cross_pos);
+                // H-7b: the child sits inside the line extent per its
+                // effective alignment (line_cross bounds every cross size
+                // above, so these offsets never go negative)
+                const int c = cross_now(child, direction);
+                int cross_off = 0;
+                switch (eff_align(i))
+                {
+                    case align::center:
+                        cross_off = (line_cross - c) / 2;
+                        break;
+                    case align::end:
+                        cross_off = line_cross - c;
+                        break;
+                    case align::start:
+                    case align::stretch:
+                    default:
+                        break;
+                }
+                set_main_position(child, direction, pos, cross_pos + cross_off);
                 before += main_now(child, direction);
                 ++k;
                 child.layout();

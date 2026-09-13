@@ -885,6 +885,12 @@ namespace zb::ui
                 f.set_justify_content((jc >= 0 && jc <= 4)
                                           ? static_cast<FlexPanel::justify>(jc)
                                           : FlexPanel::justify::start);
+                // H-7b: integer align code (FlexPanel::align ordinal);
+                // out-of-range codes fall back to start, never UB
+                const long long ac = prop_of(n, "align", 0LL);
+                f.set_align_items((ac >= 0 && ac <= 3)
+                                      ? static_cast<FlexPanel::align>(ac)
+                                      : FlexPanel::align::start);
             }
         }
 
@@ -906,7 +912,14 @@ namespace zb::ui
             Widget *added = w.get();
             if (container_is_flex)
             {
-                as_flex(container)->add_child(std::move(w), n.flex_grow);
+                // H-7b: per-item cross hint rides the node (0 = auto);
+                // out-of-range codes inherit, never UB
+                const int sa = n.align_self;
+                as_flex(container)->add_child(
+                    std::move(w), n.flex_grow,
+                    (sa >= 0 && sa <= 4)
+                        ? static_cast<FlexPanel::self_align>(sa)
+                        : FlexPanel::self_align::auto_);
             }
             else
             {

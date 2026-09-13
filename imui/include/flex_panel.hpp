@@ -37,10 +37,35 @@ namespace zb::ui
             column
         };
 
+        // cross-axis alignment (H-7b, contract §flex): start keeps the
+        // historical line-top packing; stretch grows auto-cross children
+        // to the line extent, explicit/percent axes stay put
+        enum class align
+        {
+            start = 0,
+            center = 1,
+            end = 2,
+            stretch = 3
+        };
+
+        // per-item override; auto_ inherits align_items
+        enum class self_align
+        {
+            auto_ = 0,
+            start = 1,
+            center = 2,
+            end = 3,
+            stretch = 4
+        };
+
         struct flex_item
         {
             std::unique_ptr<Widget> child;
             int flex_grow = 0;
+            // per-item cross-axis alignment (H-7b); auto_ inherits the
+            // container's align_items, anything else wins for this item
+            // (honored only by the flex parent, like flex_grow)
+            self_align align_self = self_align::auto_;
         };
 
         FlexPanel() = default;
@@ -84,11 +109,21 @@ namespace zb::ui
         }
         [[nodiscard]] justify get_justify_content() const { return justify_content; }
 
+        // cross-axis default for the line's items (H-7b); per-item
+        // align_self (auto_ = this) overrides it
+        void set_align_items(const align a)
+        {
+            align_items = a;
+            mark_layout_dirty();
+        }
+        [[nodiscard]] align get_align_items() const { return align_items; }
+
         /* flex_grow > 0 makes the child share the leftover main-axis space */
-        void add_child(std::unique_ptr<Widget> child, const int flex_grow = 0)
+        void add_child(std::unique_ptr<Widget> child, const int flex_grow = 0,
+                       const self_align self = self_align::auto_)
         {
             child->parent = this;
-            items.push_back({std::move(child), flex_grow});
+            items.push_back({std::move(child), flex_grow, self});
             mark_layout_dirty();
         }
 
@@ -145,6 +180,7 @@ namespace zb::ui
 
         flex_direction direction = flex_direction::column;
         justify justify_content = justify::start;
+        align align_items = align::start;
         int spacing = 0;
         int padding = 0;
         bool wrap = false;

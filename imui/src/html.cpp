@@ -58,7 +58,8 @@ namespace zb::ui
             return p == "display" || p == "flex-direction" || p == "width" ||
                    p == "height" || p == "flex" || p == "gap" ||
                    p == "padding" || p == "flex-wrap" ||
-                   p == "justify-content" ||
+                   p == "justify-content" || p == "align-items" ||
+                   p == "align-self" ||
                    p == "background" || p == "background-color" ||
                    p == "border" || p == "border-radius" || p == "color" ||
                    p == "position" || p == "top" || p == "left" ||
@@ -2767,6 +2768,76 @@ namespace zb::ui
                         LW << "html: line " << e.line << ": unsupported justify-content '"
                            << *jv << "'";
                     }
+                }
+                // H-7b cross-axis alignment: container default plus the
+                // per-item override (auto = inherit). Baseline and
+                // anything else warn once and keep the current value.
+                if (const std::string *av = fold_lookup(folded, "align-items"))
+                {
+                    const std::string a = ascii_lower(*av);
+                    long long code = -1;
+                    if (a == "flex-start" || a == "start")
+                    {
+                        code = 0;
+                    }
+                    else if (a == "center")
+                    {
+                        code = 1;
+                    }
+                    else if (a == "flex-end" || a == "end")
+                    {
+                        code = 2;
+                    }
+                    else if (a == "stretch")
+                    {
+                        code = 3;
+                    }
+                    if (code >= 0)
+                    {
+                        n.prop("align", code);
+                    }
+                    else
+                    {
+                        LW << "html: line " << e.line << ": unsupported align-items '"
+                           << *av << "'";
+                    }
+                }
+            }
+            // align-self rides on the node itself (any element); the
+            // builder honors it only under a flex parent. Codes are the
+            // FlexPanel::align ordinal + 1, 0 = auto/inherit.
+            if (const std::string *sv = fold_lookup(folded, "align-self"))
+            {
+                const std::string a = ascii_lower(*sv);
+                int code = -1;
+                if (a == "auto")
+                {
+                    code = 0;
+                }
+                else if (a == "flex-start" || a == "start")
+                {
+                    code = 1;
+                }
+                else if (a == "center")
+                {
+                    code = 2;
+                }
+                else if (a == "flex-end" || a == "end")
+                {
+                    code = 3;
+                }
+                else if (a == "stretch")
+                {
+                    code = 4;
+                }
+                if (code >= 0)
+                {
+                    n.self_align(code);
+                }
+                else
+                {
+                    LW << "html: line " << e.line << ": unsupported align-self '"
+                       << *sv << "'";
                 }
             }
             // P-1 paint: background-color stands only when no

@@ -451,5 +451,76 @@ int test_flex()
         EXPECT(at(*c[2].child, 15, 10));
     }
 
+    // H-7b align: row 100x50, cross extent 30; center/end only move y
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(100, 50);
+        p.add_child(make_child(10, 10));
+        p.add_child(make_child(10, 20));
+        p.add_child(make_child(10, 30));
+        p.set_align_items(FlexPanel::align::center);
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 0, 10));
+        EXPECT(at(*c[1].child, 10, 5));
+        EXPECT(at(*c[2].child, 20, 0));
+        p.set_align_items(FlexPanel::align::end);
+        p.layout();
+        EXPECT(at(*c[0].child, 0, 20));
+        EXPECT(at(*c[1].child, 10, 10));
+        EXPECT(at(*c[2].child, 20, 0));
+    }
+
+    // H-7b stretch: an auto-cross child grows to the line extent; an
+    // explicit-cross sibling keeps its size at the line top; relayout
+    // is stable (no H-9 drift)
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(100, 50);
+        p.set_align_items(FlexPanel::align::stretch);
+        p.add_child(make_child(10, 20));
+        auto inner = std::make_unique<FlexPanel>();
+        inner->add_child(make_child(8, 10));
+        FlexPanel *inner_ptr = inner.get();
+        p.add_child(std::move(inner));
+        p.layout();
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(c[0].child->get_size().height == 20);
+        EXPECT(at(*c[0].child, 0, 0));
+        EXPECT(inner_ptr->get_size().width == 8);
+        EXPECT(inner_ptr->get_size().height == 20);
+        EXPECT(at(*inner_ptr, 10, 0));
+    }
+
+    // H-7b self override: container stays start, one item centers
+    // itself; column direction centers on x instead
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_size(100, 50);
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::center);
+        p.add_child(make_child(10, 30));
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 0, 10));
+        EXPECT(at(*c[1].child, 10, 0));
+    }
+    {
+        FlexPanel p;
+        p.set_size(50, 100);
+        p.set_align_items(FlexPanel::align::center);
+        p.add_child(make_child(10, 10));
+        p.add_child(make_child(20, 10));
+        p.add_child(make_child(30, 10));
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 10, 0));
+        EXPECT(at(*c[1].child, 5, 10));
+        EXPECT(at(*c[2].child, 0, 20));
+    }
+
     return test::report("flex");
 }
