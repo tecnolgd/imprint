@@ -113,6 +113,11 @@ namespace zb::ui
         }
 
     private:
+        // one packing pass; true when nothing changed (settled) — the
+        // convergence loop in layout() re-runs while it returns false
+        // (contract §7, H-9)
+        bool layout_pass();
+
         flex_direction direction = flex_direction::column;
         int spacing = 0;
         int padding = 0;

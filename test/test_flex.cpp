@@ -242,5 +242,37 @@ int test_flex()
         EXPECT(d.get_focus_target() == btn);
     }
 
+    // H-9 convergent passes: an auto-height ancestor fits an
+    // aspect-derived child whose cross width only settles top-down in
+    // the same pass (the .vu shape: row section > column cap > percent-
+    // width aspect child). One layout() call converges — no second
+    // paint needed — where the old single pass measured ~title only.
+    {
+        FlexPanel section;
+        section.set_direction(FlexPanel::flex_direction::row);
+        section.set_size(200, 200);
+        auto cap = std::make_unique<FlexPanel>();
+        auto title = std::make_unique<Widget>();
+        title->set_size(40, 10);
+        cap->add_child(std::move(title));
+        auto vu = std::make_unique<FlexPanel>();
+        vu->set_width_percent(100);
+        vu->set_aspect_ratio(2, 1);
+        auto inner = std::make_unique<Widget>();
+        inner->set_size(20, 5);
+        vu->add_child(std::move(inner));
+        const Widget *vu_ptr = vu.get();
+        cap->add_child(std::move(vu));
+        const Widget *cap_ptr = cap.get();
+        section.add_child(std::move(cap), 1);
+        section.layout();
+        EXPECT(vu_ptr->get_size().width == 200);
+        EXPECT(vu_ptr->get_size().height == 100);
+        EXPECT(cap_ptr->get_size().height == 110);
+        // steady state stays single-pass: a relayout changes nothing
+        section.layout();
+        EXPECT(cap_ptr->get_size().height == 110);
+    }
+
     return test::report("flex");
 }

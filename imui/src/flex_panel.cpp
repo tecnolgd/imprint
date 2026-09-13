@@ -139,6 +139,16 @@ namespace zb::ui
             }
         }
 
+        bool same_size(const core::imsize_t &a, const core::imsize_t &b)
+        {
+            return a.width == b.width && a.height == b.height;
+        }
+
+        bool same_pos(const core::impoint_t &a, const core::impoint_t &b)
+        {
+            return a.x == b.x && a.y == b.y;
+        }
+
         void set_main_position(Widget &w, const FlexPanel::flex_direction d, const int main, const int cross)
         {
             if (is_row(d))
@@ -209,6 +219,29 @@ namespace zb::ui
         // the layout owns all child geometry writes: report the whole
         // container area (children cannot move outside its bounds)
         mark_dirty();
+        // convergent passes (H-9, contract §7): re-run the pass while a
+        // child size, position, or measure changed, so an auto size fits
+        // children whose inputs settle top-down in the same pass
+        // (aspect-derived heights). Each level converges its own subtree
+        // before returning, so 3 rounds cover arbitrary depth, and
+        // derived-free trees settle after the first pass. The flag still
+        // clears once, inside one layout() call.
+        for (int round = 0; round < 3; ++round)
+        {
+            if (layout_pass())
+            {
+                break;
+            }
+        }
+        clear_layout_dirty();
+    }
+
+    // one packing pass; true when nothing changed (settled). Every write
+    // below records its delta but still calls the setter verbatim, so
+    // damage/mark behavior is identical to the old single pass.
+    bool FlexPanel::layout_pass()
+    {
+        bool changed = false;
         const auto &s = get_size();
         const int avail_main = (is_row(direction) ? s.width : s.height) - 2 * padding;
         const int avail_cross = (is_row(direction) ? s.height : s.width) - 2 * padding;
@@ -221,7 +254,9 @@ namespace zb::ui
             const int pct = cross_percent(*item.child, direction);
             if (pct > 0)
             {
-                set_cross_size(*item.child, direction, std::max(0, pct * avail_cross / 100));
+                const int resolved = std::max(0, pct * avail_cross / 100);
+                changed |= (cross_now(*item.child, direction) != resolved);
+                set_cross_size(*item.child, direction, resolved);
             }
         }
 
@@ -234,6 +269,7 @@ namespace zb::ui
             int derived = 0;
             if (aspect_derive_main(*item.child, direction, derived))
             {
+                changed |= (main_now(*item.child, direction) != derived);
                 set_main_size(*item.child, direction, derived);
             }
         }
@@ -268,8 +304,7 @@ namespace zb::ui
         }
         if (lines.empty())
         {
-            clear_layout_dirty();
-            return;
+            return true;
         }
 
         // a line item claims main-axis space either as a flex grow
@@ -333,7 +368,9 @@ namespace zb::ui
                             ++seen;
                             const int share = (seen == count) ? remaining - given
                                                               : remaining * pct / total_pct;
-                            set_main_size(*items[i].child, direction, std::max(0, share));
+                            const int clamped = std::max(0, share);
+                            changed |= (main_now(*items[i].child, direction) != clamped);
+                            set_main_size(*items[i].child, direction, clamped);
                             given += share;
                         }
                     }
@@ -349,8 +386,10 @@ namespace zb::ui
                             // a container smaller than its padding gives a
                             // negative content box and a raw percent would
                             // size the child negative
-                            set_main_size(child, direction,
-                                          std::max(0, main_desired(child, direction, avail_main)));
+                            const int share =
+                                std::max(0, main_desired(child, direction, avail_main));
+                            changed |= (main_now(child, direction) != share);
+                            set_main_size(child, direction, share);
                         }
                     }
                 }
@@ -398,7 +437,9 @@ namespace zb::ui
                     const int grow = (flex_seen == flex_count)
                                          ? std::max(0, free) - distributed_size
                                          : std::max(0, free) * items[i].flex_grow / total_weight;
-                    set_main_size(*items[i].child, direction, std::max(0, grow));
+                    const int grown = std::max(0, grow);
+                    changed |= (main_now(*items[i].child, direction) != grown);
+                    set_main_size(*items[i].child, direction, grown);
                     distributed_size += grow;
                 }
             }
@@ -417,6 +458,7 @@ namespace zb::ui
                     && items[i].flex_grow == 0)
                 {
                     const int demand = main_demand(child, direction);
+                    changed |= (main_now(child, direction) != demand);
                     if (row)
                     {
                         child.set_width_auto(demand);
@@ -429,6 +471,7 @@ namespace zb::ui
                 if (!cross_explicit && cross_percent(child, direction) == 0)
                 {
                     const int cross = cross_demand(child, direction);
+                    changed |= (cross_now(child, direction) != cross);
                     if (row)
                     {
                         child.set_height_auto(cross);
@@ -454,13 +497,22 @@ namespace zb::ui
             for (const size_t i : line)
             {
                 Widget &child = *items[i].child;
+                // a grandchild may grow the child's measure without moving
+                // the child itself — snapshot all three so the next round
+                // re-reads fresh demands (H-9)
+                const auto size_before = child.get_size();
+                const auto pos_before = child.get_position();
+                const auto measure_before = child.measure();
                 set_main_position(child, direction, pen, cross_pos);
                 pen += main_now(child, direction) + spacing;
                 child.layout();
+                changed |= !same_size(size_before, child.get_size());
+                changed |= !same_pos(pos_before, child.get_position());
+                changed |= !same_size(measure_before, child.measure());
             }
             cross_pos += line_cross + spacing;
         }
-        clear_layout_dirty();
+        return !changed;
     }
 
     void FlexPanel::draw_at(core::Graphics &area) const
