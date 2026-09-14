@@ -38,15 +38,19 @@ namespace zb::ui
         auto pos = padding;
         for (auto &child : children)
         {
+            // in-flow margins ride around the border box (H-3)
             if (orientation::vertical == orient)
             {
-                child->set_position(padding, pos);
-                pos += child->get_size().height + spacing;
+                child->set_position(padding + child->margin_left(),
+                                    pos + child->margin_top());
+                pos += child->margin_top() + child->get_size().height +
+                       child->margin_bottom() + spacing;
             }
             else
             {
-                child->set_position(pos, padding);
-                pos += child->get_size().width + spacing;
+                child->set_position(pos + child->margin_left(), padding + child->margin_top());
+                pos += child->margin_left() + child->get_size().width +
+                       child->margin_right() + spacing;
             }
             child->layout();
         }

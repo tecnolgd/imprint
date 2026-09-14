@@ -2807,6 +2807,92 @@ namespace zb::ui
                     n.prop("aspect_w", aw).prop("aspect_h", ah);
                 }
             }
+            // H-3 margins: 1-4 bare/Npx values with the CSS side
+            // mapping, plus per-side longhands that win over it.
+            // Negative/auto/malformed warn once and keep 0.
+            if (const std::string *mg = fold_lookup(folded, "margin"))
+            {
+                std::vector<std::string> toks;
+                std::string cur;
+                for (const char c : css_trim(*mg))
+                {
+                    if (c == ' ' || c == '\t')
+                    {
+                        if (!cur.empty())
+                        {
+                            toks.push_back(cur);
+                            cur.clear();
+                        }
+                    }
+                    else
+                    {
+                        cur.push_back(c);
+                    }
+                }
+                if (!cur.empty())
+                {
+                    toks.push_back(cur);
+                }
+                long long v[4] = {0, 0, 0, 0};
+                bool clean = !toks.empty() && toks.size() <= 4;
+                for (std::size_t ti = 0; clean && ti < toks.size(); ++ti)
+                {
+                    long long s = 0;
+                    clean = parse_gap_value(toks[ti], s);
+                    if (clean)
+                    {
+                        v[ti] = s;
+                    }
+                }
+                if (clean)
+                {
+                    // CSS side mapping: [all] [v/h] [t/h/b] [t/r/b/l].
+                    // Sides with a longhand present are skipped here
+                    // (the background-shorthand precedent: the loser
+                    // must not emit, prop_of reads the first entry).
+                    const long long v0 = v[0];
+                    const long long v1 = toks.size() == 1 ? v[0] : v[1];
+                    const long long v2 = toks.size() >= 3 ? v[2] : v[0];
+                    const long long v3 = toks.size() >= 4 ? v[3] : v1;
+                    const long long sides[4] = {v0, v1, v2, v3};
+                    const char *const side_props[4] = {"margin_t", "margin_r",
+                                                       "margin_b", "margin_l"};
+                    const char *const side_long[4] = {"margin-top", "margin-right",
+                                                      "margin-bottom", "margin-left"};
+                    for (int si = 0; si < 4; ++si)
+                    {
+                        if (fold_lookup(folded, side_long[si]) == nullptr)
+                        {
+                            n.prop(side_props[si], sides[si]);
+                        }
+                    }
+                }
+                else
+                {
+                    LW << "html: line " << e.line << ": unsupported margin '"
+                       << *mg << "'";
+                }
+            }
+            const char *const margin_sides[4] = {"margin-top", "margin-right",
+                                                 "margin-bottom", "margin-left"};
+            const char *const margin_props[4] = {"margin_t", "margin_r", "margin_b",
+                                                 "margin_l"};
+            for (int mi = 0; mi < 4; ++mi)
+            {
+                if (const std::string *mv = fold_lookup(folded, margin_sides[mi]))
+                {
+                    long long s = 0;
+                    if (parse_gap_value(*mv, s))
+                    {
+                        n.prop(margin_props[mi], s);
+                    }
+                    else
+                    {
+                        LW << "html: line " << e.line << ": unsupported '"
+                           << margin_sides[mi] << ": " << *mv << "'";
+                    }
+                }
+            }
             // H-7c: flex-basis (auto = demand, Npx, N%), flex-shrink (int),
             // flex-grow (int), and the flex: shorthand (1/2/3 tokens +
             // none). Malformed values warn once and keep the current

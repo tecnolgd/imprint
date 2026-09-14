@@ -143,6 +143,25 @@ namespace zb::ui
             return -1;
         }
 
+        // in-flow margin-box helpers (H-3): margins ride outside the
+        // border box, add to spacing, never collapse and never shrink
+        int main_margin_before(const Widget &w, const FlexPanel::flex_direction d)
+        {
+            return is_row(d) ? w.margin_left() : w.margin_top();
+        }
+        int main_margin_after(const Widget &w, const FlexPanel::flex_direction d)
+        {
+            return is_row(d) ? w.margin_right() : w.margin_bottom();
+        }
+        int cross_margin_before(const Widget &w, const FlexPanel::flex_direction d)
+        {
+            return is_row(d) ? w.margin_top() : w.margin_left();
+        }
+        int cross_margin_after(const Widget &w, const FlexPanel::flex_direction d)
+        {
+            return is_row(d) ? w.margin_bottom() : w.margin_right();
+        }
+
         void set_cross_size(Widget &w, const FlexPanel::flex_direction d, const int v)
         {
             if (is_row(d))
@@ -229,11 +248,15 @@ namespace zb::ui
                                  items[i].basis_pct > 0)
                                     ? 0
                                     : main_demand(child, direction);
-            main += m + (first ? 0 : spacing);
+            // in-flow margins count around the border box (H-3)
+            main += m + main_margin_before(child, direction) +
+                    main_margin_after(child, direction) + (first ? 0 : spacing);
             first = false;
-            cross = std::max(cross, cross_percent(child, direction) > 0
-                                         ? 0
-                                         : cross_demand(child, direction));
+            const int cd = cross_percent(child, direction) > 0
+                               ? 0
+                               : cross_demand(child, direction);
+            cross = std::max(cross, cd + cross_margin_before(child, direction) +
+                                         cross_margin_after(child, direction));
         }
         const int pad = 2 * padding;
         if (is_row(direction))
@@ -330,13 +353,17 @@ namespace zb::ui
                 }
                 const int pct = main_percent(*items[i].child, direction);
                 // an explicit basis is the line claim even for growers
-                // (H-7c); otherwise growers keep contributing 0
+                // (H-7c); otherwise growers keep contributing 0. The
+                // in-flow margins ride around every claim (H-3).
                 const int basis = basis_claim(items[i], direction, avail_main);
-                const int item_need = basis >= 0 ? basis
-                                          : (items[i].flex_grow > 0 && pct == 0)
-                                                ? 0
-                                                : main_desired(*items[i].child, direction,
-                                                               avail_main);
+                const int item_need =
+                    (basis >= 0 ? basis
+                                : (items[i].flex_grow > 0 && pct == 0)
+                                      ? 0
+                                      : main_desired(*items[i].child, direction,
+                                                     avail_main)) +
+                    main_margin_before(*items[i].child, direction) +
+                    main_margin_after(*items[i].child, direction);
                 if (wrap && !cur.empty() && need + spacing + item_need > avail_main)
                 {
                     lines.push_back(std::move(cur));
@@ -384,34 +411,47 @@ namespace zb::ui
             {
                 int fixed = static_cast<int>(line.size() - 1) * spacing;
                 int sum_desired = 0;
+                int pct_mm = 0;  // percent items' own margins (H-3): their
+                                 // shares resolve below, so the margins
+                                 // shrink the scaling pool instead
                 for (const size_t i : line)
                 {
                     const Widget &child = *items[i].child;
                     // an explicit basis beats the percent share: the item
                     // claims its basis as fixed demand (H-7c)
                     const int basis = basis_claim(items[i], direction, avail_main);
+                    // margins ride around every claim, including the
+                    // zero claim of a grower (H-3)
+                    const int mm = main_margin_before(child, direction) +
+                                   main_margin_after(child, direction);
                     if (basis >= 0)
                     {
-                        fixed += basis;
+                        fixed += basis + mm;
                         continue;
                     }
                     if (grows(i))
                     {
+                        fixed += mm;
                         continue;  // absorbs leftover space, no fixed claim
                     }
                     const int want = main_desired(child, direction, avail_main);
                     if (main_percent(child, direction) > 0)
                     {
                         sum_desired += want;
+                        pct_mm += mm;
                     }
                     else
                     {
-                        fixed += want;
+                        fixed += want + mm;
                     }
                 }
                 const int remaining = std::max(0, avail_main - fixed);
                 if (sum_desired > remaining)
                 {
+                    // the percent shares scale into the pool left after
+                    // their own margins (H-3); the last percent child
+                    // takes the leftover so the pool sums exactly
+                    const int pool = std::max(0, remaining - pct_mm);
                     int total_pct = 0;
                     int count = 0;
                     for (const size_t i : line)
@@ -433,8 +473,8 @@ namespace zb::ui
                             basis_claim(items[i], direction, avail_main) < 0)
                         {
                             ++seen;
-                            const int share = (seen == count) ? remaining - given
-                                                              : remaining * pct / total_pct;
+                            const int share = (seen == count) ? pool - given
+                                                              : pool * pct / total_pct;
                             const int clamped = std::max(0, share);
                             changed |= (main_now(*items[i].child, direction) != clamped);
                             set_main_size(*items[i].child, direction, clamped);
@@ -488,10 +528,15 @@ namespace zb::ui
                            ? main_now(child, direction)
                            : main_demand(child, direction);
             };
+            // content claims are basis/percent/demand/zero (H-7c); the
+            // in-flow margins count around each one and never shrink
+            // (H-3)
             int used = static_cast<int>(line.size() - 1) * spacing;
             for (const size_t i : line)
             {
-                used += claim_of(i);
+                used += claim_of(i) +
+                        main_margin_before(*items[i].child, direction) +
+                        main_margin_after(*items[i].child, direction);
             }
             const int balance = avail_main - used;
 
@@ -664,14 +709,20 @@ namespace zb::ui
             int sum = 0;
             for (const size_t i : line)
             {
-                sum += main_now(*items[i].child, direction);
+                sum += main_now(*items[i].child, direction) +
+                       main_margin_before(*items[i].child, direction) +
+                       main_margin_after(*items[i].child, direction);
             }
             const int n = static_cast<int>(line.size());
             const int slack = avail_main - sum - (n - 1) * spacing;
+            // the cross extent takes the max margin box (H-3)
             int line_cross = 0;
             for (const size_t i : line)
             {
-                line_cross = std::max(line_cross, cross_now(*items[i].child, direction));
+                line_cross = std::max(line_cross,
+                                      cross_now(*items[i].child, direction) +
+                                          cross_margin_before(*items[i].child, direction) +
+                                          cross_margin_after(*items[i].child, direction));
             }
             // H-7 A+B: a single line fills the content cross box, so
             // center/end place within the real extent (viewport
@@ -721,8 +772,13 @@ namespace zb::ui
                 {
                     continue;
                 }
-                changed |= (cross_now(child, direction) != line_cross);
-                set_cross_size(child, direction, line_cross);
+                // stretch fills the line extent minus the item's own
+                // cross margins (H-3); the content size floors at 0
+                const int fill = std::max(0, line_cross -
+                                                 cross_margin_before(child, direction) -
+                                                 cross_margin_after(child, direction));
+                changed |= (cross_now(child, direction) != fill);
+                set_cross_size(child, direction, fill);
             }
             int lead = 0;
             if (slack > 0)
@@ -741,7 +797,11 @@ namespace zb::ui
             for (const size_t i : line)
             {
                 Widget &child = *items[i].child;
-                int pos = padding + lead + before + k * spacing;                if (slack > 0)
+                // the main-axis pitch starts after the item's own
+                // leading margin (H-3); the slack shares above already
+                // count every margin, so justification needs no shift
+                int pos = padding + lead + before + k * spacing +
+                          main_margin_before(child, direction);                if (slack > 0)
                 {
                     if (justify_content == justify::space_between && n > 1)
                     {
@@ -759,9 +819,12 @@ namespace zb::ui
                 const auto pos_before = child.get_position();
                 const auto measure_before = child.measure();
                 // H-7b: the child sits inside the line extent per its
-                // effective alignment (line_cross bounds every cross size
-                // above, so these offsets never go negative)
-                const int c = cross_now(child, direction);
+                // effective alignment (line_cross bounds every margin
+                // box above, so these offsets never go negative); the
+                // margin box leads, the border box follows it (H-3)
+                const int c = cross_now(child, direction) +
+                              cross_margin_before(child, direction) +
+                              cross_margin_after(child, direction);
                 int cross_off = 0;
                 switch (eff_align(i))
                 {
@@ -776,8 +839,12 @@ namespace zb::ui
                     default:
                         break;
                 }
-                set_main_position(child, direction, pos, cross_pos + cross_off);
-                before += main_now(child, direction);
+                set_main_position(child, direction, pos,
+                                  cross_pos + cross_off +
+                                      cross_margin_before(child, direction));
+                before += main_now(child, direction) +
+                          main_margin_before(child, direction) +
+                          main_margin_after(child, direction);
                 ++k;
                 child.layout();
                 changed |= !same_size(size_before, child.get_size());

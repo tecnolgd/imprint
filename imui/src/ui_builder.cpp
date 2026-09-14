@@ -648,6 +648,16 @@ namespace zb::ui
                 w.set_aspect_ratio(static_cast<int>(prop_of(n, "aspect_w", 0LL)),
                                    static_cast<int>(prop_of(n, "aspect_h", 0LL)));
             }
+            // in-flow margins (H-3): presence-gated so bare widgets stay
+            // allocation-free (set_margin skips the all-zero case too)
+            if (has_prop(n, "margin_t") || has_prop(n, "margin_r") ||
+                has_prop(n, "margin_b") || has_prop(n, "margin_l"))
+            {
+                w.set_margin(static_cast<int>(prop_of(n, "margin_t", 0LL)),
+                             static_cast<int>(prop_of(n, "margin_r", 0LL)),
+                             static_cast<int>(prop_of(n, "margin_b", 0LL)),
+                             static_cast<int>(prop_of(n, "margin_l", 0LL)));
+            }
             if (has_prop(n, "pos_x") || has_prop(n, "pos_y"))
             {
                 w.set_position(static_cast<int>(prop_of(n, "pos_x", 0LL)),

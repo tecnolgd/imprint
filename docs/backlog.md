@@ -230,7 +230,11 @@ support "a little at a time" as the boundary demands):**
   measurement + greedy line breaking (~250 lines). This is the single
   architecture-relevant gap in the initial core.
 - H-2. `BorderWidget` wrapper (~100 lines) + `border` shorthand.
-- H-3. `margin` support (or spacer-widget mapping).
+- H-3. `margin` support — **landed 2026-09-15 (model500 footer gap)**:
+  per-side non-negative margins in the `ext_` sidecar, honored by the
+  FlexPanel/Panel in-flow geometry (pitch/line/measure, never collapsed
+  or shrunk) + HTML 1–4-value shorthand and longhands. Spacer-widget
+  mapping not needed.
 - H-4. `ScrollPanel` + `overflow` (moderate — needs a scroll container).
 - H-5. Widened selector support — **landed 2026-09-12 (model500 demo
   demanded it)**: tag/`.class`/`#id` compounds, descendant chains,

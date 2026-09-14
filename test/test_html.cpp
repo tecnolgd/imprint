@@ -1631,5 +1631,68 @@ int test_html()
         EXPECT(items[1].child->get_size().height == 30);
     }
 
+    // H-3 margin shorthand: 1/2/3/4 values with the CSS side mapping
+    {
+        ui_node r = parse_html(
+            "<div><label style=\"margin: 5px\">x</label></div>\n", nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_t")) == 5);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_r")) == 5);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_b")) == 5);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_l")) == 5);
+        r = parse_html(
+            "<div><label style=\"margin: 1px 2px\">x</label></div>\n", nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_t")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_r")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_b")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_l")) == 2);
+        r = parse_html(
+            "<div><label style=\"margin: 1px 2px 3px\">x</label></div>\n", nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_t")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_r")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_b")) == 3);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_l")) == 2);
+        r = parse_html(
+            "<div><label style=\"margin: 1px 2px 3px 4px\">x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_t")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_r")) == 2);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_b")) == 3);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_l")) == 4);
+    }
+
+    // H-3 margin longhands win over the shorthand; negatives drop
+    {
+        ui_node r = parse_html(
+            "<div><label style=\"margin: 5px; margin-top: 12px\">x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_t")) == 12);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_r")) == 5);
+        r = parse_html(
+            "<div><label style=\"margin-top: -3px\">x</label></div>\n", nullptr);
+        EXPECT(find_prop(r.children[0], "margin_t") < 0);
+    }
+
+    // H-3 end-to-end: the footer gap lands between the rows
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body><div style=\"display: flex; flex-direction: column; width: 200px\">"
+            "<label>x</label>"
+            "<label style=\"margin-top: 12px\">y</label>"
+            "</div></body>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, root);
+        host.layout();
+        const auto &items = host.get_items();
+        EXPECT(items.size() == 2);
+        const int gap = items[1].child->get_position().y -
+                        (items[0].child->get_position().y +
+                         items[0].child->get_size().height);
+        EXPECT(gap == 12);
+    }
+
     return test::report("html");
 }

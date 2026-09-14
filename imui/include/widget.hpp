@@ -386,6 +386,47 @@ namespace zb::ui
         [[nodiscard]] int aspect_w() const { return aspect_w_; }
         [[nodiscard]] int aspect_h() const { return aspect_h_; }
 
+        // in-flow margins, top/right/bottom/left (H-3, contract §flex):
+        // heap sidecar, bare widgets read 0 without allocating; the
+        // FlexPanel/Panel flow counts them around the border box
+        // (never collapsed, never shrunk); absolutely positioned
+        // children ignore them
+        void set_margin(const int t, const int r, const int b, const int l)
+        {
+            const auto cl = [](const int v) {
+                return static_cast<int16_t>(v < 0 ? 0 : (v > 32767 ? 32767 : v));
+            };
+            const int16_t m[4] = {cl(t), cl(r), cl(b), cl(l)};
+            if (m[0] == 0 && m[1] == 0 && m[2] == 0 && m[3] == 0 &&
+                (ext_ == nullptr || ext_->has_margin == 0))
+            {
+                return;  // all-zero without storage: stay allocation-free
+            }
+            ensure_ext();
+            ext_->has_margin = 1;
+            ext_->margin[0] = m[0];
+            ext_->margin[1] = m[1];
+            ext_->margin[2] = m[2];
+            ext_->margin[3] = m[3];
+            mark_layout_dirty();
+        }
+        [[nodiscard]] int margin_top() const
+        {
+            return (ext_ != nullptr && ext_->has_margin != 0) ? ext_->margin[0] : 0;
+        }
+        [[nodiscard]] int margin_right() const
+        {
+            return (ext_ != nullptr && ext_->has_margin != 0) ? ext_->margin[1] : 0;
+        }
+        [[nodiscard]] int margin_bottom() const
+        {
+            return (ext_ != nullptr && ext_->has_margin != 0) ? ext_->margin[2] : 0;
+        }
+        [[nodiscard]] int margin_left() const
+        {
+            return (ext_ != nullptr && ext_->has_margin != 0) ? ext_->margin[3] : 0;
+        }
+
         void set_visible(const bool v)
         {
             mark_dirty();
@@ -1094,6 +1135,7 @@ namespace zb::ui
             shadow_spec sh_out[2]{};
             shadow_spec sh_in[2]{};
             int16_t letter_px = 0;
+            int16_t margin[4] = {0, 0, 0, 0};  // t/r/b/l in-flow margins (H-3)
             uint8_t text_flags = 0;  // bit0 = bold (double-strike)
             core::Color shadow_color{};
             int8_t shadow_dx = 0;
@@ -1103,6 +1145,7 @@ namespace zb::ui
             uint8_t has_rep = 0;
             uint8_t has_bord = 0;
             uint8_t has_text = 0;
+            uint8_t has_margin = 0;
             uint8_t n_sh_out = 0;
             uint8_t n_sh_in = 0;
         };

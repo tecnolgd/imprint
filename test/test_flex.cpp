@@ -590,6 +590,67 @@ int test_flex()
         EXPECT(c[1].child->get_size().height == 60);
     }
 
+    // H-3 margins: the main-axis pitch counts margin-before + size +
+    // margin-after around every claim (no collapse with spacing)
+    {
+        FlexPanel p;
+        p.set_size(100, 100);
+        p.add_child(make_child(10, 10));
+        auto m = make_child(10, 10);
+        m->set_margin(12, 0, 0, 0);  // margin-top only
+        p.add_child(std::move(m));
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 0, 0));
+        EXPECT(at(*c[1].child, 0, 22));  // 10 + 12
+    }
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        p.set_spacing(5);
+        p.set_size(100, 100);
+        auto m = make_child(10, 10);
+        m->set_margin(0, 8, 0, 3);  // right 8, left 3
+        p.add_child(std::move(m));
+        p.add_child(make_child(10, 10));
+        p.layout();
+        const auto &c = p.get_items();
+        EXPECT(at(*c[0].child, 3, 0));
+        // 3 + 10 + 8 + spacing 5
+        EXPECT(at(*c[1].child, 26, 0));
+    }
+
+    // H-3 margins: stretch fills the line minus the cross margins;
+    // measure() counts margins so shrink-fit parents fit them
+    {
+        FlexPanel p;
+        p.set_size(100, 100);
+        p.set_align_items(FlexPanel::align::stretch);
+        auto inner = std::make_unique<FlexPanel>();
+        inner->add_child(make_child(8, 10));
+        inner->set_margin(0, 10, 0, 10);
+        FlexPanel *inner_ptr = inner.get();
+        p.add_child(std::move(inner));
+        p.layout();
+        EXPECT(inner_ptr->get_size().width == 80);
+        EXPECT(at(*inner_ptr, 10, 0));
+    }
+    {
+        FlexPanel p;
+        p.set_direction(FlexPanel::flex_direction::row);
+        auto m = make_child(10, 10);
+        m->set_margin(4, 0, 6, 0);
+        p.add_child(std::move(m));
+        // demand 10 + cross margins 4 + 6
+        EXPECT(p.measure().height == 20);
+        // main margins ride the measure too ( tested via column below )
+        FlexPanel q;
+        auto m2 = make_child(10, 10);
+        m2->set_margin(5, 0, 7, 0);
+        q.add_child(std::move(m2));
+        EXPECT(q.measure().height == 22);
+    }
+
     // H-7c flex-shrink: baseless grower collapses to 0 in deficit
     {
         FlexPanel p;
