@@ -643,15 +643,18 @@ namespace zb::ui
                 w.set_id(n.id);
             }
             // presence-gated: a declared 0 is an explicit value, not an
-            // omission (batch K / N8). Percent values ("N%", batch L-4)
-            // apply after the pixel form: set_size marks both axes
-            // explicit, the declaration then clears its axis's
-            // explicitness
-            const bool has_width = has_prop(n, "width");
-            const bool has_height = has_prop(n, "height");
-            if (has_width || has_height)
+            // omission (batch K / N8). A percent form ("N%", batch L-4)
+            // is not a pixel declaration: it skips the pixel gate
+            // (set_size would mark the axis explicit with a fallback 0
+            // and poison resolvers that read the flag, e.g. abs sizing)
+            // and applies as a bare declaration after.
+            const int w_pct = as_percent(prop_of(n, "width", std::string{}));
+            const int h_pct = as_percent(prop_of(n, "height", std::string{}));
+            const bool has_wpx = has_prop(n, "width") && w_pct <= 0;
+            const bool has_hpx = has_prop(n, "height") && h_pct <= 0;
+            if (has_wpx || has_hpx)
             {
-                if (has_width == has_height)
+                if (has_wpx == has_hpx)
                 {
                     // both declared (or neither leniently): two-axis set
                     w.set_size(static_cast<int>(prop_of(n, "width", 0LL)),
@@ -665,7 +668,7 @@ namespace zb::ui
                     // axis's flag right after
                     const int wp = static_cast<int>(prop_of(n, "width", 0LL));
                     const int hp = static_cast<int>(prop_of(n, "height", 0LL));
-                    if (has_width)
+                    if (has_wpx)
                     {
                         w.set_size(wp, w.get_size().height);
                         w.set_height_auto(w.get_size().height);
@@ -676,8 +679,7 @@ namespace zb::ui
                         w.set_width_auto(w.get_size().width);
                     }
                 }
-            const int w_pct = as_percent(prop_of(n, "width", std::string{}));
-            const int h_pct = as_percent(prop_of(n, "height", std::string{}));
+            }
             if (w_pct > 0)
             {
                 w.set_width_percent(w_pct);
@@ -685,7 +687,6 @@ namespace zb::ui
             if (h_pct > 0)
             {
                 w.set_height_percent(h_pct);
-            }
             }
             // aspect-ratio declaration (H-5): independent of the pixel
             // gate above (it needs no width/height prop of its own --

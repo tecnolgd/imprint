@@ -341,6 +341,32 @@ int test_flex()
         EXPECT(dp.x == 17 && dp.y == 17);
     }
 
+    // P-3 abs explicitness survives H-9 re-passes for containers too:
+    // an empty FlexPanel abs child keeps its declared size instead of
+    // collapsing to its zero demand on the second pass (the real
+    // .knob-dot collapse; Widget::measure defaults to size and hides
+    // it, FlexPanel::measure does not)
+    {
+        FlexPanel knob;
+        knob.set_size(54, 54);
+        knob.set_relative();
+        auto dot = std::make_unique<FlexPanel>();
+        dot->set_size(20, 20);
+        dot->set_absolute();
+        dot->set_abs_offset(0, 50, true);
+        dot->set_abs_offset(1, 50, true);
+        dot->set_translate(0, -50, true);
+        dot->set_translate(1, -50, true);
+        const Widget *dot_ptr = dot.get();
+        knob.add_child(std::move(dot));
+        knob.layout();
+        knob.layout();  // second full layout must not collapse either
+        EXPECT(dot_ptr->get_size().width == 20);
+        EXPECT(dot_ptr->get_size().height == 20);
+        const auto dp = dot_ptr->get_position();
+        EXPECT(dp.x == 17 && dp.y == 17);
+    }
+
     // P-3 nested anchor: an abs child under a static intermediate
     // resolves against the positioned ancestor above, converted into
     // the parent's coordinates

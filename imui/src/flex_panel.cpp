@@ -954,8 +954,24 @@ namespace zb::ui
         const auto size_before = child.get_size();
         const auto pos_before = child.get_position();
         const auto measure_before = child.measure();
+        // the resolve writes through the auto setters (uniform layout
+        // ownership) but must not consume the declaration: restore a
+        // declared axis's explicitness, or H-9 re-passes read demand
+        // instead -- an empty abs container (`.knob-dot`) collapses to
+        // 0x0 on the second pass (base Widget::measure defaults to
+        // size and hides this; FlexPanel::measure does not)
+        const bool keep_w = child.is_width_explicit();
+        const bool keep_h = child.is_height_explicit();
         child.set_width_auto(w);
         child.set_height_auto(h);
+        if (keep_w)
+        {
+            child.size_explicit_w_ = true;
+        }
+        if (keep_h)
+        {
+            child.size_explicit_h_ = true;
+        }
         child.set_position(x, y);
         child.layout();
         changed |= !same_size(size_before, child.get_size());

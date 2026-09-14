@@ -172,11 +172,21 @@ namespace zb::ui
         void set_width_percent(const int pct)
         {
             width_percent_ = percent_clamp(pct);
+            if (width_percent_ != 0)
+            {
+                size_explicit_w_ = false;  // the declaration replaces
+                                           // explicitness (contract §3)
+            }
             mark_layout_dirty();
         }
         void set_height_percent(const int pct)
         {
             height_percent_ = percent_clamp(pct);
+            if (height_percent_ != 0)
+            {
+                size_explicit_h_ = false;  // the declaration replaces
+                                           // explicitness (contract §3)
+            }
             mark_layout_dirty();
         }
         [[nodiscard]] bool is_width_percent() const { return width_percent_ != 0; }

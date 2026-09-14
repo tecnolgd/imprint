@@ -375,7 +375,12 @@ support "a little at a time" as the boundary demands):**
   nearest positioned ancestor else parent box; stretch/declared/measure
   width, translate last; contract §7). model500 `.vubottom` overlays at
   28% again (svg back to full height, dB visible), knob-dot centered
-  (17,17), toggle thumbs at 1px/13px. Storage is a heap side struct
+  (17,17), toggle thumbs at 1px/13px. Follow-up fixed 2026-09-15
+  (knob-dot rendered 0x0): resolve_abs kept consuming explicitness
+  through the auto setters so H-9 re-passes fell back to demand
+  (invisible for base Widget whose measure defaults to size);
+  declared axes now survive, and the pixel gate plus set_*_percent
+  honor the L-4 never-explicit promise. Storage is a heap side struct
   for positioned widgets only (bare ctor still zero-alloc).
 - H-8. Page-level box (landed 2026-09-12, B2 review): the `<body>` style
   feeds an `html_page` (per-axis Npx size + background) beside the tree;
