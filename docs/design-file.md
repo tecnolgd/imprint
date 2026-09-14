@@ -71,6 +71,7 @@ widgets (`label`, `button`, `checkbox`, `radio`, `slider`,
 `text_input`), with properties including
 `id`, `text`, `size`, `pos`, `named`, `checked`, `group`, `step`,
 `min`, `max`, `value`, `rows`, `spacing`, `padding`, `wrap`, `flex`,
+`margin_t`, `margin_r`, `margin_b`, `margin_l`,
 `visible`, `background`, `color`. A `width`/`height` value of the form
 `N%` (1..100) declares
 that axis as a percentage of the FlexPanel parent's content box,

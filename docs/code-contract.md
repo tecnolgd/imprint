@@ -505,10 +505,27 @@ system (standing non-goals):
   set the same channels alone; negative or malformed values warn once
   and keep the current values. Min/max constraints stay unscheduled
   (H-7d): nothing on the gating page uses them. Viewport units
-  (`min-height:100vh`) stay out too — but the viewport-centering
+  (  `min-height:100vh`) stay out too — but the viewport-centering
   wrapper now grounds: a flex `body` is kept as the document root
   (html-path.md), so its container properties and box dress land on
   the build host while the content width constrains the child.
+- **Widget margins (H-3)**: per-side non-negative margins (top/right/
+  bottom/left) live in the heap `ext_` sidecar (`has_margin`; bare
+  widgets stay allocation-free and read 0). In-flow FlexPanel/Panel
+  geometry honors them: a main-axis pitch is margin-before + size +
+  margin-after (claims, wrap breaks, surplus/deficit sums and
+  justification all count them; they add to `spacing`, never collapse);
+  the cross line extent takes the max margin box and stretch fills it
+  minus the item's own cross margins; `measure()` includes them so
+  shrink-fit parents fit margined children. Margins never shrink (the
+  deficit shares only content claims) and absolutely positioned
+  children ignore them. Root-node margins are dropped (the host is
+  viewport-sized). HTML `margin` takes 1–4 `Npx`/bare values with the
+  CSS side mapping (1 = all, 2 = vertical/horizontal, 3 = top/
+  horizontal/bottom, 4 = top/right/bottom/left) plus `margin-top` (and
+  -right/-bottom/-left) longhands that win over it; negative, `auto`
+  and malformed values warn once and keep 0. `.ui`/builder flows use
+  the `margin_t`/`margin_r`/`margin_b`/`margin_l` node props.
 - Keyboard constraints: with a modal open, keyboard focus and
   Tab/arrow navigation are confined to the modal subtree (`focus_next`
   scopes to the modal); if the focused widget lies outside the modal

@@ -172,6 +172,8 @@ applies unchanged.
 | `align-self` | `auto` plus the five above | per-item override (`auto` inherits); honored only under a flex parent |
 | `gap` | `Npx` (single value) | `spacing` |
 | `padding` | `Npx` (single value) | `padding` |
+| `margin` | 1–4 `Npx`/bare values (CSS side mapping) | `margin_t/r/b/l` node props; margins add to gaps, never collapse, never shrink |
+| `margin-top` / `-right` / `-bottom` / `-left` | `Npx`/bare | wins over the shorthand; negative/`auto`/malformed warns, keeps 0 |
 | `flex-wrap` | `wrap` | `wrap=true` |
 | `aspect-ratio` | `W / H`, `N`, `auto` | derived-axis size from the cross axis (only when the derived axis is auto with no percent and the cross axis is explicit or percent — e.g. `.vu`'s `2/1` turns a `width: 100%` into a height; explicit declarations always win; the cross value may settle during the same layout — convergent passes re-read it, H-9); `auto`/malformed = absent |
 | `background-color` | `#rgb`, `#rrggbb`, named subset, `rgb()`, `rgba()`, `transparent` | the shared `background` property (see design-file) |
