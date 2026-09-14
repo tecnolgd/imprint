@@ -287,6 +287,16 @@ support "a little at a time" as the boundary demands):**
   all inside the card). The viewport-centering wrapper stays a no-op:
   the document root sizes to content, not the window (root-fill
   follow-up, not H-7).
+  H-7 A+B landed 2026-09-14 (model500 full-page fidelity): (A) a flex
+  `body` is kept as the document root — host takes its container
+  properties and box dress, content width constrains the child (the
+  P-2a "amp runs full-bleed" follow-up and the root-fill follow-up
+  above both close; body gradient backgrounds land through the dress,
+  the H-8 colors-only page carrier is unchanged); (B) HTML containers
+  with no `align-items` default to `stretch` (CSS default — VU bank
+  fills the chassis, knob-row spreads; `.ui`/programmatic keep
+  `start`). Plain bodies hoist exactly as before. `min-height:100vh`
+  itself stays unsupported (no viewport units).
 - H-9. Convergent layout passes — **landed 2026-09-13**: `layout()`
   re-runs its pass while a child size/position/measure changed (bound 3;
   contract §7), so auto ancestors fit aspect-derived children whose

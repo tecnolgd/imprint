@@ -1540,5 +1540,92 @@ int test_html()
         EXPECT(items[1].child->get_size().height == 70);
     }
 
+    // H-7 A: a flex body is kept as the document root (inline style)
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body style=\"display: flex; justify-content: center; "
+            "align-items: center; padding: 40px\">"
+            "<div style=\"width: 620px\"><label>x</label></div></body>\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(root.type == "row");
+        EXPECT(test::vget<long long>(node_prop_v(root, "justify")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(root, "align")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(root, "padding")) == 40);
+        EXPECT(root.children.size() == 1);
+        FlexPanel host;
+        host.set_size(800, 600);
+        build(host, root);
+        host.layout();
+        // the 620px child centers in the 800px host (viewport wrapper)
+        const auto &items = host.get_items();
+        EXPECT(items.size() == 1);
+        EXPECT(items[0].child->get_size().width == 620);
+        EXPECT(items[0].child->get_position().x == 90);
+    }
+
+    // H-7 A: a flex body from a stylesheet rule is kept too, and a
+    // body-anchored descendant selector matches through the chain
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<head><style>body { display: flex; } "
+            "body label { color: red; }</style></head>\n"
+            "<body><div><label>x</label></div></body>\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(root.type == "row");
+        EXPECT(root.children.size() == 1);
+        EXPECT(test::vget<std::string>(
+                   node_prop_v(root.children[0].children[0], "color")) ==
+               "red");
+    }
+
+    // H-7 A: a plain body still hoists the single container child
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body><div style=\"width: 100px\"><label>x</label></div></body>\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(root.type == "column");
+        EXPECT(test::vget<long long>(node_prop_v(root, "width")) == 100);
+    }
+
+    // H-7 B: absent align-items on an HTML container means stretch
+    {
+        ui_node r = parse_html("<div><label>x</label></div>\n", nullptr);
+        EXPECT(r.type == "column");
+        EXPECT(test::vget<long long>(node_prop_v(r, "align")) == 3);
+        ui_node r2 = parse_html(
+            "<div style=\"align-items: center\"><label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r2, "align")) == 1);
+        // labels are not containers: no align default rides them
+        EXPECT(find_prop(r.children[0], "align") < 0);
+    }
+
+    // H-7 B end-to-end: the auto-cross label stretches to the filled
+    // line (the 100px content box, not the 30px sibling max)
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body><div style=\"display: flex; width: 200px\">"
+            "<label>x</label>"
+            "<label style=\"height: 30px\">y</label>"
+            "</div></body>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel host;
+        host.set_size(200, 100);
+        build(host, root);
+        host.layout();
+        const auto &items = host.get_items();
+        EXPECT(items.size() == 2);
+        EXPECT(items[0].child->get_size().height == 100);
+        EXPECT(items[1].child->get_size().height == 30);
+    }
+
     return test::report("html");
 }

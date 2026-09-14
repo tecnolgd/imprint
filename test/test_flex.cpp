@@ -451,7 +451,8 @@ int test_flex()
         EXPECT(at(*c[2].child, 15, 10));
     }
 
-    // H-7b align: row 100x50, cross extent 30; center/end only move y
+    // H-7b align: row 100x50, single line fills the 50px content
+    // cross box (H-7 A+B); center/end place within the real extent
     {
         FlexPanel p;
         p.set_direction(FlexPanel::flex_direction::row);
@@ -462,19 +463,19 @@ int test_flex()
         p.set_align_items(FlexPanel::align::center);
         p.layout();
         const auto &c = p.get_items();
-        EXPECT(at(*c[0].child, 0, 10));
-        EXPECT(at(*c[1].child, 10, 5));
-        EXPECT(at(*c[2].child, 20, 0));
+        EXPECT(at(*c[0].child, 0, 20));
+        EXPECT(at(*c[1].child, 10, 15));
+        EXPECT(at(*c[2].child, 20, 10));
         p.set_align_items(FlexPanel::align::end);
         p.layout();
-        EXPECT(at(*c[0].child, 0, 20));
-        EXPECT(at(*c[1].child, 10, 10));
-        EXPECT(at(*c[2].child, 20, 0));
+        EXPECT(at(*c[0].child, 0, 40));
+        EXPECT(at(*c[1].child, 10, 30));
+        EXPECT(at(*c[2].child, 20, 20));
     }
 
-    // H-7b stretch: an auto-cross child grows to the line extent; an
-    // explicit-cross sibling keeps its size at the line top; relayout
-    // is stable (no H-9 drift)
+    // H-7b stretch: an auto-cross child grows to the filled line extent
+    // (the content box for a single line); an explicit-cross sibling
+    // keeps its size at the line top; relayout is stable (no H-9 drift)
     {
         FlexPanel p;
         p.set_direction(FlexPanel::flex_direction::row);
@@ -491,7 +492,7 @@ int test_flex()
         EXPECT(c[0].child->get_size().height == 20);
         EXPECT(at(*c[0].child, 0, 0));
         EXPECT(inner_ptr->get_size().width == 8);
-        EXPECT(inner_ptr->get_size().height == 20);
+        EXPECT(inner_ptr->get_size().height == 50);
         EXPECT(at(*inner_ptr, 10, 0));
     }
 
@@ -505,7 +506,7 @@ int test_flex()
         p.add_child(make_child(10, 30));
         p.layout();
         const auto &c = p.get_items();
-        EXPECT(at(*c[0].child, 0, 10));
+        EXPECT(at(*c[0].child, 0, 20));
         EXPECT(at(*c[1].child, 10, 0));
     }
     {
@@ -517,9 +518,9 @@ int test_flex()
         p.add_child(make_child(30, 10));
         p.layout();
         const auto &c = p.get_items();
-        EXPECT(at(*c[0].child, 10, 0));
-        EXPECT(at(*c[1].child, 5, 10));
-        EXPECT(at(*c[2].child, 0, 20));
+        EXPECT(at(*c[0].child, 20, 0));
+        EXPECT(at(*c[1].child, 15, 10));
+        EXPECT(at(*c[2].child, 10, 20));
     }
 
     // H-7c flex-basis: explicit pixel basis overrides demand

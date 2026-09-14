@@ -261,7 +261,9 @@ backlog H-6):
 - HTML containers stretch auto-cross children when `align-items` is
   absent (the CSS `stretch` default); `.ui`/programmatic containers
   keep the `start` default. Explicit/percent cross axes keep their size
-  (the CSS non-auto rule).
+  (the CSS non-auto rule). A single line fills the content cross box,
+  so `center`/`end` place within the real extent and stretch fills the
+  container; wrapped lines keep stacking from the padding origin.
 - No text flow: `p`/`span` are single-line labels, `br` is a one-line
   spacer — real paragraph reflow waits for H-1.
 - Entities are only the five named above.

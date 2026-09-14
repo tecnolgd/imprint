@@ -457,10 +457,16 @@ system (standing non-goals):
   container, else one of the four). The effective alignment resolves per
   line; offsets sit inside the line's cross extent (`line_cross`, the
   max child cross size): `start → 0`, `center → (line_cross−c)/2`
-  (floor), `end → line_cross−c`, `stretch → 0` after growing. `stretch`
+  (floor), `end → line_cross−c`,   `stretch → 0` after growing. `stretch`
   writes the child's cross size up to `line_cross` only when that axis
   is auto (measured) — an explicit size or a percent declaration keeps
-  its value and the item behaves as `start` (CSS non-auto rule). Sizes
+  its value and the item behaves as `start` (CSS non-auto rule). A
+  single line fills the content cross box (`line_cross` takes
+  `max(line_cross, avail_cross)`): center/end then place within the
+  real extent (viewport centering works) and stretch fills the
+  container, not just the sibling max — multi-line stacks keep packing
+  from the padding origin. The fill is stable under H-9 (stretch never
+  feeds a demand, so an auto-cross pass settles at its demand size). Sizes
   on the main axis, `measure()` (demands, not positions), and line
   breaking are untouched; the stretch write is closed over settled
   demands so the H-9 loop sees no drift. HTML `align-items` maps

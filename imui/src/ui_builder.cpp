@@ -739,6 +739,30 @@ namespace zb::ui
 
         // --- control-specific properties --------------------------------
 
+        // shared FlexPanel configuration: direction, spacing, padding,
+        // wrap, and the H-7a/H-7b integer justify/align codes (out of
+        // range falls back to start, never UB). Used both when a
+        // column/row node materializes its own widget and when a
+        // column/row document root configures the build host (H-7 A+B:
+        // a kept flex body grounds the host with its direction and
+        // viewport-centering placement, not just spacing/padding).
+        void apply_flex_config(FlexPanel &f, const ui_node &n)
+        {
+            f.set_direction(n.type == "row" ? FlexPanel::flex_direction::row
+                                            : FlexPanel::flex_direction::column);
+            f.set_spacing(static_cast<int>(prop_of(n, "spacing", 0LL)));
+            f.set_padding(static_cast<int>(prop_of(n, "padding", 0LL)));
+            f.set_wrap(prop_of(n, "wrap", false));
+            const long long jc = prop_of(n, "justify", 0LL);
+            f.set_justify_content((jc >= 0 && jc <= 4)
+                                      ? static_cast<FlexPanel::justify>(jc)
+                                      : FlexPanel::justify::start);
+            const long long ac = prop_of(n, "align", 0LL);
+            f.set_align_items((ac >= 0 && ac <= 3)
+                                  ? static_cast<FlexPanel::align>(ac)
+                                  : FlexPanel::align::start);
+        }
+
         void apply_control_props(Widget &w, const ui_node &n)
         {
             const std::string &t = n.type;
@@ -873,24 +897,7 @@ namespace zb::ui
             }
             if (t == "column" || t == "row")
             {
-                FlexPanel &f = *as_flex(w);
-                f.set_direction(t == "row" ? FlexPanel::flex_direction::row
-                                           : FlexPanel::flex_direction::column);
-                f.set_spacing(static_cast<int>(prop_of(n, "spacing", 0LL)));
-                f.set_padding(static_cast<int>(prop_of(n, "padding", 0LL)));
-                f.set_wrap(prop_of(n, "wrap", false));
-                // H-7a: integer justify code (FlexPanel::justify ordinal);
-                // out-of-range codes fall back to start, never UB
-                const long long jc = prop_of(n, "justify", 0LL);
-                f.set_justify_content((jc >= 0 && jc <= 4)
-                                          ? static_cast<FlexPanel::justify>(jc)
-                                          : FlexPanel::justify::start);
-                // H-7b: integer align code (FlexPanel::align ordinal);
-                // out-of-range codes fall back to start, never UB
-                const long long ac = prop_of(n, "align", 0LL);
-                f.set_align_items((ac >= 0 && ac <= 3)
-                                      ? static_cast<FlexPanel::align>(ac)
-                                      : FlexPanel::align::start);
+                apply_flex_config(*as_flex(w), n);
             }
         }
 
@@ -1205,8 +1212,16 @@ namespace zb::ui
     Widget &build(Widget &host, const ui_node &root)
     {
         // the host is the real container: the root tag (panel/row/column)
-        // is documentation; the root's children materialize into it
-        if (host.is_flex_container())
+        // is documentation; a row/column root configures the host as its
+        // own widget would be configured (direction + H-7 placement ride
+        // along, so a kept flex body grounds the host); any other root
+        // keeps the historical spacing/padding-only transfer
+        if (host.is_flex_container() &&
+            (root.type == "row" || root.type == "column"))
+        {
+            apply_flex_config(*as_flex(host), root);
+        }
+        else if (host.is_flex_container())
         {
             FlexPanel &f = *as_flex(host);
             f.set_spacing(static_cast<int>(prop_of(root, "spacing", 0LL)));

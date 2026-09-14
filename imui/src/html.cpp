@@ -2409,7 +2409,7 @@ namespace zb::ui
 
         std::string widget_type(const Elem &e, const std::vector<Decl> &folded)
         {
-            if (e.tag == "div")
+            if (e.tag == "div" || e.tag == "body")
             {
                 if (const std::string *dir = fold_lookup(folded, "flex-direction"))
                 {
@@ -2920,6 +2920,9 @@ namespace zb::ui
                 // H-7b cross-axis alignment: container default plus the
                 // per-item override (auto = inherit). Baseline and
                 // anything else warn once and keep the current value.
+                // Absent align-items on an HTML container is the CSS
+                // stretch default (H-7 A+B, html-path.md); .ui keeps
+                // the FlexPanel start default.
                 if (const std::string *av = fold_lookup(folded, "align-items"))
                 {
                     const std::string a = ascii_lower(*av);
@@ -2949,6 +2952,10 @@ namespace zb::ui
                         LW << "html: line " << e.line << ": unsupported align-items '"
                            << *av << "'";
                     }
+                }
+                else
+                {
+                    n.prop("align", 3);
                 }
             }
             // align-self rides on the node itself (any element); the
@@ -3848,10 +3855,37 @@ namespace zb::ui
         doc.type = "root";
         VarMap vars;
         collect_vars(ps.rules, vars);
-        const std::vector<Ancestor> no_ancestors;
+        // the body joins every ancestor chain (html-path.md), so
+        // body-anchored descendant selectors match uniformly in kept
+        // and hoisted documents alike
+        const std::vector<Ancestor> top_chain{Ancestor{
+            ps.root->tag, ps.root->attr("id"),
+            class_list(ps.root->attr("class"))}};
+
+        // a flex body is kept as the document root itself
+        // (html-path.md): the build host takes its container
+        // properties and box dress, so the page surround and the
+        // viewport-centering wrapper survive; plain bodies hoist
+        // exactly as before
+        {
+            std::vector<Decl> body_folded;
+            const std::vector<Ancestor> no_ancestors;
+            fold_style(*ps.root, ps.rules, vars, no_ancestors, body_folded);
+            const std::string *body_display = fold_lookup(body_folded, "display");
+            if (body_display != nullptr && ascii_lower(*body_display) == "flex")
+            {
+                ui_node kept =
+                    convert_elem(*ps.root, ps.rules, vars, no_ancestors);
+                if (ok != nullptr)
+                {
+                    *ok = !kept.children.empty();
+                }
+                return kept;
+            }
+        }
         for (const auto &c : ps.root->children)
         {
-            doc.children.push_back(convert_elem(*c, ps.rules, vars, no_ancestors));
+            doc.children.push_back(convert_elem(*c, ps.rules, vars, top_chain));
         }
 
         if (ok != nullptr)

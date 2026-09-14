@@ -673,6 +673,16 @@ namespace zb::ui
             {
                 line_cross = std::max(line_cross, cross_now(*items[i].child, direction));
             }
+            // H-7 A+B: a single line fills the content cross box, so
+            // center/end place within the real extent (viewport
+            // centering) and stretch fills the container, not just the
+            // sibling max. Wrapped lines keep stacking from the padding
+            // origin. Stable under H-9: stretch writes sizes, never
+            // demands, so an auto-cross pass settles at its demand.
+            if (lines.size() == 1)
+            {
+                line_cross = std::max(line_cross, avail_cross);
+            }
 
             // cross-axis alignment (H-7b, contract §flex): the effective
             // alignment is the item's override or the container default;
