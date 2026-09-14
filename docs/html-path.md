@@ -194,6 +194,9 @@ applies unchanged.
 
 ## `<style>` rule matching
 
+- CSS `/* */` comments are stripped in declaration lists: a comment
+  never glues to its neighbor declaration (an uncommented parse would
+  silently drop the declaration after the comment).
 - A rule set is a flat list of `selector { declarations }`. A selector
   is a comma group of chains; each chain is one or more compounds in
   descendant order (`A B` = a B inside an A). A compound is an optional

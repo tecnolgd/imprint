@@ -539,14 +539,61 @@ namespace zb::ui
         void parse_declarations(const char *begin, const char *end,
                                 std::vector<Decl> &out)
         {
+            // CSS /* */ comments never reach a prop or value
+            // (html-path.md): without this a comment glues to its
+            // neighbor declaration and the neighbor silently drops
+            // (series7 :root lost every commented var's successor)
+            auto skip_space = [](const char *&p, const char *end) {
+                for (;;)
+                {
+                    while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' ||
+                                       *p == '\r'))
+                    {
+                        ++p;
+                    }
+                    if (p + 1 < end && p[0] == '/' && p[1] == '*')
+                    {
+                        p += 2;
+                        while (p + 1 < end && !(p[0] == '*' && p[1] == '/'))
+                        {
+                            ++p;
+                        }
+                        if (p + 1 < end)
+                        {
+                            p += 2;
+                        }
+                        continue;
+                    }
+                    break;
+                }
+            };
+            // a comment inside a shorthand value must not poison the
+            // whole declaration either
+            auto strip_comments = [](std::string v) {
+                std::string out;
+                for (std::size_t i = 0; i < v.size();)
+                {
+                    if (v[i] == '/' && i + 1 < v.size() && v[i + 1] == '*')
+                    {
+                        i += 2;
+                        while (i + 1 < v.size() && !(v[i] == '*' && v[i + 1] == '/'))
+                        {
+                            ++i;
+                        }
+                        i += 2;
+                    }
+                    else
+                    {
+                        out.push_back(v[i]);
+                        ++i;
+                    }
+                }
+                return out;
+            };
             const char *p = begin;
             while (p < end)
             {
-                while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' ||
-                                   *p == '\r'))
-                {
-                    ++p;
-                }
+                skip_space(p, end);
                 if (p < end && *p == ';')
                 {
                     ++p;
@@ -570,9 +617,24 @@ namespace zb::ui
                 const char *val_b = p;
                 while (p < end && *p != ';' && *p != '}')
                 {
+                    // a comment may hold ';' or '}' (comment text is
+                    // never syntax); the strip below removes the span
+                    if (p + 1 < end && p[0] == '/' && p[1] == '*')
+                    {
+                        p += 2;
+                        while (p + 1 < end && !(p[0] == '*' && p[1] == '/'))
+                        {
+                            ++p;
+                        }
+                        if (p + 1 < end)
+                        {
+                            p += 2;
+                        }
+                        continue;
+                    }
                     ++p;
                 }
-                std::string val(val_b, p);
+                std::string val = strip_comments(std::string(val_b, p));
                 prop.erase(0, prop.find_first_not_of(" \t\n\r"));
                 prop.erase(prop.find_last_not_of(" \t\n\r") + 1);
                 val.erase(0, val.find_first_not_of(" \t\n\r"));
@@ -1593,6 +1655,63 @@ namespace zb::ui
             {
                 n.prop("bg_lin3_mid", colors[1]);
                 n.prop("bg_lin3_p", pos[1] < 0 ? 50 : pos[1]);
+            }
+            // N-stop linear (4..8): the full list rides bg_linN_pN/cN
+            // with resolved percent positions (absent distribute evenly
+            // between specified neighbors, ends defaulting 0/100,
+            // clamped non-decreasing); >8 stays ends-only
+            if (colors.size() >= 4 && colors.size() <= 8)
+            {
+                std::vector<long long> res = pos;
+                if (res.front() < 0)
+                {
+                    res.front() = 0;
+                }
+                if (res.back() < 0 || res.back() > 100)
+                {
+                    res.back() = 100;
+                }
+                std::size_t run = 0;
+                while (run < res.size())
+                {
+                    if (res[run] >= 0)
+                    {
+                        ++run;
+                        continue;
+                    }
+                    std::size_t lo = run;
+                    while (run < res.size() && res[run] < 0)
+                    {
+                        ++run;
+                    }
+                    // res[lo-1] and res[run] are specified (ends
+                    // defaulted above); spread the gap evenly
+                    const long long a = res[lo - 1];
+                    const long long b = res[run];
+                    const std::size_t gap = run - lo + 1;
+                    for (std::size_t k = lo; k < run; ++k)
+                    {
+                        res[k] = a + (b - a) * static_cast<long long>(k - lo + 1) /
+                                         static_cast<long long>(gap);
+                    }
+                }
+                n.prop("bg_linN_n", static_cast<long long>(colors.size()));
+                long long prev = 0;
+                for (std::size_t i = 0; i < colors.size(); ++i)
+                {
+                    long long p = res[i] < 0 ? 0 : res[i];
+                    if (p > 100)
+                    {
+                        p = 100;
+                    }
+                    if (p < prev)
+                    {
+                        p = prev;
+                    }
+                    prev = p;
+                    n.prop("bg_linN_p" + std::to_string(i), p);
+                    n.prop("bg_linN_c" + std::to_string(i), colors[i]);
+                }
             }
             return true;
         }

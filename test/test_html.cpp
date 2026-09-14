@@ -1694,5 +1694,95 @@ int test_html()
         EXPECT(gap == 12);
     }
 
+    // CSS comments never glue to a neighbor declaration
+    {
+        // :root vars survive trailing comments (series7 lost every
+        // commented var's successor before the strip)
+        ui_node r = parse_html(
+            "<head><style>:root{--a:#112233;/* c */--b:#445566;}"
+            ".x{background-color:var(--b);}</style></head>\n"
+            "<body><div class=\"x\"><label>q</label></div></body>\n",
+            nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r, "background")) == "#445566");
+        // a comment between declarations kills neither side
+        r = parse_html(
+            "<head><style>.x{margin-top:1px;/* c */margin-left:2px;}</style></head>\n"
+            "<body><div class=\"x\"><label>q</label></div></body>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r, "margin_t")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r, "margin_l")) == 2);
+        // a semicolon inside the comment does not end the value
+        r = parse_html(
+            "<div><label style=\"margin: 1px /* a;b */ 2px\">x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_t")) == 1);
+        EXPECT(test::vget<long long>(node_prop_v(r.children[0], "margin_l")) == 2);
+    }
+
+    // N-stop linear: 5 specified stops ride bg_linN_pN/cN verbatim
+    {
+        ui_node r = parse_html(
+            "<div style=\"background: linear-gradient(180deg, #8f9186 0%, "
+            "#c9cbc4 8%, #dfdfda 30%, #c9cbc4 70%, #8f9186 100%)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_n")) == 5);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p0")) == 0);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p1")) == 8);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p2")) == 30);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p3")) == 70);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p4")) == 100);
+        EXPECT(test::vget<std::string>(node_prop_v(r, "bg_linN_c0")) == "#8f9186");
+        // the ends-only base still lands for compat
+        EXPECT(test::vget<std::string>(node_prop_v(r, "bg_lin_from")) == "#8f9186");
+        EXPECT(test::vget<std::string>(node_prop_v(r, "bg_lin_to")) == "#8f9186");
+    }
+
+    // N-stop linear: bare stops distribute evenly, ends default 0/100
+    {
+        ui_node r = parse_html(
+            "<div style=\"background: linear-gradient(red, green, blue, yellow)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_n")) == 4);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p0")) == 0);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p1")) == 33);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p2")) == 66);
+        EXPECT(test::vget<long long>(node_prop_v(r, "bg_linN_p3")) == 100);
+    }
+
+    // N-stop linear: >8 stops stay ends-only (P-1 rule)
+    {
+        ui_node r = parse_html(
+            "<div style=\"background: linear-gradient(red 0%, green 10%, blue 20%, "
+            "white 30%, black 40%, red 50%, green 60%, blue 70%, white 100%)\">"
+            "<label>x</label></div>\n",
+            nullptr);
+        EXPECT(find_prop(r, "bg_linN_n") < 0);
+        EXPECT(test::vget<std::string>(node_prop_v(r, "bg_lin_from")) == "red");
+        EXPECT(test::vget<std::string>(node_prop_v(r, "bg_lin_to")) == "white");
+    }
+
+    // N-stop linear end-to-end: the third stop reads exactly at 50%
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<body><div style=\"display: flex; width: 100px; height: 101px; "
+            "background: linear-gradient(black 0%, red 25%, green 50%, "
+            "blue 75%, white 100%)\">"
+            "<label>x</label></div></body>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel host;
+        host.set_size(100, 101);
+        build(host, root);
+        host.layout();
+        core::Graphics g(100, 101, nullptr);
+        host.draw(g);
+        EXPECT(test::pixel_at(g, 50, 50) == core::colors::Green.pixel);
+        EXPECT(test::pixel_at(g, 50, 0) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(g, 50, 100) == core::colors::White.pixel);
+    }
+
     return test::report("html");
 }
