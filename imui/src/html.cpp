@@ -1406,7 +1406,9 @@ namespace zb::ui
 
         // H-7c: parse flex shorthand (1/2/3 tokens + none)
         // flex: <grow> | <grow> <shrink> | <grow> <shrink> <basis> | none
-        void parse_flex_shorthand(ui_node &n, const std::string &s)
+        // Bad tokens keep their channel's current value; the return
+        // reports whether every token landed (the caller warns once)
+        bool parse_flex_shorthand(ui_node &n, const std::string &s)
         {
             const std::string v = ascii_lower(css_trim(s));
             if (v == "none")
@@ -1415,7 +1417,7 @@ namespace zb::ui
                 n.flex_shrink = 0;
                 n.flex_basis_px = -1;
                 n.flex_basis_pct = 0;
-                return;
+                return true;
             }
             // Split by whitespace
             std::vector<std::string> tokens;
@@ -1439,15 +1441,20 @@ namespace zb::ui
             {
                 tokens.push_back(cur);
             }
-            if (tokens.empty())
+            if (tokens.empty() || tokens.size() > 3)
             {
-                return;
+                return false;
             }
             // First token = grow (required)
+            bool clean = true;
             long long g = 0;
             if (parse_int_value(tokens[0], g) && g >= 0)
             {
                 n.flex_grow = static_cast<int>(g);
+            }
+            else
+            {
+                clean = false;
             }
             // Second token = shrink (optional, default 0 per our deviation)
             if (tokens.size() >= 2)
@@ -1457,12 +1464,17 @@ namespace zb::ui
                 {
                     n.flex_shrink = static_cast<int>(sh);
                 }
+                else
+                {
+                    clean = false;
+                }
             }
             // Third token = basis (optional, default auto per our deviation)
             if (tokens.size() >= 3)
             {
-                parse_flex_basis(n, tokens[2]);
+                clean = parse_flex_basis(n, tokens[2]) && clean;
             }
+            return clean;
         }
 
         // one gradient stop: "<color> [<pos>]" — the color may hold
@@ -2794,25 +2806,27 @@ namespace zb::ui
                     n.prop("aspect_w", aw).prop("aspect_h", ah);
                 }
             }
+            // H-7c: flex-basis (auto = demand, Npx, N%), flex-shrink (int),
+            // flex-grow (int), and the flex: shorthand (1/2/3 tokens +
+            // none). Malformed values warn once and keep the current
+            // values, like the H-7a/H-7b channels above.
             if (const std::string *fx = fold_lookup(folded, "flex"))
             {
-                const long long g = parse_int(*fx, -1);
-                if (g >= 0)
+                if (!parse_flex_shorthand(n, *fx))
                 {
-                    n.flex_grow = static_cast<int>(g);
+                    LW << "html: line " << e.line << ": unsupported flex '"
+                       << *fx << "'";
                 }
-            }
-            // H-7c: flex-basis (auto = demand, Npx, N%), flex-shrink (int)
-            // Full flex: shorthand (1/2/3 tokens + none) handled here.
-            if (const std::string *fx = fold_lookup(folded, "flex"))
-            {
-                parse_flex_shorthand(n, *fx);
             }
             else
             {
                 if (const std::string *fb = fold_lookup(folded, "flex-basis"))
                 {
-                    parse_flex_basis(n, *fb);
+                    if (!parse_flex_basis(n, *fb))
+                    {
+                        LW << "html: line " << e.line
+                           << ": unsupported flex-basis '" << *fb << "'";
+                    }
                 }
                 if (const std::string *fs = fold_lookup(folded, "flex-shrink"))
                 {
@@ -2821,15 +2835,24 @@ namespace zb::ui
                     {
                         n.flex_shrink = static_cast<int>(s);
                     }
+                    else
+                    {
+                        LW << "html: line " << e.line
+                           << ": unsupported flex-shrink '" << *fs << "'";
+                    }
                 }
             }
-            // H-7c: flex-grow as standalone property (default 0)
             if (const std::string *fg = fold_lookup(folded, "flex-grow"))
             {
                 const long long g = parse_int(*fg, -1);
                 if (g >= 0)
                 {
                     n.flex_grow = static_cast<int>(g);
+                }
+                else
+                {
+                    LW << "html: line " << e.line << ": unsupported flex-grow '"
+                       << *fg << "'";
                 }
             }
             const bool is_container = n.type == "column" || n.type == "row";

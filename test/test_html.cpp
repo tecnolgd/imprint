@@ -1532,7 +1532,9 @@ int test_html()
         // root is a FlexPanel (column), its items are the two labels
         const auto &items = host.get_items();
         EXPECT(items.size() == 2);
-        // First child: flex-basis:30px beats width:80px -> gets 30px
+        // First child: flex-basis:30px sets the column-main (height) to
+        // 30, beating both its demand and any grow-zero claim (width:80px
+        // is the cross axis here and is unaffected)
         // Second child: flex-grow:1 gets the rest (70px)
         EXPECT(items[0].child->get_size().height == 30);
         EXPECT(items[1].child->get_size().height == 70);

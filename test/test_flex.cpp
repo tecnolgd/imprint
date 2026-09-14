@@ -570,8 +570,8 @@ int test_flex()
         const auto &c = p.get_items();
         // total claim = 120, deficit = 20
         // scaled: 1*60=60, 2*60=120, total=180
-        // cuts: 20*60/180=6, 20*120/180=13 (last takes remainder)
-        // final: 60-6=54, 60-13=47
+        // cuts: 20*60/180=6, remainder 20-6=14 to the last participant
+        // final: 60-6=54, 60-14=46
         EXPECT(c[0].child->get_size().height == 54);
         EXPECT(c[1].child->get_size().height == 46); // 100 - 54
     }
