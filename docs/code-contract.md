@@ -702,8 +702,14 @@ system (standing non-goals):
 - Three-stop linear + repeating overlay (P-2c): exactly 3 linear stops
   with a `%`/bare middle emit the ends (compat) plus a mid section in
   the sidecar (`set_background_linear3`, full from/mid/to + mid `%`;
-  bare mid = 50; a px-positioned mid falls back to ends-only); >3
-  stops stay ends-only (P-1 rule). `set_background_repeating` (up to 6
+  bare mid = 50; a px-positioned mid falls back to ends-only).
+  N-stop linear (4–8 stops, series7 case metal): the full stop list
+  rides the sidecar (`set_background_linearN`, kind 6, positions in
+  `%`, non-decreasing after clamping; absent positions distribute
+  evenly between their specified neighbors, ends defaulting 0/100)
+  and paints through `fill_linear_stops` (segment lerp in 8-bit RGB,
+  the `fill_gradient` corner-AA row layout generalized); 2 stops stay
+  the dress base, >8 stops stay ends-only (P-1 rule). `set_background_repeating` (up to 6
   px-positioned stops incl. double-position `C A B` pairs, period =
   last stop, horizontal/vertical by the P-1 angle rule) paints a
   translucent texture OVER any base (solid/dress/extended) — the topmost
