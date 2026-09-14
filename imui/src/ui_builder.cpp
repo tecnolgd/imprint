@@ -18,7 +18,7 @@
 #include "toggle_switch.hpp"
 #include "trend_line.hpp"
 #include "widget.hpp"
-
+#include <string>
 namespace zb::ui
 {
     // the shared color resolver (declared in html.hpp, defined below at
@@ -792,6 +792,39 @@ namespace zb::ui
                         static_cast<int>(prop_of(n, "shadow_dx", 0LL)),
                         static_cast<int>(prop_of(n, "shadow_dy", 0LL)));
                 }
+            }
+        }
+        if(has_prop(n, "halign"))
+        {
+            const std::string halign = prop_of(n, "halign", std::string{});
+
+            if(halign == "left")
+            {
+                w.set_h_align(Widget::h_align::left);
+            }
+            else if(halign == "center")
+            {
+                w.set_h_align(Widget::h_align::center);
+            }
+            else if(halign == "right")
+            {
+                w.set_h_align(Widget::h_align::right);
+            }
+        }
+        if(has_prop(n, "valign"))
+        {
+            const std::string valign = prop_of(n, "valign", std::string{});
+
+            if(valign == "top")
+            {
+                w.set_v_align(Widget::v_align::top);
+            }
+            else if(valign == "center")
+            {
+                w.set_v_align(Widget::v_align::center);
+            }
+            else if(valign == "bottom"){
+                w.set_v_align(Widget::v_align::bottom);
             }
         }
 

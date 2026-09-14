@@ -780,6 +780,8 @@ namespace zb::ui
             valign = a;
             mark_dirty();
         }
+[[nodiscard]] h_align get_h_align() const { return halign; }
+        [[nodiscard]] v_align get_v_align() const { return valign; }
         // text dressing (P-2a, all default-off): tracking in px
         // (negative clamps to 0), bold = double-strike +1px, one solid
         // offset shadow copy (shadow alpha 0 = none). Rides the
