@@ -41,7 +41,21 @@ applies unchanged.
   one top-level container child, that node is returned as the document
   root, so its container properties (`spacing`/`padding`/`wrap`) apply to
   the build host; otherwise a pseudo-root wraps the body's children and
-  they materialize into the host one by one.
+  they materialize into the host one by one. Exception — a flex body is
+  kept: when the body's folded style (inline `style=` plus exact-`body`
+  stylesheet rules, below) carries `display: flex`, the body converts to
+  a `row`/`column` node per the `div` mapping and is returned as the
+  document root itself. The host then takes the body's container
+  properties **and** box dress, so a page gradient, `padding`, and the
+  viewport-centering wrapper (`justify-content: center` +
+  `align-items: center`) ground the screen, while the content width
+  (e.g. a `620px` chassis) constrains the child instead of being
+  dropped. Plain bodies hoist exactly as before.
+- Stylesheet rules match the body element like any other (tag `body`,
+  plus its `id`/`class` attributes); `html`/`head` still match nothing
+  and never build. The body joins every ancestor chain, so
+  `body`-anchored descendant selectors match uniformly in kept and
+  hoisted documents.
 - Element tags and attribute names are lower-cased (HTML is
   case-insensitive); attribute values and `id` keep their case. CSS
   keyword values (`display` / `flex-direction` / `flex-wrap` / `auto` /
@@ -148,7 +162,12 @@ applies unchanged.
 | `display` | `flex`, `block`, `none` | `none` → `visible=false`; `flex` on a `div` selects the `row` direction (see above); any other value leaves the element's table type unchanged |
 | `flex-direction` | `row`, `column` | container type of a `div` |
 | `width` / `height` | `Npx`, `N%` (1..100), `auto` | `Npx` → existing pixel size; `N%` → the `"N%"` percent form (FlexPanel parent content box); `auto` → absent (measured) |
-| `flex` | `N` (integer) | `flex_grow` |
+| `flex` | `none`, or 1–3 integer tokens (`grow [shrink [basis]]`) | the `flex_grow` / `flex_shrink` / basis channels (`none` = `0 0 auto`); a single number keeps basis-auto and shrink-0 (documented CSS deviations); malformed tokens warn once, keep current |
+| `flex-grow` / `flex-shrink` | integer ≥ 0 | surplus share / deficit weight; malformed warns once, keeps current |
+| `flex-basis` | `auto`, `Npx`, `N%` (1..100) | the line-claim override (packing, wrap breaks, grow base); malformed warns once, keeps current |
+| `justify-content` | `flex-start`/`start`/`left`, `center`, `flex-end`/`end`/`right`, `space-between`, `space-around` | main-axis placement over settled sizes (`spacing` is the minimum gap; `F ≤ 0` falls back to `start`); unknown warns once, keeps current |
+| `align-items` | `flex-start`/`start`, `center`, `flex-end`/`end`, `stretch` | container cross default; **absent on an HTML container means `stretch`** (the CSS default — sections fill the chassis width); `.ui`/programmatic containers keep the `start` default; `baseline`/unknown warns once, keeps current |
+| `align-self` | `auto` plus the five above | per-item override (`auto` inherits); honored only under a flex parent |
 | `gap` | `Npx` (single value) | `spacing` |
 | `padding` | `Npx` (single value) | `padding` |
 | `flex-wrap` | `wrap` | `wrap=true` |
@@ -179,8 +198,10 @@ applies unchanged.
   theirs. `*`, `>`, `+`, `~`, `[…]`, and anything with `:` or `::`
   (pseudo-classes/elements) keep the whole rule inert — except exact
   `:root`, which only collects `--*` variables (below) and never
-  matches an element. Structural tags (`html`, `head`, `body`) match
-  nothing: no widget is ever built for them.
+  matches an element. Structural tags (`html`, `head`) match
+  nothing: no widget is ever built for them. `body` matches its element
+  (see the root rules above); it still never builds except as the kept
+  document root.
 - Application is a real cascade, then inline: every matching rule
   contributes its declarations ordered by specificity `(ids, classes,
   tags)` and then document order (later wins ties); the inline
@@ -237,6 +258,10 @@ backlog H-6):
 - `div` is a content-measuring flex container, not a block box; its
   direction defaults to `column`, with `flex-direction: row` or a bare
   `display: flex` (the CSS flex default) selecting `row`.
+- HTML containers stretch auto-cross children when `align-items` is
+  absent (the CSS `stretch` default); `.ui`/programmatic containers
+  keep the `start` default. Explicit/percent cross axes keep their size
+  (the CSS non-auto rule).
 - No text flow: `p`/`span` are single-line labels, `br` is a one-line
   spacer — real paragraph reflow waits for H-1.
 - Entities are only the five named above.

@@ -468,9 +468,11 @@ system (standing non-goals):
   `stretch → stretch` onto the container prop; `align-self` maps the
   same plus `auto` onto the per-item hint (honored only under a flex
   parent, ignored elsewhere like `flex_grow`); `baseline` and anything
-  else warn once and keep the current value.   `.ui`/builder flows use the
-  `align` node prop (container, integer code) and the `align_self` node
-  hint (item).
+  else warn once and keep the current value. An HTML container with no
+  `align-items` emits `stretch` (the CSS default, html-path.md) so
+  sections fill the content width; `.ui`/builder flows use the `align`
+  node prop (container, integer code) and the `align_self` node hint
+  (item), keeping the `start` default there.
 - **FlexPanel basis & shrink (H-7c)**: a per-item `flex-basis` (auto =
   the historical demand, explicit px, or % of the content-box main
   size) replaces the item's demand as its line claim — for packing,
@@ -492,8 +494,11 @@ system (standing non-goals):
   documented deviations. `flex-basis: auto/px/%` and `flex-shrink: N`
   set the same channels alone; negative or malformed values warn once
   and keep the current values. Min/max constraints stay unscheduled
-  (H-7d): nothing on the gating page uses them, and
-  `min-height:100vh` needs viewport units plus root-fill first.
+  (H-7d): nothing on the gating page uses them. Viewport units
+  (`min-height:100vh`) stay out too — but the viewport-centering
+  wrapper now grounds: a flex `body` is kept as the document root
+  (html-path.md), so its container properties and box dress land on
+  the build host while the content width constrains the child.
 - Keyboard constraints: with a modal open, keyboard focus and
   Tab/arrow navigation are confined to the modal subtree (`focus_next`
   scopes to the modal); if the focused widget lies outside the modal
