@@ -277,10 +277,14 @@ satisfies. Changing any of these is an architecture change.
   `draw_arc_aa` (sampled polyline), `fill_circle_aa` (chord spans with
   fractional edge pixels) and the round-rect pair (`fill_round_rect_aa`
   / `draw_round_rect_aa`, straight AA edges plus quarter-arc corners)
-  write exclusively through the private
+  write exclusively through
   `plot_aa` — the coverage value IS the blend weight, applied regardless
   of the `alpha_enabled` switch; at 16bpp coverage quantizes to
-  plot/skip at half and the stroke stays one pixel wide. Angular work
+  plot/skip at half and the stroke stays one pixel wide. `plot_aa`
+  itself is public: widget paint (inset-band fringe) is a second
+  consumer beside the fills, through the same gate and policy — the
+  single-choke-point invariant is about the write path, not the
+  caller. Angular work
   follows the **two-trig-path policy**: desktop (`USE_INTEGER_GEOMETRY`
   OFF) uses IEEE float `sin`/`cos`; FPU-less targets (the NDS toolchain
   forces it ON) use a compile-time-generated 1-degree lookup table
