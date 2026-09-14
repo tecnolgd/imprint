@@ -29,4 +29,34 @@ EXTRA_GLYPHS = {
         0b00000,
         0b00000,
     ],
+    # degree sign (dial readouts: "71°C", "62")
+    u'\u00b0': [
+        0b01110,
+        0b01010,
+        0b01110,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+    ],
+    # black square (dashboard status dots: "■ CELL 07")
+    u'\u25a0': [
+        0b00000,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b00000,
+    ],
+    # black diamond (series7 footer bullets: "◆ SERIES 7 ◆")
+    u'\u25c6': [
+        0b00100,
+        0b01110,
+        0b11111,
+        0b01110,
+        0b00100,
+        0b00000,
+        0b00000,
+    ],
 }

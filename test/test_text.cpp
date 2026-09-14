@@ -159,6 +159,21 @@ int test_text()
         p.write(*g, u"é", 1, 0, 7, core::colors::White);  // baseline at y=7
         EXPECT(test::pixel_at(*g, 2, 0) == core::colors::White.pixel);  // accent dot
         EXPECT(test::pixel_at(*g, 0, 6) == core::colors::White.pixel);  // 'e' bottom row
+        // demo batch (htmldemo dials): the literals below keep these
+        // units in the generator's scan set (code-contract §2.4)
+        EXPECT(p.covers(u"°"[0]));
+        EXPECT(p.covers(u"■"[0]));
+        EXPECT(p.covers(u"◆"[0]));
+        EXPECT(p.measure(u"°", 1).width == 6);
+        p.write(*g, u"°", 1, 10, 7, core::colors::White);
+        EXPECT(test::pixel_at(*g, 11, 0) == core::colors::White.pixel);  // ring top
+        EXPECT(test::pixel_at(*g, 10, 0) != core::colors::White.pixel);  // ring left gap
+        p.write(*g, u"■", 1, 0, 7, core::colors::White);
+        EXPECT(test::pixel_at(*g, 4, 1) == core::colors::White.pixel);  // block face
+        EXPECT(test::pixel_at(*g, 0, 0) != core::colors::White.pixel);  // block top margin
+        p.write(*g, u"◆", 1, 10, 7, core::colors::White);
+        EXPECT(test::pixel_at(*g, 12, 4) == core::colors::White.pixel);  // diamond bottom tip
+        EXPECT(test::pixel_at(*g, 10, 2) == core::colors::White.pixel);  // diamond waist
 #else
         EXPECT(p.measure(u"é", 1).width == 0);  // ASCII-only build
 #endif

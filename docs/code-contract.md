@@ -166,6 +166,10 @@ sources and intersect them with the hand-drawn table in
 - 5x7 cannot render readable CJK (at least 12x12 needed): CJK goes to
   plan 2 (stb_truetype build-time TTF→bitmap layer converter) and is not
   covered by batch E plan 1.
+- Demo-driven coverage (htmldemo dials): `°` `■` `◆` join `é`/`·` in the
+  hand-drawn table. `.html` documents are not scan inputs — their
+  non-ASCII units ride the runtime table only when a scanned source
+  (in practice the tests) uses them too.
 
 **Font subset plan 2 (batch S2)**: a build-time TTF→bitmap
 converter rasterizes a TrueType font into a glyph subset table
