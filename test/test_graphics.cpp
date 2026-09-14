@@ -903,6 +903,42 @@ int test_graphics()
         EXPECT(test::pixel_at(*g, 0, 20) == test::pixel_at(*g, 40, 20));
     }
 
+    // fill_linear_stops (N-stop): ends exact, every stop reads
+    // exactly at its percent row, spans lerp straight
+    {
+        auto g = core::Graphics::make_ptr(5, 101);
+        const int pos[5] = {0, 25, 50, 75, 100};
+        const core::Color cols[5] = {core::colors::Black, core::colors::Red,
+                                     core::colors::Green, core::colors::Blue,
+                                     core::colors::White};
+        g->fill(core::colors::Black);
+        g->fill_linear_stops(0, 0, 4, 100, pos, cols, 5, false);
+        EXPECT(test::pixel_at(*g, 2, 0) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g, 2, 100) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g, 2, 25) == core::colors::Red.pixel);
+        EXPECT(test::pixel_at(*g, 2, 50) == core::colors::Green.pixel);
+        EXPECT(test::pixel_at(*g, 2, 75) == core::colors::Blue.pixel);
+#if COLOR_DEPTH == 32
+        // tp=12 in Black->Red (span 25): (0*13 + 255*12) / 25 = 122
+        EXPECT(test::pixel_at(*g, 2, 12) == core::Color::from(122, 0, 0).pixel);
+        // tp=37 in Red->Green: r = 255*13/25 = 132, g = 255*12/25 = 122
+        EXPECT(test::pixel_at(*g, 2, 37) == core::Color::from(132, 122, 0).pixel);
+#else
+        // 16bpp lerps through the quantized endpoints (248), shifting
+        // interior buckets down one: r = 248*12/25 = 119, g = 248*12/25
+        EXPECT(test::pixel_at(*g, 2, 12) == core::Color::from(112, 0, 0).pixel);
+        EXPECT(test::pixel_at(*g, 2, 37) == core::Color::from(128, 112, 0).pixel);
+#endif
+        EXPECT(test::pixel_at(*g, 0, 37) == test::pixel_at(*g, 4, 37));
+        // horizontal with corner radius: mid rows span, corners cut
+        auto g2 = core::Graphics::make_ptr(41, 41);
+        g2->fill(core::colors::Black);
+        g2->fill_linear_stops(0, 0, 40, 40, pos, cols, 5, true, 10);
+        EXPECT(test::pixel_at(*g2, 0, 20) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(*g2, 40, 20) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(*g2, 0, 0) == core::colors::Black.pixel);  // cut
+    }
+
     // fill_repeating (P-2c): period-6 white[0,2]/black[2,6] stripes,
     // hard stops flat, period wraps
     {

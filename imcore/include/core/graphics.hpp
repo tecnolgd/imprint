@@ -281,6 +281,17 @@ namespace zb::ui::core
                             const Color &to, bool horizontal = true, int radius = 0);
 
         /*
+         * Fill the rect with an N-stop linear ramp (2..8 stops,
+         * positions in percent 0..100 non-decreasing): each span lerps
+         * straight in 8-bit RGB like fill_gradient above; zero-length
+         * spans read flat. Direction, radius, wireframe and
+         * binary-alpha rules match fill_gradient above.
+         */
+        void fill_linear_stops(int x1, int y1, int x2, int y2, const int *stop_pos,
+                               const Color *stop_col, int nstops, bool horizontal = true,
+                               int radius = 0);
+
+        /*
          * Fill the rect with a repeating stripe texture (P-2c): the
          * stops (2..6 px positions, non-decreasing, last = period > 0)
          * tile every `period` px along columns (horizontal) or rows;

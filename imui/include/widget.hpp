@@ -237,8 +237,8 @@ namespace zb::ui
             uint8_t flags = 0;
             uint16_t a = 0;
             uint16_t b = 0;
-            uint16_t pos[4] = {0, 0, 0, 0};
-            core::Color col[4]{};
+            uint16_t pos[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+            core::Color col[8]{};
         };
         // repeating stripe overlay (P-2c): up to 6 px stops, period =
         // last stop; paints translucently over any base
@@ -675,6 +675,41 @@ namespace zb::ui
             g->col[0] = from;
             g->col[1] = mid;
             g->col[2] = to;
+            mark_dirty();
+        }
+        // N-stop linear (4..8 stops): full percent positions (0..100,
+        // non-decreasing) + colors ride the sidecar (kind 6);
+        // horizontal in flags bit0. Replaces any paint_dress gradient
+        // at draw time
+        void set_background_linearN(const int *stop_pos,
+                                    const core::Color *stop_col,
+                                    const int nstops, const bool horizontal)
+        {
+            if (stop_pos == nullptr || stop_col == nullptr || nstops < 4 ||
+                nstops > 8)
+            {
+                return;
+            }
+            grad_ex *const g = mut_grad();
+            g->kind = 6;
+            g->flags = horizontal ? 1 : 0;
+            g->b = static_cast<uint16_t>(nstops);
+            int prev = 0;
+            for (int i = 0; i < nstops; ++i)
+            {
+                int p = stop_pos[i] < 0 ? 0 : stop_pos[i];
+                if (p > 100)
+                {
+                    p = 100;
+                }
+                if (p < prev)
+                {
+                    p = prev;  // CSS non-decreasing clamp
+                }
+                prev = p;
+                g->pos[i] = static_cast<uint16_t>(p);
+                g->col[i] = stop_col[i];
+            }
             mark_dirty();
         }
         // repeating stripe overlay (P-2c): 2..6 px stops, period > 0;

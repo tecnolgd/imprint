@@ -359,6 +359,12 @@ support "a little at a time" as the boundary demands):**
   quantized-alpha fixes ride along: inset blend is forced on (falloff
   manufactures translucency; radius-0 outlines overwrote raw), and
   falloff math honors the binary half rule.
+  N-stop linear landed 2026-09-15 (series7 case metal, 4–8 stops with
+  even distribution through `fill_linear_stops`; >8 stays ends-only).
+  Prerequisite found en route: stylesheet `/* */` comments glued to
+  the neighbor declaration (series7 `:root` lost every commented
+  var's successor) — `parse_declarations` now strips them (H-5
+  hardening, html-path.md).
 - P-3. Absolute positioning — **landed 2026-09-13**: `position:
   relative/absolute` + `top/left/right/bottom` (`Npx`/`N%`/bare/`auto`)
   + `transform: translate()`; FlexPanel skips abs in measure/lines and

@@ -467,6 +467,53 @@ namespace zb::ui
                         prop_of(n, "bg_lin_h", true));
                 }
             }
+            // N-stop linear: 4..8 percent stops ride bg_linN_pN/cN;
+            // any missing half drops the form, the ends-only base
+            // above survives
+            if (has_prop(n, "bg_linN_n"))
+            {
+                const int nstops =
+                    static_cast<int>(prop_of(n, "bg_linN_n", 0LL));
+                if (nstops >= 4 && nstops <= 8)
+                {
+                    int pos[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+                    core::Color cols[8]{};
+                    int got = 0;
+                    for (int i = 0; i < nstops; ++i)
+                    {
+                        const std::string ps =
+                            "bg_linN_p" + std::to_string(i);
+                        const std::string cs =
+                            "bg_linN_c" + std::to_string(i);
+                        if (!has_prop(n, ps.c_str()) ||
+                            !has_prop(n, cs.c_str()))
+                        {
+                            break;
+                        }
+                        if (!parse_stop_color(
+                                prop_of(n, cs.c_str(), std::string{}),
+                                cols[got]))
+                        {
+                            got = 0;
+                            break;
+                        }
+                        pos[got] = static_cast<int>(
+                            prop_of(n, ps.c_str(), 0LL));
+                        ++got;
+                    }
+                    if (got == nstops)
+                    {
+                        core::Color folded[8]{};
+                        for (int i = 0; i < nstops; ++i)
+                        {
+                            folded[i] = fold_opacity(cols[i], op);
+                        }
+                        w.set_background_linearN(
+                            pos, folded, nstops,
+                            prop_of(n, "bg_lin_h", true));
+                    }
+                }
+            }
             // P-2c repeating overlay: 2..6 stops ride bg_rep_pN/cN; any
             // missing half drops the overlay, the base above survives
             if (has_prop(n, "bg_rep_n"))

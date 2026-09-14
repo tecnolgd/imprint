@@ -1507,10 +1507,156 @@ void Graphics::fill_gradient3(int x1, int y1, int x2, int y2, const Color &from,
     }
 }
 
+void Graphics::fill_linear_stops(int x1, int y1, int x2, int y2, const int *stop_pos,
+                                   const Color *stop_col, int nstops, const bool horizontal,
+                                   const int radius)
+{
+    if (render_mode_ == render_mode::wireframe)
+    {
+        draw_rect(x1, y1, x2, y2, (nstops > 0 && stop_col != nullptr)
+                                      ? stop_col[0]
+                                      : Color{});  // S-1: bones only
+        return;
+    }
+    if (stop_pos == nullptr || stop_col == nullptr || nstops < 2)
+    {
+        return;
+    }
+    const int n = nstops > 8 ? 8 : nstops;
+    const int left = x1 < x2 ? x1 : x2;
+    const int right = x1 < x2 ? x2 : x1;
+    const int top = y1 < y2 ? y1 : y2;
+    const int bottom = y1 < y2 ? y2 : y1;
+
+    int r = radius < 0 ? 0 : radius;
+    const int half = std::min(right - left, bottom - top) / 2;
+    if (r > half)
+    {
+        r = half;
+    }
+
+    // N-stop ramp over percent positions (non-decreasing by contract):
+    // the last stop at or below t owns the pixel, zero-length spans
+    // read flat (the conic segment rule)
+    auto ramp = [&](const int t, const int steps) {
+        if (steps <= 0)
+        {
+            return stop_col[0];
+        }
+        const int tp = t * 100 / steps;
+        int seg = 0;
+        for (int i = 1; i < n; ++i)
+        {
+            if (stop_pos[i] <= tp)
+            {
+                seg = i;
+            }
+        }
+        if (seg >= n - 1)
+        {
+            return stop_col[n - 1];
+        }
+        const int span = stop_pos[seg + 1] - stop_pos[seg];
+        if (span <= 0)
+        {
+            return stop_col[seg];
+        }
+        return lerp_color(stop_col[seg], stop_col[seg + 1], tp - stop_pos[seg], span);
+    };
+
+    // fractional chord edge (the fill_round_rect_aa formula): the two
+    // pixels just outside the span blend by coverage
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int frac8) {
+        if (frac8 > 0)
+        {
+            plot_aa(lx - 1, row, frac8, lc);
+            plot_aa(rx + 1, row, frac8, rc);
+        }
+    };
+
+    if (horizontal)
+    {
+        const int steps = right - left;
+        if (r == 0)
+        {
+            // square fast path: one span per column
+            for (int col = left; col <= right; ++col)
+            {
+                draw_line(col, top, col, bottom, ramp(col - left, steps));
+            }
+            return;
+        }
+        for (int row = top; row <= bottom; ++row)
+        {
+            int dy = 0;
+            if (r > 0)
+            {
+                if (row < top + r)
+                {
+                    dy = top + r - row;
+                }
+                else if (row > bottom - r)
+                {
+                    dy = row - (bottom - r);
+                }
+            }
+            if (dy == 0)
+            {
+                for (int col = left; col <= right; ++col)
+                {
+                    draw_pixel(col, row, ramp(col - left, steps));
+                }
+                continue;
+            }
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            const int frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            const int lx = left + r - dx;
+            const int rx = right - r + dx;
+            for (int col = lx; col <= rx; ++col)
+            {
+                draw_pixel(col, row, ramp(col - left, steps));
+            }
+            fringe(lx, rx, row, ramp(lx - left, steps), ramp(rx - left, steps), frac8);
+        }
+    }
+    else
+    {
+        const int steps = bottom - top;
+        for (int row = top; row <= bottom; ++row)
+        {
+            const Color c = ramp(row - top, steps);
+            int dy = 0;
+            if (r > 0)
+            {
+                if (row < top + r)
+                {
+                    dy = top + r - row;
+                }
+                else if (row > bottom - r)
+                {
+                    dy = row - (bottom - r);
+                }
+            }
+            if (dy == 0)
+            {
+                draw_line(left, row, right, row, c);
+                continue;
+            }
+            const int dx = corner_chord(r, dy);
+            const int64_t t = 1LL * r * r - 1LL * dy * dy;
+            const int frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 / (2LL * dx + 1));
+            const int lx = left + r - dx;
+            const int rx = right - r + dx;
+            draw_line(lx, row, rx, row, c);
+            fringe(lx, rx, row, c, c, frac8);
+        }
+    }
+}
+
 void Graphics::fill_repeating(int x1, int y1, int x2, int y2, const bool horizontal, const int period,
                                const int *stop_pos, const Color *stop_col, int nstops, const int radius)
-{
-    if (stop_pos == nullptr || stop_col == nullptr || nstops < 2)
+{    if (stop_pos == nullptr || stop_col == nullptr || nstops < 2)
     {
         return;
     }

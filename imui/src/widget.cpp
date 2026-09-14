@@ -231,7 +231,7 @@ namespace zb::ui
         // extended forms override every paint_dress gradient
         // (contract P-2b/c; the builder sets exactly one overall)
         if (const grad_ex *const g = grad();
-            g != nullptr && (g->kind == 3 || g->kind == 5))
+            g != nullptr && (g->kind == 3 || g->kind == 5 || g->kind == 6))
         {
             if (g->kind == 3)
             {
@@ -243,6 +243,17 @@ namespace zb::ui
                 }
                 area.fill_conic(0, 0, s.width - 1, s.height - 1, g->a, pos,
                                 g->col, n, radius);
+            }
+            else if (g->kind == 6)
+            {
+                int pos[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+                const int n = g->b < 4 ? 4 : (g->b > 8 ? 8 : g->b);
+                for (int i = 0; i < n; ++i)
+                {
+                    pos[i] = g->pos[i];
+                }
+                area.fill_linear_stops(0, 0, s.width - 1, s.height - 1, pos,
+                                       g->col, n, (g->flags & 1) != 0, radius);
             }
             else
             {
