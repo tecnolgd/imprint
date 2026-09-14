@@ -72,18 +72,19 @@ namespace zb::ui
 
         // --- text helpers --------------------------------------------------
 
-        // the five entities of the subset; anything else (&#...; included)
-        // stays literal -- an explicit contract boundary. On success `p` is
-        // advanced past the trailing ';'.
+        // the six entities of the subset; anything else (&#...; included)
+        // stays literal -- an explicit contract boundary. `&nbsp;` folds
+        // to a plain space (no nowrap/collapse distinction until H-1).
+        // On success `p` is advanced past the trailing ';'.
         bool append_entity(const char *&p, const char *end, std::string &out)
         {
             static const struct
             {
                 const char *name;
-                char repl;
+                const char *repl;
             } kEntities[] = {
-                {"amp;", '&'}, {"lt;", '<'}, {"gt;", '>'},
-                {"quot;", '"'}, {"#39;", '\''},
+                {"amp;", "&"}, {"lt;", "<"}, {"gt;", ">"},
+                {"quot;", "\""}, {"#39;", "'"}, {"nbsp;", " "},
             };
             for (const auto &e : kEntities)
             {

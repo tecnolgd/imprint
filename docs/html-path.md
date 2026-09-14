@@ -64,7 +64,9 @@ applies unchanged.
 - Text content: the trimmed concatenation of an element's text children
   (whitespace-only text nodes are dropped). Bare text inside a container
   becomes an anonymous `label` (a container's text must go somewhere).
-  Entities: `&amp;` `&lt;` `&gt;` `&quot;` `&#39;` — nothing else.
+  Entities: `&amp;` `&lt;` `&gt;` `&quot;` `&#39;` `&nbsp;` — nothing else.
+  `&nbsp;` folds to a plain space (no nowrap / no-collapse distinction
+  until H-1 text wrapping exists).
 - The whole path is **tolerant and never fails**: `ok=false` only for a
   document nothing can build (mirrors `parse_ui_text`). Violations are
   reported per the Tolerance table below.
@@ -266,7 +268,7 @@ backlog H-6):
   container; wrapped lines keep stacking from the padding origin.
 - No text flow: `p`/`span` are single-line labels, `br` is a one-line
   spacer — real paragraph reflow waits for H-1.
-- Entities are only the five named above.
+- Entities are only the six named above (`&nbsp;` folds to a space).
 - `meter` is a `progress_bar`.
 - Widgets are the presentation: alignment, focus, and interaction follow
   the widget, not CSS.

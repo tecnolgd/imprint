@@ -88,6 +88,10 @@ int test_html()
         ui_node r2 = parse_html("<label>R &copy; C</label>", nullptr);
         EXPECT(test::vget<std::string>(node_prop_v(r2.children[0], "text")) ==
                "R &copy; C");
+
+        ui_node r3 = parse_html("<label>-0.482&nbsp;BAR</label>", nullptr);
+        EXPECT(test::vget<std::string>(node_prop_v(r3.children[0], "text")) ==
+               "-0.482 BAR");
     }
 
     // an off-whitelist element is skipped and drops its whole subtree;
