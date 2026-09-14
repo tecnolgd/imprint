@@ -351,9 +351,12 @@ support "a little at a time" as the boundary demands):**
   P-2e landed 2026-09-13: `box-shadow` lists (2 outer + 2 inset, extras
   warn-and-drop; malformed entries drop alone). Inset paints inner
   bands (linear falloff, exact on 32bpp, half-coverage keep/drop on
-  binary; all-sides via shrinking outlines, split sides via
+    binary; all-sides via shrinking outlines, split sides via
   chord-clipped lines through the newly public `corner_chord`) — dial
-  faces, knob edges, and toggle tracks gain depth. Outer paints its
+  faces, knob edges, and toggle tracks gain depth. Split-side AA
+  landed 2026-09-15 (knob-rim staircase): chord-cut band ends blend
+  by coverage in the band color; `plot_aa` public with widget paint
+  as second consumer (ARCHITECTURE §4.4). Outer paints its
   silhouette under the box but stays invisible on opaque boxes (no
   overdraw — bulb/LED glow + amp drop recorded as follow-up). Two
   quantized-alpha fixes ride along: inset blend is forced on (falloff

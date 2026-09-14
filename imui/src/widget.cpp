@@ -420,6 +420,68 @@ namespace zb::ui
                         by = s.height - 1 - radius + dy;
                     }
                 };
+                // AA fringe on a chord-cut band end (the fill corner
+                // formula): the pixel just outside the span blends by
+                // coverage in the band color, so the falloff alpha
+                // stacks (binary depths inherit the half rule)
+                auto row_fringe = [&](const int row, const int lx, const int rx,
+                                      const core::Color &c) {
+                    if (radius <= 0)
+                    {
+                        return;
+                    }
+                    int dy = 0;
+                    if (row < radius)
+                    {
+                        dy = radius - row;
+                    }
+                    else if (row > s.height - 1 - radius)
+                    {
+                        dy = row - (s.height - 1 - radius);
+                    }
+                    if (dy <= 0)
+                    {
+                        return;
+                    }
+                    const int dx = core::Graphics::corner_chord(radius, dy);
+                    const int64_t t = 1LL * radius * radius - 1LL * dy * dy;
+                    const int frac8 = static_cast<int>((t - 1LL * dx * dx) * 255 /
+                                                       (2LL * dx + 1));
+                    if (frac8 > 0)
+                    {
+                        area.plot_aa(lx - 1, row, frac8, c);
+                        area.plot_aa(rx + 1, row, frac8, c);
+                    }
+                };
+                auto col_fringe = [&](const int col, const int ty, const int by,
+                                      const core::Color &c) {
+                    if (radius <= 0)
+                    {
+                        return;
+                    }
+                    int dx = 0;
+                    if (col < radius)
+                    {
+                        dx = radius - col;
+                    }
+                    else if (col > s.width - 1 - radius)
+                    {
+                        dx = col - (s.width - 1 - radius);
+                    }
+                    if (dx <= 0)
+                    {
+                        return;
+                    }
+                    const int dy = core::Graphics::corner_chord(radius, dx);
+                    const int64_t t = 1LL * radius * radius - 1LL * dx * dx;
+                    const int frac8 = static_cast<int>((t - 1LL * dy * dy) * 255 /
+                                                       (2LL * dy + 1));
+                    if (frac8 > 0)
+                    {
+                        area.plot_aa(col, ty - 1, frac8, c);
+                        area.plot_aa(col, by + 1, frac8, c);
+                    }
+                };
                 if (top)
                 {
                     for (int i = 0; i < bands; ++i)
@@ -432,7 +494,9 @@ namespace zb::ui
                         int lx = 0;
                         int rx = 0;
                         row_span(row, lx, rx);
-                        area.draw_line(lx, row, rx, row, band_color(i));
+                        const core::Color bc = band_color(i);
+                        area.draw_line(lx, row, rx, row, bc);
+                        row_fringe(row, lx, rx, bc);
                     }
                 }
                 if (bottom)
@@ -447,7 +511,9 @@ namespace zb::ui
                         int lx = 0;
                         int rx = 0;
                         row_span(row, lx, rx);
-                        area.draw_line(lx, row, rx, row, band_color(i));
+                        const core::Color bc = band_color(i);
+                        area.draw_line(lx, row, rx, row, bc);
+                        row_fringe(row, lx, rx, bc);
                     }
                 }
                 if (left)
@@ -462,7 +528,9 @@ namespace zb::ui
                         int ty = 0;
                         int by = 0;
                         col_span(col, ty, by);
-                        area.draw_line(col, ty, col, by, band_color(i));
+                        const core::Color bc = band_color(i);
+                        area.draw_line(col, ty, col, by, bc);
+                        col_fringe(col, ty, by, bc);
                     }
                 }
                 if (right)
@@ -477,7 +545,9 @@ namespace zb::ui
                         int ty = 0;
                         int by = 0;
                         col_span(col, ty, by);
-                        area.draw_line(col, ty, col, by, band_color(i));
+                        const core::Color bc = band_color(i);
+                        area.draw_line(col, ty, col, by, bc);
+                        col_fringe(col, ty, by, bc);
                     }
                 }
             }

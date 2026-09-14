@@ -1448,6 +1448,45 @@ int test_html()
         EXPECT(all_white);
     }
 
+    // split-side inset bands AA their chord-cut ends (knob-rim
+    // staircase): 41x21 white face, radius 10, top-only inset
+    {
+        ui_node doc = parse_html(
+            "<div>"
+            "<div style=\"width:41px;height:21px;background:#ffffff;"
+            "border-radius:10px;"
+            "box-shadow: inset 0 2px 3px black\">"
+            "<label>x</label></div>"
+            "</div>\n",
+            nullptr);
+        FlexPanel host;
+        host.set_size(100, 60);
+        build(host, doc);
+        host.layout();
+        auto *knob = host.get_items()[0].child.get();
+        core::Graphics g(100, 60, nullptr);
+        g.fill(core::Color::from(128, 128, 128));
+        host.draw(g);
+        const auto kp = knob->get_position();
+        // band row 1 spans lx=6..34 (chord(10,9)=4); the fringe pixel
+        // just outside blends band-over-gray, the span pixel is band
+        const uint32_t fringe = test::pixel_at(g, kp.x + 5, kp.y + 1);
+        const uint32_t span = test::pixel_at(g, kp.x + 6, kp.y + 1);
+#if COLOR_DEPTH == 32
+        // fringe stacks Porter-Duff: the face fringe (white@85 over
+        // gray) lights (5,1) to 170 first, then the band fringe
+        // (coverage 85 x band alpha 170 -> a=56) lands it at 132
+        EXPECT(fringe == core::Color::from(132, 132, 132).pixel);
+        // span: band alpha 170 over the white face -> 85
+        EXPECT(span == core::Color::from(85, 85, 85).pixel);
+#else
+        // binary: the fringe coverage quantizes away (stays gray),
+        // the band keeps black per the half rule
+        EXPECT(fringe == core::Color::from(128, 128, 128).pixel);
+        EXPECT(span == core::colors::Black.pixel);
+#endif
+    }
+
     // H-7c flex-basis: auto (default demand), px, and %
     {
         ui_node r = parse_html(

@@ -440,6 +440,14 @@ namespace zb::ui::core
          */
         void draw_wireframe_grid(int spacing, const Color &colr);
 
+        // the AA primitives' single write path, public since the inset
+        // band AA (P-2e follow-up): widget paint is a second consumer
+        // beside the fills, through the same gate and blend policy.
+        // One pixel with a 0..255 coverage weight (V-1); same
+        // offset/bounds/damage gate as draw_pixel, then a
+        // coverage-weighted source-over blend
+        void plot_aa(int x, int y, int coverage, const Color &colr);
+
 #pragma endregion
 
     private:
@@ -485,11 +493,6 @@ namespace zb::ui::core
         void draw_8pixels(int x, int y, int px, int py, const Color &colr);
         void draw_incir_pixels(int x, int y, int px, int py, const Color &colr);
         Color alpha_blend(const Color &front_color, const Color &back_color);
-
-        // the AA primitives' single write path: one pixel with a 0..255
-        // coverage weight (V-1); same offset/bounds/damage gate as
-        // draw_pixel, then a coverage-weighted source-over blend
-        void plot_aa(int x, int y, int coverage, const Color &colr);
 
 #pragma endregion
     };
