@@ -899,7 +899,11 @@ dispatcher's raw pointers against dangling/UAF:
   (`max(0, size - 2*padding)`, the same base as L-4 percents): width =
   left+right+auto → stretch, else declared (explicit/percent), else
   `measure()` fallback; x = left ?? right-computed ?? padding origin
-  (y likewise); `translate` shifts after (percent of self). Paint order
+  (y likewise); `translate` shifts after (percent of self). Resolve
+  writes through the auto setters but restores a declared axis's
+  explicitness, so H-9 re-passes keep reading the declaration (an
+  emptied abs box such as `.knob-dot` would otherwise collapse to
+  its zero demand on the second pass). Paint order
   is document order   (no z-index); the anchor does not clip
   (`overflow` unsupported); abs inside a Panel lays out as normal
   (FlexPanel-only feature). Storage is a heap side struct only for
