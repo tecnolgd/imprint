@@ -10,21 +10,21 @@ using namespace zb::ui;
 
 // Inline size baseline (batch J1): the header must stay bounded so the
 // NDS cross build (4MB RAM) keeps thousands of widgets affordable. The
-// static assert pins the budget per ABI (the printed values are the
-// host baseline recorded in CONTEXT.md). Layout differs per compiler:
-// gcc x86_64 measured 232 at HEAD (aspect/H-5 growth; the old 224 note
-// below predates it), MSVC x64 packs the same members larger -- the
-// 64-bit gate is a desktop tripwire, the hard resource budget is the
-// 32-bit line below (wasm32 measures 176 with P-1 paint dressing,
-// NDS ARM 184: both keep headroom).
+// static assert pins the budget per ABI (host baselines recorded below).
+// Layout differs per compiler: gcc x86_64 measures 264 at HEAD (P/H
+// batch growth: P-1 paint_dress 24 + H-5 aspect 4 + P-2b sidecar rework;
+// was 232); MSVC x64 Release packs identically, while MSVC Debug
+// (_ITERATOR_DEBUG_LEVEL) embeds one _Container_proxy pointer per STL
+// container -- Widget carries two (id_, text_), so Debug measures 280.
+// The 64-bit gate is a desktop tripwire, the hard resource budget is the
+// 32-bit line below (wasm32 measures 180, NDS ARM 184: both keep
+// headroom).
 #if UINTPTR_MAX == 0xffffffffu
 // 32-bit ABI budget (NDS); 16bpp builds are smaller still.
 static_assert(sizeof(Widget) <= 192, "Widget inline size must stay under the 32-bit batch J budget");
 #else
-// 64-bit host baselines: gcc x86_64 256 with P-1 (was 232 at HEAD),
-// MSVC x64 packs larger; one pointer of headroom over the largest
-// observed (both recorded in CONTEXT.md).
-static_assert(sizeof(Widget) <= 264, "Widget inline size must stay under the 64-bit batch J budget");
+// 64-bit host gate: MSVC Debug baseline 280 + one pointer of headroom.
+static_assert(sizeof(Widget) <= 288, "Widget inline size must stay under the 64-bit batch J budget");
 #endif
 
 // Construction probe (batch J1, tightened by batch J6): widgets share
