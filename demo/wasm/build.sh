@@ -24,6 +24,11 @@ FRAMEWORK_SRCS="
   imui/src/label.cpp
   imui/src/slider.cpp
   imui/src/progress_bar.cpp
+  imui/src/toggle_switch.cpp
+  imui/src/gauge_dial.cpp
+  imui/src/knob.cpp
+  imui/src/trend_line.cpp
+  imui/src/svg_canvas.cpp
   imui/src/list_box.cpp
   imui/src/text_input.cpp
   imui/src/dialog.cpp
