@@ -793,7 +793,6 @@ namespace zb::ui
                         static_cast<int>(prop_of(n, "shadow_dy", 0LL)));
                 }
             }
-        }
         if(has_prop(n, "halign"))
         {
             const std::string halign = prop_of(n, "halign", std::string{});
@@ -826,6 +825,7 @@ namespace zb::ui
             else if(valign == "bottom"){
                 w.set_v_align(Widget::v_align::bottom);
             }
+        }
         }
 
         // --- control-specific properties --------------------------------
