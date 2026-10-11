@@ -64,6 +64,19 @@ parser scope:
 - **CSS flex features**: `justify-content`, `align-items`/`align-self`,
   `flex-basis`, `flex-shrink`, and `flex` min/max constraints map to
   FlexPanel enhancements — landed (H-7, D-1; history in `git log`).
+- **`border-bottom` is not whitelisted** (only `border-top` is). A header
+  underline therefore has to be drawn as `border-top` on the *following*
+  element. Adding the real property needs a second band slot in the
+  widget ext struct (`bord_t` today holds one) plus the draw path and its
+  16bpp/32bpp variants — widget-side work, not parser work. Found
+  2026-10-10 when the build-time gate went live; the showcase design file
+  works around it.
+- **`flex` grow must be an integer** (`parse_int_value`): `flex:1.2` warns
+  and leaves the node's default, which *silently starves the panel*
+  rather than approximating. The design file shipped two of these
+  (`flex:1.2`, `flex:1.3`) unnoticed. Decide: keep integer-only but make
+  the fallback the inherited value (or `flex:1`) instead of the node
+  default, or accept fractional grow.
 
 **Placement note (decided 2026-09-12):** no `IMPRINT_WITH_*` switch needed —
 per the A-23 precedent the `html` translation unit stays in imui (STATIC);
