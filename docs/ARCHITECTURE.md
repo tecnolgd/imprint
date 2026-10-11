@@ -613,11 +613,12 @@ contract, not an add-on:
   runs, but the layout overflows and the right-hand column and the
   tactical vector dial are clipped. The README montage predates the
   2026-10-06 ORION NX-07 redesign and shows the previous SIGNAL-ONE deck,
-  which did fit. `tictactoe` is the NDS demo story. Separately, runtime TTF
-  text does not take effect in the NDS build (the font family is not
-  installed at build time), so the DS renders the 5×7 bitmap font even
-  with `-DUSE_TTF_RUNTIME=ON`; ARM9 also has no FPU, so the soft-float
-  cost is a further reason not to pursue it there.
+  which did fit. `tictactoe` is the NDS demo story. Runtime TTF
+  (`-DUSE_TTF_RUNTIME=ON`, which the README's NDS recipe does not pass) does
+  install the font family in the NDS build — verified from the shell
+  console: with the flag the build logs nothing, without it `ui_builder`
+  reports "no font family installed" — but ARM9 has no FPU, so the
+  soft-float glyph rasterization cost on the DS is unmeasured.
 - By design: no GPU acceleration (rendering stays CPU; future "GPU support"
   would be presentation-only), no animation/transition system, no runtime
   backend switching, no multi-threaded rendering, no IME, no RTL/bidi.
