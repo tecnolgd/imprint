@@ -28,6 +28,9 @@ documents.
 - A document is a sequence of nodes; **indentation defines nesting**
   (one tab = 4 columns). A deeper-indented line becomes a child of the
   line above it; skipping levels is legal.
+- **Line endings may be LF or CRLF.** A `\r` belongs to the line break
+  and never reaches a token, so the same document parses identically on
+  either (git's autocrlf checkout and Windows editors produce CRLF).
 - A node is a `tag` followed by zero or more `key=value` properties.
   Bare values are forbidden — everything is `key=value`.
 - Strings are double-quoted `"..."`; escapes are `\"` and `\\` (any

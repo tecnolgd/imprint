@@ -377,5 +377,45 @@ column id="main" spacing=4 padding=8
                core::Color::from(0xc0, 0, 0).pixel);
     }
 
+    // Windows line endings. git's autocrlf checkout and Windows editors
+    // produce CRLF, and the '\r' belongs to the line break, not to the last
+    // token. Before it was trimmed a '\r'-only line read as a bare token and
+    // `max=10` parsed as the value "10\r", which then dropped the attribute.
+    // ui_embed packs the document verbatim, so the runtime parser sees
+    // exactly what was on disk -- this is the shape the Windows CI job hit.
+    {
+        bool ok = false;
+        ui_node root = parse_ui_text(
+            "column id=\"crlf\" spacing=4 padding=8\r\n"
+            "  label id=\"desc\" text=\"Status\"\r\n"
+            "  slider min=0 max=10 step=2\r\n"
+            "  button id=\"go\" text=\"GO\"\r\n",
+            &ok);
+        EXPECT(ok);
+        EXPECT(root.type == "column");
+        EXPECT(root.id == "crlf");
+        EXPECT(root.props.size() == 2);
+        EXPECT(test::vget<long long>(root.props[0].second) == 4);
+        EXPECT(test::vget<long long>(root.props[1].second) == 8);
+        EXPECT(root.children.size() == 3);
+
+        const auto &desc = root.children[0];
+        EXPECT(desc.type == "label");
+        EXPECT(desc.id == "desc");
+        EXPECT(test::vget<std::string>(desc.props[0].second) == "Status");
+
+        // every prop survived: a trailing '\r' must not drop any of them
+        const auto &s = root.children[1];
+        EXPECT(s.type == "slider");
+        EXPECT(s.props.size() == 3);
+        EXPECT(test::vget<long long>(s.props[0].second) == 0);
+        EXPECT(test::vget<long long>(s.props[1].second) == 10);
+        EXPECT(test::vget<long long>(s.props[2].second) == 2);
+
+        EXPECT(root.children[2].type == "button");
+        EXPECT(root.children[2].id == "go");
+        EXPECT(test::vget<std::string>(root.children[2].props[0].second) == "GO");
+    }
+
     return test::report("ui_file");
 }

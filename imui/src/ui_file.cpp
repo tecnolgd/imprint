@@ -226,6 +226,16 @@ namespace zb::ui
                 {
                     ++p;
                 }
+                // A CRLF terminator leaves the '\r' before the '\n'; it is
+                // part of the line break, not of the last token. Windows
+                // editors and git's autocrlf checkout produce these, and
+                // without the trim a '\r'-only line reads as a bare token
+                // while `x=10` reads as the value "10\r". Pure-LF input is
+                // untouched (there is no '\r' to strip).
+                while (line_end > line_start && line_end[-1] == '\r')
+                {
+                    --line_end;
+                }
                 ++line_no;
                 const char *q = line_start;
                 while (q < line_end && (*q == ' ' || *q == '\t'))
