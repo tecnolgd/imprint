@@ -957,6 +957,14 @@ instead of clipping**. What the offset does and does not touch:
   and the design-file deserializers
   (G6) share one intermediate representation — the props produced by
   either must be consumable by the same property-resolution table.
+- `prop(name, value)` takes one `prop_value` alternative spelled exactly:
+  `long long` (write `3LL`), `double`, `std::string` or `bool`. Other
+  integral types are a compile-time error, because an implicit `int`
+  reaches the variant converting constructor — which C++17 defines as
+  ill-formed unless the argument converts to exactly one alternative,
+  since `int` converts to `long long`, `double` and `bool`. Newer
+  libc++/libstdc++ accept it, Xcode 10's libc++ does not, so the header
+  gates it with a deleted overload and every toolchain agrees.
 - Two parsing front-ends feed that representation: `parse_ui_text`
   (the `.ui` text format, batch G) and `parse_html` (the HTML/CSS
   subset, batch H; grammar and whitelist in `docs/html-path.md`). Both

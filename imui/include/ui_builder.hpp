@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -48,6 +49,25 @@ namespace zb::ui
             props.emplace_back(std::move(name), std::move(v));
             return *this;
         }
+
+        // Property values are one prop_value alternative, spelled exactly.
+        // An `int` is NOT accepted, on purpose: it reaches the variant's
+        // converting constructor, which C++17 defines as ill-formed unless
+        // the argument converts to exactly one alternative -- `int`
+        // converts to long long, double AND bool, so there is no unique
+        // best match. Newer libc++/libstdc++ accept it anyway (a toolchain
+        // relaxation), Xcode 10's libc++ does not: `prop("align", 3)`
+        // compiled green on the CI macOS job and then broke the macOS
+        // 10.13 build with "no viable conversion from 'int' to
+        // 'prop_value'". Deleted so every toolchain enforces the same
+        // rule and a stricter host can never again fail alone -- write
+        // 3LL (long long) or true/false.
+        template <typename T,
+                  typename = typename std::enable_if<
+                      std::is_integral<T>::value &&
+                      !std::is_same<typename std::decay<T>::type, long long>::value &&
+                      !std::is_same<typename std::decay<T>::type, bool>::value>::type>
+        ui_node &prop(std::string, T) = delete;
 
         ui_node &named(std::string s)
         {

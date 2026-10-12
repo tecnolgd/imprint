@@ -4480,7 +4480,7 @@ namespace zb::ui
                 }
                 else
                 {
-                    n.prop("align", 3);
+                    n.prop("align", 3LL);
                 }
             }
             // align-self rides on the node itself (any element); the
