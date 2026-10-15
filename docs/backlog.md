@@ -14,10 +14,9 @@
 Agreed sequence — a map through the backlog, not a new state machine.
 Dependency-driven: each tier unlocks what follows.
 
-1. **A-26. imcore primitive throughput** — step ① (scalar word-level
-   bulk paths) landed 2026-10-03; next decision point is the fps
-   re-measure (fps first migrates to `build(host, node, sink)`), which
-   decides whether ② (SIMD inner loops) starts.
+1. **A-26. imcore primitive throughput** — the open item is ② (SIMD
+   inner loops); its decision point is the fps re-measure (fps first
+   migrates to `build(host, node, sink)`).
 2. **Explicitly NOT now**: F-1/F-2, I-1, V-4, A-4/A-21, D-*, A-27, and
    Batch W (audit follow-ups, decision-gated). Condition-triggered
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
@@ -105,9 +104,8 @@ image build. Consumer-side, not a new C-ABI surface at this stage.
 
 Follow-ups from the 2026-10-03 full-repo audit (`reports/review-1.md`,
 local-only). Verified real, deferred by operator ruling; each entry states
-the decision it is waiting on. Fixed since: the P0/P1 set, the P2
-majority, the audit's housekeeping quick wins, and W-4/W-5/W-6/W-13
-(2026-10-10; history in `git log`).
+the decision it is waiting on. **A missing number is a fixed item** —
+history in `git log`.
 
 - **W-1 (IM-RAS-002). Arc shape depends on alpha**: a translucent arc
   (0<a<0xFF) takes the exact-chord octant scan, so its silhouette changes
@@ -133,9 +131,8 @@ majority, the audit's housekeeping quick wins, and W-4/W-5/W-6/W-13
   installed-package smoke is Linux-only** — the Windows install path
   (classic LNK2038) is unverified. Needs a Windows CI runner decision.
 - **W-10 (IM-BLD-011). The ASan job does not instrument the
-  shared-library link line.** (Its UBSan half landed 2026-10-03 — the
-  Tier-3 `asan` job now runs ASan+UBSan.) Waiting on: a CI touch to
-  add the shared-link sanitizer flags.
+  shared-library link line.** Waiting on: a CI touch to add the
+  shared-link sanitizer flags.
 - **W-11 (IM-BLD-013). `asset_gen` is built by every configuration and
   consumed by nothing; committed PNG/GIF assets have no documented
   regeneration path.** Waiting on: wire asset_gen, drop it, or document
@@ -144,8 +141,8 @@ majority, the audit's housekeeping quick wins, and W-4/W-5/W-6/W-13
   runs Debug"** — no Linux CI job sets a build type, so `DEBUG` is
   undefined there. Waiting on: add `-DCMAKE_BUILD_TYPE=Debug` to the
   Linux jobs vs. amend §8's premise.
-- **W-14 (IM-HOST-003 remainder). Shell/ABI hardening, six sub-items**
-  (the X11 `Display` guard landed 2026-10-03): `run_win` assigns
+- **W-14 (IM-HOST-003 remainder). Shell/ABI hardening, six sub-items**:
+  `run_win` assigns
   global `g_app` before a throwing `CreateWindowEx`; the C-ABI
   `catch(...)` handlers log via the allocating `LE` path (OOM can throw
   out of `extern "C"`); shell `main`s catch only `zb::ui::error`; no DPI
@@ -438,21 +435,8 @@ rationale in `reports/audit-2026-10-15.md` §5.
   subset + runtime-TTF paths cannot serve. IME and RTL themselves stay
   declared non-goals (the host owns them).
 
-### A-26. imcore primitive throughput (step ① landed 2026-10-03; ② gated on re-measure)
+### A-26. imcore primitive throughput (② SIMD; gated on the fps re-measure)
 
-- **Step ① landed — scalar word-level bulk paths, byte-identical:**
-  translucent `fill_rect` rows and non-opaque horizontal lines route
-  through a clamped `fill_span_blend` (the U-7 gate-as-interval shape
-  with the `alpha_blend` mix inlined; sketch wobble and the
-  single-column double blend stay pinned on the old paths), and
-  `draw_image` (plain + tinted) clamps surface/draw-area/damage to one
-  rect then walks rows (the U-8 `draw_surface` shape; contract §9
-  A-12/A-13 reworded). Opaque fills were already bulk (U-7). Local
-  Release bench (1920×1080, 32bpp): translucent fill with damage on
-  38.3 → 2.0 ms, under a widget clip 35.0 → 2.0 ms; `draw_image`
-  damage-on 12.4 → 1.6 ms, widget clip 10.0 → 2.1 ms, full-screen
-  alpha-on 13.3 → 6.9 ms. Verification: `desktop-test` +
-  `desktop-test-16` green, determinism smoke hash unchanged.
 - **What remains for ② SIMD:** the no-clip remainder is the per-pixel
   blend/modulate arithmetic itself (fill 5.2 ms, `draw_image` 6.9 ms,
   tinted 13.1 ms per half/full-screen unit) — exactly the SIMD
@@ -464,12 +448,6 @@ rationale in `reports/audit-2026-10-15.md` §5.
   Bresenham walk is inherently per-pixel (15 ms per 1920 lines locally)
   and not the fps bottleneck; revisit only if fps evidence says
   otherwise.
-- **Original evidence (fps F9, 2026-10-03):** 1920×1080 native x86:
-  `fill_rect` half-screen 8.37 ms, 1920 × `draw_line` 7.62 ms,
-  full-screen `draw_image` 13.94 ms vs 0.43 ms raw — the numbers that
-  matched the translucent/clip arms, now largely reclaimed. Wasm
-  pipeline spends 40–55 ms/frame in sim+paint at MAX pacing; present is
-  already a straight `data.set` (fps `docs/DESIGN.md` D6).
 - **Hard constraints (unchanged for ②):** byte-identical determinism —
   every step keeps `zb::snap` `framebuffer_hash` / CI byte-compare
   green **and** passes the 16bpp battery (`.ai/bin/verify.sh
