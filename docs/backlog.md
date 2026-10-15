@@ -22,6 +22,12 @@ Dependency-driven: each tier unlocks what follows.
    Batch W (audit follow-ups, decision-gated). Condition-triggered
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
+3. **Batch X** (2026-10-15 independent audit): the audit's recommended
+   order is inside the batch — X-1…X-3 are consumer-side (install /
+   link / configure) and gate any external adoption; X-4…X-8 are
+   correctness plus the CI gap that let the defects live; the rest is
+   hardening and bookkeeping. Nothing in the batch reopens a ratified
+   ruling; sequencing stays the operator's call.
 
 ### Batch V — Visual Presentation (open remainder only)
 
@@ -147,6 +153,160 @@ majority, the audit's housekeeping quick wins, and W-4/W-5/W-6/W-13
   re-entrancy guard. Each is small; the set needs a hardening-vs-accept
   ruling (some, like allocating loggers, are the documented design).
 
+### Batch X — Independent Audit (2026-10-15; audit-ordered, mostly decision-free)
+
+Origin: a full-repo independent audit at `efe684a`, verified by one clean
+`desktop-test` run of its own (60/60 suites, 361 s) — so every item below
+sits outside what the current battery covers or exercises. Detail ledger:
+`reports/audit-2026-10-15.md` (local-only, the same convention as Batch W),
+which also carries the audit's strengths list, the positioning/demo
+proposals and one *withdrawn* finding. Ordered by the audit's recommended
+priority; no item reopens a ratified ruling.
+
+**Adoption gate — a downstream consumer cannot install or link the project:**
+
+- **X-1. The C ABI is never installed.** `CMakeLists.txt:127` (target
+  list) and `:148-152` (header loop) both omit `binding/`, so
+  `cmake --install` ships a C++-only package while the Python / WASM / C
+  hosts and ARCHITECTURE §4.8 all ride `zbapi`. Acceptance: `zbapi` +
+  `zbapi.h` in the export set and `test/installed_smoke` linking the C
+  ABI. Decide: the export name alongside the existing `imprint::` set.
+- **X-2. The install tree does not link.** `cmake/imprintConfig.cmake.in`
+  has no `find_dependency`, and `shell_backend` exports its usage
+  requirements as a plain name plus a hardcoded include
+  (`imshell/CMakeLists.txt:62-63`: `/usr/include` + `X11`; `:51`:
+  `-framework Cocoa`) → a consumer linking `imprint::shell_backend` fails
+  with `cannot find -lX11` and nothing pointing at the cause.
+  `installed_smoke` links only `imapp_canvas`/`snapshot`, so it cannot
+  see this. Decide: `find_dependency(X11)` vs. imported `X11::X11`
+  targets (the latter also removes the hardcoded include dir).
+- **X-3. Every consumer inherits the X11 default.** `add_subdirectory(imshell)`
+  is unconditional (`CMakeLists.txt:103`), UNIX defaults to
+  `IM_SHELL_BACKEND=X11` (`imshell/CMakeLists.txt:56`), and there is no
+  `IMPRINT_WITH_SHELL` (contrast `IMPRINT_WITH_DEMOS`,
+  `CMakeLists.txt:21`) — so a consumer that wants only imcore/imui must
+  install libx11-dev. Acceptance: the gate defaults OFF in subproject
+  mode (ON top-level) plus an X11-less consumer smoke.
+
+**Correctness — real defects in default paths:**
+
+- **X-4. The macOS shell leaks frame-scope state across `run()`**
+  (code-contract §11.1). `run_mac.mm:53-60` holds
+  `g_app`/`g_view`/`g_painted_sub`/`g_closed_sub`; `:354` enters and
+  `:466` returns with no reset of any of them, while `run_win.cpp:366-372`
+  is the correct shape (review-4 fixed the Windows half only). A second
+  `run()` sends events to a destroyed view and re-seats a live
+  subscription — the library-mode case §11.1 was written for. Acceptance:
+  mirror the win teardown + the repeated-`run()` test from X-7.
+- **X-5. Unbounded design-file geometry reaches the shadow-field
+  allocation, and `bad_alloc` escapes every desktop shell.**
+  `apply_length` accepts any px (`html.cpp:2746`, no cap in `parse_int`) →
+  `ui_builder.cpp:871-881/914-926` narrows `long long`→`int` unchecked →
+  `Widget::set_size` stores it verbatim (`widget.hpp:90/101`) → the
+  outer-shadow field is sized from the **unclipped** box
+  (`widget.cpp:136` `need = fw*fh`, `:138` resize, fill loop `:339-349`).
+  `box-shadow` is whitelisted (`docs/html-path.md:204`), so
+  `width:1000000000px; height:1000000000px; box-shadow:0 0 255px #000`
+  asks for ~1e18 bytes: the shells catch only `zb::ui::error`
+  (`win/main.cpp:17`, `linux/main_fb.cpp:20-26`) → terminate, while the
+  C ABI's `catch (...)` (`zbapi.cpp:311-321`) turns it into a silent empty
+  frame. One fix, three parts: clamp the field to the surface (which also
+  removes the quadratic blur cost), range-gate the prop narrowing
+  (`long long`→`int` with no check is a defect however it is reached), and
+  close the "shell mains catch only `zb::ui::error`" class already listed
+  in W-14.
+- **X-6. SVG path coordinates clamp *after* the cast** (`svg_canvas.cpp:463-471`,
+  `671-673`, `924-946`, `1241-1243`: `clamp_q10(static_cast<int64_t>(d *
+  kQ10 …))`), and `d=` numbers come from `strtod` (`html.cpp:3438-3441`)
+  with no finiteness or magnitude check anywhere (grep: zero hits), while
+  the attribute parsers *do* cap (`html.cpp:2843`) — an unintended
+  asymmetry, and `float-cast-overflow` UB from a hostile `d=`.
+  Acceptance: validate before the multiply, extend the `d=` battery, keep
+  both cap paths symmetric.
+
+**The CI gap that let the above live:**
+
+- **X-7. No shell event loop is executed in CI.** The battery runs pure
+  translators plus the presenter in isolation (`test/CMakeLists.txt`);
+  `run_win`/`run_x11`/`run_fb`/`run_mac`/sixel loops are compiled and
+  never run — which is precisely where X-4 and X-10 live. Acceptance: at
+  least one headless-capable loop under test (X11 + Xvfb, or the FB/SIXEL
+  loop from a fake frame source) plus the repeated-`run()` teardown test.
+- **X-8. The build enables no compiler warnings.** The only compile
+  option in the tree is MSVC `/utf-8` (`CMakeLists.txt:76`): no
+  `-Wall -Wextra`, no `/W4`, no `-Wconversion`, no `-Werror`, no
+  `.clang-format`, no clang-tidy — and the sanitizer job is Tier-3 over
+  `test_imui`/`test_zbapi` only (`ci.yml:259-283`). `-Wconversion` alone
+  flags X-5's narrowing class. Acceptance: a per-compiler warning set with
+  `-Werror`, `.clang-format` in-tree, and the first-pass cleanup either
+  here or as a recorded follow-up.
+
+**Hardening (latent, evidence-backed) and bookkeeping:**
+
+- **X-9. 32-bit percent/scale arithmetic has no 64-bit intermediate**
+  (`flex_panel.cpp:202/221/403`, `widget.cpp:872-873/597-599`,
+  `panel.cpp:46-53`, `dialog.cpp:66-76`). The discipline exists locally
+  (`knob.cpp:162` uses `int64_t` with the reason in a comment) but is not
+  systemic; one shared helper closes the class. (The audit *withdrew* a
+  reported division by zero at `dialog.cpp:83` as unreachable by algebra —
+  recorded in the ledger so it is not re-filed.)
+- **X-10. 16bpp presenter enforcement is asymmetric**: X11
+  (`run_x11.cpp:28-31`) and mac (`run_mac.mm:356-359`) throw, Windows
+  carries a NOTE only (`run_win.cpp:190-197`) → abgr1555 blitted into a
+  555 DIB with no diagnostic; separately the fb 32bpp fast path
+  (`fb.cpp:156-159`) validates byte count but not channel masks, while
+  the 16bpp branch below it validates both.
+- **X-11. The Python host decodes 16bpp as RGB565** (`myapp.py:124-135`)
+  while the contract is abgr1555 (`zbapi.h:19`,
+  `pixel_traits.hpp:71-82`) → red and blue are swapped in that host, and
+  `python-host` is Tier-3 and never covers 16bpp. Decide: fix the host or
+  add the 16bpp leg to the CI job.
+- **X-12. Three untrusted-input caps**: CSS `var()` expansion is
+  depth-capped at 8 with no output-length cap (`html.cpp:1189-1300`,
+  O(k^8) from a ~2 KB sheet); path data has no command/point cap
+  (`html.cpp:3410-3670`) and flattens up to 4096 points per curve
+  (`svg_canvas.cpp:85/128-162`) → ~2000× input amplification; terminal
+  CSI accumulation is uncapped (`term_input.cpp:235`). The existing depth
+  caps (`html.cpp:5012`, `ui_file.cpp:137`) are the model to extend.
+- **X-13. SIXEL log flood and a doc/code mismatch.** `LW` fires inside
+  the per-pixel loop once the register budget is spent
+  (`sixel.cpp:92-104`) → one line per dropped pixel on a photo-like
+  frame; `imshell/include/shell/sixel.hpp:17-18` promises nearest-colour
+  mapping while the code drops the colour from the band. Needs a
+  warn-once latch plus a wording (or behavior) fix.
+- **X-14. Release/packaging hygiene**: no `SOVERSION` although imcore is
+  deliberately SHARED (A-4.2) → an in-place upgrade silently replaces a
+  library other binaries linked against; `project(VERSION 0.1.0)`
+  (`CMakeLists.txt:3`) vs released `v0.1`/`v0.1.1` →
+  `find_package(imprint 0.1.1)` fails; no pkg-config/vcpkg/Conan recipe;
+  LICENSE not installed.
+- **X-15. Shell duplication vs. the A-2 promise**: the chrome-bar fill is
+  written three times (`run_win.cpp:178-186`, `run_x11.cpp:223-231`,
+  `run_mac.mm:291-300`) and the painted→present handler about five times,
+  so ARCHITECTURE §3.1's "~100-200 lines of glue per new target" stays
+  aspirational; the U-1 key-decoration rule has six copies, three of them
+  untested (mac, `demo/wasm/main.js`, `demo/python/myapp.py`).
+- **X-16. Feature-gap orientation — pointers, not a restatement.** The
+  declared non-goals are normative elsewhere (ARCHITECTURE §5 for the
+  runtime limits, Batch G for the widget-armament race, Batch H for the
+  layout-engine boundary); what is in none of those lists and a scanning
+  user will miss: no grid layout, no table/tree/tab/menu-style containers,
+  no accessibility, no text selection or horizontal scroll, **no `<img>`
+  and `url()` skipped** (so a design file cannot reference an image
+  although PNG/JPEG decode exists — `docs/html-path.md`), GIF encode-only.
+  Decision if any of it enters the roadmap: grid + `<img>` + an ABI
+  clipboard channel.
+- **X-17. Hygiene, cheap and high-signal**: README has no CI badge; no
+  CONTRIBUTING/SECURITY/CHANGELOG; the local dev container directory
+  `docker/` (devkitARM/emsdk image, the toolchain the cross-target builds
+  were developed in) is gitignored (`.gitignore:70`), so a clone cannot
+  reproduce the development environment; `pixel_traits.hpp:95-106` puns
+  the pixel word through a union (the one load-bearing
+  implementation-defined construct — `std::bit_cast`/`memcpy` would make
+  it standard-clean); `event.hpp:131` `subscribe()` returns an RAII
+  registration guard without `[[nodiscard]]`, so discarding it unsubscribes
+  on the same statement.
+
 ### Batch F — Event Loop Extension & Frame Automation (Long-term)
 
 - **F-1. Cross-thread message posting `zb::ui::post(closure)`**:
@@ -224,6 +384,27 @@ fragments + a full-code re-read); the rulings below supersede/extend the
   "tell us about your device" intake is closed: the portal at
   `tyouhyou.github.io/imprint/` is the landing page, and lead handling
   is operator state, not roadmap.
+
+**2026-10-15 audit proposals (unratified — operator decides).** The
+independent audit's shareability findings, product-side only; promotion and
+distribution stay operator state per this doc's header. Evidence and
+rationale in `reports/audit-2026-10-15.md` §5.
+
+- *G-a.* An `imprint-agent` MCP server over the existing design-file path
+  (render → frame hash/PNG → pixel assert → baseline diff) plus a recording
+  of an agent fixing its own layout from the render — turns the README's
+  "Made for AI agents" claim into a runnable artifact.
+- *G-b.* A six-target byte-identical CI montage plus a determinism badge:
+  one action renders the same design file on Linux/FB/mac/Win/WASM/SIXEL/NDS
+  and byte-compares — the shortest path from the slogan to visible evidence.
+  Adjacent to "one seed, three screens" and the SIXEL recording in §1's
+  deferred list.
+- *G-c.* README first screen: a GIF in the first three lines (the current
+  static hero reads as a mockup until two paragraphs in) and a 30-second
+  quickstart that does not need libx11-dev — sequence after X-3.
+- *G-d.* A ~200-line port template plus one real board shot end to end —
+  the missing proof for the "embedded" tag this batch itself marks as
+  partially earned.
 
 ## 1. Architecture Backlog
 
