@@ -68,16 +68,13 @@ static int c_abi_smoke()
 int main()
 {
 #ifdef IM_SMOKE_SHELL
-    // X-2: take the address of the library-mode loop (never call it — the
-    // smoke is headless). This forces the consumer's link line to resolve
-    // the shell's platform requirements (X11) through the installed
-    // export, the failure the audit reported as `cannot find -lX11`.
-    int (*shell_run)(zb::SharedPtr<zb::app::IApp>, const zb::shell::run_options &) = &zb::shell::run;
-    if (shell_run == nullptr)
-    {
-        std::printf("installed smoke: shell run symbol not linked\n");
-        return 1;
-    }
+    // X-2: take the library-mode host loop's address without running it
+    // (the smoke is headless). Reference it through a volatile pointer so
+    // the reference survives optimization: shell_hostloop has to be pulled
+    // into this link, which is what makes the export's platform
+    // requirements (X11) resolve here — the audit's `cannot find -lX11`.
+    int (*volatile shell_run)(zb::SharedPtr<zb::app::IApp>, const zb::shell::run_options &) = &zb::shell::run;
+    (void)shell_run;
 #endif
     CanvasWindow app;
     app.create(64, 32);

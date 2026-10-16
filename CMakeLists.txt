@@ -151,7 +151,11 @@ endforeach()
 # X-1: the C ABI is the foreign-host surface (ARCHITECTURE §4.8) -- the
 # Python / WASM / C hosts and every cross-language consumer ride it, so the
 # package installs it whenever the binding was built (framework mode).
-if (TARGET zbapi)
+# Not on the NDS: the toolchain has no shared libraries, so zbapi degrades
+# to STATIC there and its PRIVATE story-app dependency becomes an export
+# requirement for a target no package installs (nothing loads a C ABI on
+# the ARM9; checked by the nds-build verify target).
+if (TARGET zbapi AND NOT NDS_PLATFORM)
     list(APPEND IMPRINT_INSTALL_TARGETS zbapi)
 endif()
 # the glibc shim travels with the shared imcore as a LINK_ONLY
@@ -183,8 +187,9 @@ if (TARGET shell_backend)
     list(APPEND IMPRINT_INSTALL_INCLUDE_MODULES imshell)
 endif()
 # X-1: zbapi.h ships beside the binding, and only when the binding is
-# built -- a header without its library is a trap, not a package
-if (TARGET zbapi)
+# installed -- a header without its library is a trap, not a package
+# (NDS excluded for the same reason as the target list above)
+if (TARGET zbapi AND NOT NDS_PLATFORM)
     list(APPEND IMPRINT_INSTALL_INCLUDE_MODULES binding)
 endif()
 foreach(_imprint_module IN LISTS IMPRINT_INSTALL_INCLUDE_MODULES)
