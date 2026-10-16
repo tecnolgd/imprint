@@ -57,10 +57,17 @@ elseif(UNIX)
     set_property(CACHE IM_SHELL_BACKEND PROPERTY STRINGS X11 FB SIXEL)
 
     if(${IM_SHELL_BACKEND} STREQUAL "X11")
+        # X-2: this backend's usage requirements travel in the P1.5 export
+        # set, so they must name something the consumer can resolve. The
+        # old shape (a bare `X11` link name plus a hardcoded /usr/include)
+        # produced `cannot find -lX11` in a consumer with nothing pointing
+        # at the cause; X11::X11 carries both the library and the include
+        # dir, and imprintConfig.cmake re-finds it for the consumer.
+        find_package(X11 REQUIRED)
+        set(IMPRINT_SHELL_FIND_DEPENDENCIES "find_dependency(X11)" PARENT_SCOPE)
         set(build_src main_x.cpp)
         set(hostloop_src src/linux/run_x11.cpp src/linux/x11_input.cpp)
-        set(build_inc /usr/include)
-        set(build_lib X11)
+        set(build_lib X11::X11)
         set(APPSRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/src/linux)
     elseif(${IM_SHELL_BACKEND} STREQUAL "FB")
         set(build_src main_fb.cpp)

@@ -37,4 +37,14 @@ add_executable(installed_smoke main.cpp)
 # consumer's link interface.
 target_link_libraries(installed_smoke PRIVATE imprint::imapp_canvas imprint::snapshot imprint::zbapi)
 
+# X-2: linking the shell target resolves its platform requirements through
+# the export — X11 arrives as an imported target the package config finds
+# (the audit's `cannot find -lX11` failure, which this smoke could not see
+# before). Skipped without the shell, and on macOS, where the AppKit loop
+# needs the ObjC runtime a CXX-only consumer project does not set up.
+if (TARGET imprint::shell_backend AND UNIX AND NOT APPLE)
+    target_link_libraries(installed_smoke PRIVATE imprint::shell_backend)
+    target_compile_definitions(installed_smoke PRIVATE IM_SMOKE_SHELL=1)
+endif()
+
 add_test(NAME installed_smoke COMMAND installed_smoke)

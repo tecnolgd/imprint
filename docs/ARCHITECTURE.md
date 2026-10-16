@@ -134,12 +134,19 @@ same `imprint::` targets (P1.5, 2026-10-01):
   A C-ABI consumer links `imprint::zbapi` alone: the story app behind
   the default `zb_app_create` is baked into the shared library, not
   exported (X-1).
-  The shell targets' platform link requirements (e.g. X11 on the
-  linux-x11 backend) travel in the export set — a consumer linking
-  them needs the same platform packages the generating build used.
+  The shell targets' platform link requirements (X11 on the linux-x11
+  backend) travel in the export set as **imported targets** — the
+  generating configuration resolves them with `find_package` and bakes
+  the same `find_dependency` call into `imprintConfig.cmake`, so a
+  consumer either gets them found or gets a named missing-package error
+  (not a bare `cannot find -lX11`); backends whose requirements are
+  plain linker flags (FB, SIXEL, AppKit's `-framework Cocoa`) need no
+  dependency. A consumer linking a shell target needs the same platform
+  packages the generating build used.
   The headless path (`imprint::imapp_canvas` alone) is platform-clean.
   Locked by `test/installed_smoke` (staging install + find_package
-  consumer, CI linux-desktop).
+  consumer that links `imprint::shell_backend` and the C ABI, CI
+  linux-desktop).
 - **Source tree** — `add_subdirectory` / FetchContent (the original
   story, still supported):
 

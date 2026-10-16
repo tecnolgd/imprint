@@ -8,6 +8,15 @@
 # shell_backend, platform-dependent), and the C ABI (imprint::zbapi +
 # its installed header) when the generating build had the binding (X-1).
 
+include(CMakeFindDependencyMacro)
+
+# X-2: the shell targets' platform link requirements resolve through
+# imported targets, so the consumer has to be able to find them here
+# before imprintTargets.cmake names them. The generating configuration
+# bakes in its own backend's dependency (empty for backends whose
+# requirements are plain linker flags, e.g. FB / SIXEL / AppKit).
+@IMPRINT_SHELL_FIND_DEPENDENCIES@
+
 include("${CMAKE_CURRENT_LIST_DIR}/imprintTargets.cmake")
 
 check_required_components(imprint)

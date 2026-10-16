@@ -13,6 +13,9 @@
 #include "imapp.hpp"
 #include "imui.hpp"
 #include "zbapi.h"
+#ifdef IM_SMOKE_SHELL
+#include "shell/run.hpp"
+#endif
 
 using namespace zb::app;
 
@@ -64,6 +67,18 @@ static int c_abi_smoke()
 
 int main()
 {
+#ifdef IM_SMOKE_SHELL
+    // X-2: take the address of the library-mode loop (never call it — the
+    // smoke is headless). This forces the consumer's link line to resolve
+    // the shell's platform requirements (X11) through the installed
+    // export, the failure the audit reported as `cannot find -lX11`.
+    int (*shell_run)(zb::SharedPtr<zb::app::IApp>, const zb::shell::run_options &) = &zb::shell::run;
+    if (shell_run == nullptr)
+    {
+        std::printf("installed smoke: shell run symbol not linked\n");
+        return 1;
+    }
+#endif
     CanvasWindow app;
     app.create(64, 32);
     app.paint();
