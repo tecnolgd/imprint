@@ -190,7 +190,7 @@ add_executable(my_app main.cpp)
 target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backend)
 ```
 
-インストールパッケージがお好みですか？`cmake --install <build> --prefix <prefix>` のあと、プロジェクト側は `find_package(imprint CONFIG REQUIRED)`（`CMAKE_PREFIX_PATH` をプレフィックスに向ける）と書き、同じ `imprint::` ターゲットをリンクします。サブプロジェクトのとき Imprint は**ライブラリのみ**を構成します——デモアプリ・バインディング・ホストツールは含みません。`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` / `IMPRINT_WITH_DEMOS` スイッチで個別に有効化できます（リポジトリ内の既定ビルドはすべて保持）。ヘッドレスパス——CI がピクセルをアサートするのに使うもの——にはシェルまったく不要：`CanvasWindow::create()` + `paint()`（`test/external_smoke/` 参照、テストバッテリーに組み込み済み）。シェルループ契約は `docs/code-contract.md` §11。
+インストールパッケージがお好みですか？`cmake --install <build> --prefix <prefix>` のあと、プロジェクト側は `find_package(imprint CONFIG REQUIRED)`（`CMAKE_PREFIX_PATH` をプレフィックスに向ける）と書き、同じ `imprint::` ターゲットをリンクします——パッケージには C ABI（`imprint::zbapi` + `zbapi.h`）も入っており、非 C++ ホストはこちらを使います。サブプロジェクトのとき Imprint は**ライブラリのみ**を構成します——デモアプリ・バインディング・ホストツールは含みません。`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` / `IMPRINT_WITH_DEMOS` スイッチで個別に有効化できます（リポジトリ内の既定ビルドはすべて保持）。ヘッドレスパス——CI がピクセルをアサートするのに使うもの——にはシェルまったく不要：`CanvasWindow::create()` + `paint()`（`test/external_smoke/` 参照、テストバッテリーに組み込み済み）。シェルループ契約は `docs/code-contract.md` §11。
 
 最初に知っておくべき制約が 1 つ：**バッファはウィンドウのライフタイム中固定です。**`create_window(w, h)` が一度だけサイズを決めます（I-2a）。実行時の resize API はありません。解像度を変える必要があるなら、サポートされる道はアプリを作り直すことです——破棄して新しいサイズで再度 `create_window` してください（code-contract §11.1）。
 

@@ -225,7 +225,8 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 
 更喜欢安装包？`cmake --install <build> --prefix <prefix>` 之后，你的项目写
 `find_package(imprint CONFIG REQUIRED)`（把 `CMAKE_PREFIX_PATH` 指向前缀），
-链同样的 `imprint::` 目标。作为子工程时 Imprint 只配置**库**——不含 demo
+链同样的 `imprint::` 目标——包里同时装好了 C ABI（`imprint::zbapi` +
+`zbapi.h`），非 C++ 宿主走这条路。作为子工程时 Imprint 只配置**库**——不含 demo
 应用、binding、宿主工具；`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` /
 `IMPRINT_WITH_DEMOS` 逐项开启（仓库内默认构建全部保留）。无头路径——CI
 断言像素用的那条——完全不需要 shell：`CanvasWindow::create()` + `paint()`

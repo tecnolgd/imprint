@@ -104,7 +104,7 @@ add_subdirectory(imshell)
 
 # imprint:: aliases: the out-of-tree consumption names (ARCHITECTURE
 # §3.2). Aliases resolve inside the consuming tree.
-foreach(_imprint_target imutil imcore imevent iminput imui imapp imapp_canvas imapp_snapshot shell_common shell_hostloop shell_backend)
+foreach(_imprint_target imutil imcore imevent iminput imui imapp imapp_canvas imapp_snapshot shell_common shell_hostloop shell_backend zbapi)
     if (TARGET ${_imprint_target})
         add_library(imprint::${_imprint_target} ALIAS ${_imprint_target})
     endif()
@@ -130,6 +130,12 @@ foreach(_imprint_target imutil imcore imevent iminput imui imapp imapp_canvas im
         list(APPEND IMPRINT_INSTALL_TARGETS ${_imprint_target})
     endif()
 endforeach()
+# X-1: the C ABI is the foreign-host surface (ARCHITECTURE §4.8) -- the
+# Python / WASM / C hosts and every cross-language consumer ride it, so the
+# package installs it whenever the binding was built (framework mode).
+if (TARGET zbapi)
+    list(APPEND IMPRINT_INSTALL_TARGETS zbapi)
+endif()
 # the glibc shim travels with the shared imcore as a LINK_ONLY
 # dependency; the export set must contain it (binding/CMakeLists)
 if (TARGET zbcompat)
@@ -153,7 +159,13 @@ install(EXPORT imprintTargets
     FILE imprintTargets.cmake
     NAMESPACE imprint::
     DESTINATION lib/cmake/imprint)
-foreach(_imprint_module imutil imcore imevent iminput imui imapp imshell)
+set(IMPRINT_INSTALL_INCLUDE_MODULES imutil imcore imevent iminput imui imapp imshell)
+# X-1: zbapi.h ships beside the binding, and only when the binding is
+# built -- a header without its library is a trap, not a package
+if (TARGET zbapi)
+    list(APPEND IMPRINT_INSTALL_INCLUDE_MODULES binding)
+endif()
+foreach(_imprint_module IN LISTS IMPRINT_INSTALL_INCLUDE_MODULES)
     install(DIRECTORY ${_imprint_module}/include/
             DESTINATION include/imprint/${_imprint_module}/include)
 endforeach()

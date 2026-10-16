@@ -29,15 +29,25 @@ add_library(
     src/zbapi.cpp
 )
 
+# X-1: zbapi is in the P1.5 install/export set, so its include directories
+# must carry INSTALL_INTERFACE (CMake rejects a raw source-dir path in
+# INTERFACE_INCLUDE_DIRECTORIES at generate time -- the same failure that
+# broke the NDS configure after 4bc1b72). The installed layout mirrors the
+# module convention: include/imprint/<module>/include.
 target_include_directories(
     zbapi
     PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/imprint/binding/include>
 )
 
+# X-1: the C++ libraries behind the C ABI are implementation detail. PRIVATE
+# is what makes the export set valid: ${STORY}_app is an app library and is
+# deliberately never installed, and a SHARED library already bakes every
+# static dependency in — a consumer of imprint::zbapi links the C ABI alone.
 target_link_libraries(
     zbapi
-    PUBLIC
+    PRIVATE
     imapp
     imapp_canvas
     imui

@@ -254,7 +254,9 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 
 Prefer an installed package? `cmake --install <build> --prefix <prefix>`,
 then `find_package(imprint CONFIG REQUIRED)` (point `CMAKE_PREFIX_PATH` at
-the prefix) and link the same `imprint::` targets. As a subproject Imprint
+the prefix) and link the same `imprint::` targets — the package ships the
+C ABI too (`imprint::zbapi` + `zbapi.h`), the surface non-C++ hosts ride.
+As a subproject Imprint
 configures **libraries only** — no demo apps, no binding, no host tools; the
 `IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` / `IMPRINT_WITH_DEMOS` switches
 re-enable each piece (the default in-tree build keeps them all). The

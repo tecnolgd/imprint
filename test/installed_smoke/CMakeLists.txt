@@ -1,4 +1,4 @@
-# Installed-config smoke (Batch G P1.5): a foreign mini CMake project
+# Installed-config smoke (Batch G P1.5 / X-1): a foreign mini project
 # consuming the INSTALLED package. The staging prefix is passed by the
 # driver: -DIMPRINT_STAGING_PREFIX=<cmake --install output>. CI
 # (linux-desktop) runs the install + configure + build + run sequence
@@ -31,6 +31,10 @@ find_package(imprint 0.1 CONFIG REQUIRED
 set(CMAKE_BUILD_RPATH ${IMPRINT_STAGING_PREFIX}/lib)
 
 add_executable(installed_smoke main.cpp)
-target_link_libraries(installed_smoke PRIVATE imprint::imapp_canvas imprint::snapshot)
+# X-1: the C ABI travels in the export set with its headers; a C++ consumer
+# of imprint::zbapi proves the include path, the link, and that the story
+# app stays baked inside the shared library instead of leaking into the
+# consumer's link interface.
+target_link_libraries(installed_smoke PRIVATE imprint::imapp_canvas imprint::snapshot imprint::zbapi)
 
 add_test(NAME installed_smoke COMMAND installed_smoke)

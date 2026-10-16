@@ -128,8 +128,12 @@ same `imprint::` targets (P1.5, 2026-10-01):
 
   The export set carries every library target the generating build had
   (`imutil` … `imui`, `imapp` / `imapp_canvas` / `snapshot`, the
-  shell targets of that configuration); header layout reproduces each
+  shell targets of that configuration, and the C ABI `zbapi` +
+  `zbapi.h` when the binding was built); header layout reproduces each
   module's `-I` root verbatim under `include/imprint/<module>/include`.
+  A C-ABI consumer links `imprint::zbapi` alone: the story app behind
+  the default `zb_app_create` is baked into the shared library, not
+  exported (X-1).
   The shell targets' platform link requirements (e.g. X11 on the
   linux-x11 backend) travel in the export set — a consumer linking
   them needs the same platform packages the generating build used.
