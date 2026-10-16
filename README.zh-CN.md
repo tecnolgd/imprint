@@ -218,6 +218,7 @@ int main()
 
 ```cmake
 # 你的 CMakeLists.txt
+set(IMPRINT_WITH_SHELL ON)         # 子工程默认关闭 shell
 add_subdirectory(imprint)          # 或 FetchContent
 add_executable(my_app main.cpp)
 target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backend)
@@ -227,8 +228,9 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 `find_package(imprint CONFIG REQUIRED)`（把 `CMAKE_PREFIX_PATH` 指向前缀），
 链同样的 `imprint::` 目标——包里同时装好了 C ABI（`imprint::zbapi` +
 `zbapi.h`），非 C++ 宿主走这条路。作为子工程时 Imprint 只配置**库**——不含 demo
-应用、binding、宿主工具；`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` /
-`IMPRINT_WITH_DEMOS` 逐项开启（仓库内默认构建全部保留）。无头路径——CI
+应用、binding、宿主工具、shell；`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` /
+`IMPRINT_WITH_DEMOS` / `IMPRINT_WITH_SHELL` 逐项开启（仓库内默认构建全部保留）。
+不打开 shell 正是无头消费方不需要 `libx11-dev` 的原因。无头路径——CI
 断言像素用的那条——完全不需要 shell：`CanvasWindow::create()` + `paint()`
 （见 `test/external_smoke/`，已接入测试电池）。shell 循环契约见
 `docs/code-contract.md` §11。

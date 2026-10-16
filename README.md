@@ -247,6 +247,7 @@ int main()
 
 ```cmake
 # your CMakeLists.txt
+set(IMPRINT_WITH_SHELL ON)         # subproject gate: the shell is OFF by default
 add_subdirectory(imprint)          # or FetchContent
 add_executable(my_app main.cpp)
 target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backend)
@@ -257,9 +258,12 @@ then `find_package(imprint CONFIG REQUIRED)` (point `CMAKE_PREFIX_PATH` at
 the prefix) and link the same `imprint::` targets — the package ships the
 C ABI too (`imprint::zbapi` + `zbapi.h`), the surface non-C++ hosts ride.
 As a subproject Imprint
-configures **libraries only** — no demo apps, no binding, no host tools; the
-`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` / `IMPRINT_WITH_DEMOS` switches
-re-enable each piece (the default in-tree build keeps them all). The
+configures **libraries only** — no demo apps, no binding, no host tools, no
+shell; the
+`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` / `IMPRINT_WITH_DEMOS` /
+`IMPRINT_WITH_SHELL` switches
+re-enable each piece (the default in-tree build keeps them all). Leaving the
+shell off is what keeps `libx11-dev` out of a headless consumer. The
 headless path — the one CI asserts pixels with — needs no shell at all:
 `CanvasWindow::create()` + `paint()` (see `test/external_smoke/`, wired into
 the test battery). The shell-loop contract is `docs/code-contract.md` §11.

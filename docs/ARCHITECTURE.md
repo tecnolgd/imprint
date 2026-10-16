@@ -131,6 +131,9 @@ same `imprint::` targets (P1.5, 2026-10-01):
   shell targets of that configuration, and the C ABI `zbapi` +
   `zbapi.h` when the binding was built); header layout reproduces each
   module's `-I` root verbatim under `include/imprint/<module>/include`.
+  A generating build with `IMPRINT_WITH_SHELL=OFF` ships no shell
+  targets and no shell headers, and its package pulls in no platform
+  dependency.
   A C-ABI consumer links `imprint::zbapi` alone: the story app behind
   the default `zb_app_create` is baked into the shared library, not
   exported (X-1).
@@ -151,15 +154,23 @@ same `imprint::` targets (P1.5, 2026-10-01):
   story, still supported):
 
   ```cmake
+  set(IMPRINT_WITH_SHELL ON)  # the shell is a subproject gate, OFF by default
   add_subdirectory(imprint)   # or FetchContent_MakeAvailable(imprint)
   target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backend)
   ```
 
 - As a subproject the tree configures **libraries only** (`imutil` …
-  `imui`, `imapp` / `imapp_canvas`, `shell_common` + `shell_hostloop` +
-  `shell_backend`); the demo app libraries, the binding, the host
-  tools, and the test battery are gated off by the `IMPRINT_WITH_*`
-  switches (§4.9).
+  `imui`, `imapp` / `imapp_canvas` / `snapshot`); the demo app
+  libraries, the binding, the host tools, the test battery and the
+  shell are gated off by the `IMPRINT_WITH_*` switches (§4.9). The
+  shell gate is what keeps the platform's packages out of a headless
+  consumer: with `IMPRINT_WITH_SHELL` off (the subproject default) no
+  backend is configured, so a Linux consumer never needs `libx11-dev`
+  (X-3; locked by `test/external_smoke`, which denies
+  `find_package(X11)` on that path and asserts `imprint::shell_backend`
+  is absent). Asking for `IMPRINT_WITH_TESTS` or `IMPRINT_WITH_DEMOS`
+  without the shell is a configure error, not a silent drag-in — both
+  in-tree tenants need it.
 - **Library mode**: the user owns `main` and calls
   `zb::shell::run(app, options)` (API contract: code-contract.md §11).
   **Framework mode**: the in-tree `${STORY}` composition. Both build
@@ -539,6 +550,7 @@ satisfies. Changing any of these is an architecture change.
 | `IMPRINT_WITH_TOOLS`      | ON (top level) / OFF (subproject) | — | configure-time gate: host tools (`ui_embed`, `html_embed`, `asset_gen`, `imprint_render`, `ttf_subset`) |
 | `IMPRINT_WITH_TESTS`      | ON (top level) / OFF (subproject) | — | configure-time gate: the test battery (implies the demo app libraries) |
 | `IMPRINT_WITH_DEMOS`      | ON (top level) / OFF (subproject) | — | configure-time gate: demo app libraries + `binding` + the `${STORY}` executable (framework mode, §3.2); implies tools when ON |
+| `IMPRINT_WITH_SHELL`      | ON (top level) / OFF (subproject) | — | configure-time gate: the platform shell (`shell_common` / `shell_hostloop` / `shell_backend` + the backend mains); OFF keeps the platform's packages (X11) out of a headless consumer (§3.2) |
 
 `USE_INTEGER_GEOMETRY` and `USE_NON_ATOMIC_PTR` are examples of the
 framework's philosophy: **compile-time configuration per target list is a

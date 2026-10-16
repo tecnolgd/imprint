@@ -19,12 +19,28 @@ endif()
 option(IMPRINT_WITH_TOOLS "Also build the host tools (ui_embed, html_embed, asset_gen)" ${IMPRINT_IS_TOP_LEVEL})
 option(IMPRINT_WITH_TESTS "Build the test battery (implies the demo app libraries and the host tools)" ${IMPRINT_IS_TOP_LEVEL})
 option(IMPRINT_WITH_DEMOS "Build the demo app libraries, the binding, and the STORY demo executable (framework mode)" ${IMPRINT_IS_TOP_LEVEL})
+# X-3: the shell is packaging, not part of the library surface. A consumer
+# that wants the headless widget path (imcore / imui / imapp) must not
+# inherit the platform's packages -- before this gate, add_subdirectory
+# always configured imshell and the UNIX default backend made libx11-dev a
+# hard requirement of every Linux consumer. ON top level (the in-tree
+# build, unchanged), OFF as a subproject.
+option(IMPRINT_WITH_SHELL "Build the platform shell (A-2 seams + the selected backend's usage requirements)" ${IMPRINT_IS_TOP_LEVEL})
 if (IMPRINT_WITH_TESTS OR IMPRINT_WITH_DEMOS)
     set(IMPRINT_USE_APPS ON)
     set(IMPRINT_USE_TOOLS ON)
 else()
     set(IMPRINT_USE_APPS OFF)
     set(IMPRINT_USE_TOOLS ${IMPRINT_WITH_TOOLS})
+endif()
+# the in-tree tenants of the shell say so explicitly instead of silently
+# dragging it in: the battery links the A-2 seams (shell_common) and the
+# ${STORY} executable is composed from shell_backend
+if ((IMPRINT_WITH_TESTS OR IMPRINT_WITH_DEMOS) AND NOT IMPRINT_WITH_SHELL)
+    message(FATAL_ERROR
+        "IMPRINT_WITH_SHELL=OFF conflicts with IMPRINT_WITH_TESTS/IMPRINT_WITH_DEMOS "
+        "(the test battery and the ${STORY} executable both need the shell); "
+        "add -DIMPRINT_WITH_SHELL=ON")
 endif()
 
 # imshell's AppKit backend hands main.mm to the ${STORY} executable
@@ -100,7 +116,9 @@ endif()
 if (IMPRINT_WITH_DEMOS)
     add_subdirectory(binding)
 endif()
-add_subdirectory(imshell)
+if (IMPRINT_WITH_SHELL)
+    add_subdirectory(imshell)
+endif()
 
 # imprint:: aliases: the out-of-tree consumption names (ARCHITECTURE
 # §3.2). Aliases resolve inside the consuming tree.
@@ -159,7 +177,11 @@ install(EXPORT imprintTargets
     FILE imprintTargets.cmake
     NAMESPACE imprint::
     DESTINATION lib/cmake/imprint)
-set(IMPRINT_INSTALL_INCLUDE_MODULES imutil imcore imevent iminput imui imapp imshell)
+set(IMPRINT_INSTALL_INCLUDE_MODULES imutil imcore imevent iminput imui imapp)
+# X-3: the shell's headers ship only with the shell
+if (TARGET shell_backend)
+    list(APPEND IMPRINT_INSTALL_INCLUDE_MODULES imshell)
+endif()
 # X-1: zbapi.h ships beside the binding, and only when the binding is
 # built -- a header without its library is a trap, not a package
 if (TARGET zbapi)

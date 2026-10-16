@@ -19,7 +19,20 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 enable_testing()
 
+# X-3: the libraries-only subproject default must not reach for the
+# platform's packages. Deny X11 outright, so any find_package(X11) on this
+# path becomes a hard configure error naming the cause (before the gate,
+# the unconditional imshell + the UNIX X11 default made libx11-dev a
+# requirement of every Linux consumer of the source tree).
+set(CMAKE_DISABLE_FIND_PACKAGE_X11 ON)
+
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../.. imprint_build)
+
+if (TARGET imprint::shell_backend)
+    message(FATAL_ERROR
+        "imprint::shell_backend exists in subproject mode: the shell must stay "
+        "behind IMPRINT_WITH_SHELL (X-3)")
+endif()
 
 add_executable(external_smoke main.cpp)
 target_link_libraries(external_smoke PRIVATE imprint::imapp_canvas)

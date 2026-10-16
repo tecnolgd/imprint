@@ -22,11 +22,10 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch — X-1…X-3 are consumer-side (install /
-   link / configure) and gate any external adoption; X-4…X-8 are
-   correctness plus the CI gap that let the defects live; the rest is
-   hardening and bookkeeping. Nothing in the batch reopens a ratified
-   ruling; sequencing stays the operator's call.
+   order is inside the batch. What remains is X-4…X-8 (correctness
+   plus the CI gap that let the defects live) and the
+   hardening/bookkeeping tail. Nothing in the batch reopens a
+   ratified ruling; sequencing stays the operator's call.
 
 ### Batch V — Visual Presentation (open remainder only)
 
@@ -159,31 +158,6 @@ sits outside what the current battery covers or exercises. Detail ledger:
 which also carries the audit's strengths list, the positioning/demo
 proposals and one *withdrawn* finding. Ordered by the audit's recommended
 priority; no item reopens a ratified ruling.
-
-**Adoption gate — a downstream consumer cannot install or link the project:**
-
-- **X-1. The C ABI is never installed.** `CMakeLists.txt:127` (target
-  list) and `:148-152` (header loop) both omit `binding/`, so
-  `cmake --install` ships a C++-only package while the Python / WASM / C
-  hosts and ARCHITECTURE §4.8 all ride `zbapi`. Acceptance: `zbapi` +
-  `zbapi.h` in the export set and `test/installed_smoke` linking the C
-  ABI. Decide: the export name alongside the existing `imprint::` set.
-- **X-2. The install tree does not link.** `cmake/imprintConfig.cmake.in`
-  has no `find_dependency`, and `shell_backend` exports its usage
-  requirements as a plain name plus a hardcoded include
-  (`imshell/CMakeLists.txt:62-63`: `/usr/include` + `X11`; `:51`:
-  `-framework Cocoa`) → a consumer linking `imprint::shell_backend` fails
-  with `cannot find -lX11` and nothing pointing at the cause.
-  `installed_smoke` links only `imapp_canvas`/`snapshot`, so it cannot
-  see this. Decide: `find_dependency(X11)` vs. imported `X11::X11`
-  targets (the latter also removes the hardcoded include dir).
-- **X-3. Every consumer inherits the X11 default.** `add_subdirectory(imshell)`
-  is unconditional (`CMakeLists.txt:103`), UNIX defaults to
-  `IM_SHELL_BACKEND=X11` (`imshell/CMakeLists.txt:56`), and there is no
-  `IMPRINT_WITH_SHELL` (contrast `IMPRINT_WITH_DEMOS`,
-  `CMakeLists.txt:21`) — so a consumer that wants only imcore/imui must
-  install libx11-dev. Acceptance: the gate defaults OFF in subproject
-  mode (ON top-level) plus an X11-less consumer smoke.
 
 **Correctness — real defects in default paths:**
 
