@@ -62,9 +62,11 @@ elseif(UNIX)
         # old shape (a bare `X11` link name plus a hardcoded /usr/include)
         # produced `cannot find -lX11` in a consumer with nothing pointing
         # at the cause; X11::X11 carries both the library and the include
-        # dir, and imprintConfig.cmake re-finds it for the consumer.
+        # dir, and the package config re-finds it for the consumer. The
+        # re-find is soft on purpose (see imprintConfig.cmake.in): only a
+        # consumer that links a shell target is expected to have X11.
         find_package(X11 REQUIRED)
-        set(IMPRINT_SHELL_FIND_DEPENDENCIES "find_dependency(X11)" PARENT_SCOPE)
+        set(IMPRINT_SHELL_FIND_DEPENDENCY "find_package(X11 QUIET)" PARENT_SCOPE)
         set(build_src main_x.cpp)
         set(hostloop_src src/linux/run_x11.cpp src/linux/x11_input.cpp)
         set(build_lib X11::X11)

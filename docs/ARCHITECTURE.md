@@ -139,13 +139,15 @@ same `imprint::` targets (P1.5, 2026-10-01):
   exported (X-1).
   The shell targets' platform link requirements (X11 on the linux-x11
   backend) travel in the export set as **imported targets** — the
-  generating configuration resolves them with `find_package` and bakes
-  the same `find_dependency` call into `imprintConfig.cmake`, so a
-  consumer either gets them found or gets a named missing-package error
-  (not a bare `cannot find -lX11`); backends whose requirements are
-  plain linker flags (FB, SIXEL, AppKit's `-framework Cocoa`) need no
-  dependency. A consumer linking a shell target needs the same platform
-  packages the generating build used.
+  generating configuration resolves them with `find_package` and bakes a
+  matching soft `find_package` into `imprintConfig.cmake`, so the
+  dependency sits with the shell targets rather than the package: a
+  headless consumer configures without them, and a consumer that links a
+  shell target either gets them found or gets an error naming the
+  imported target (not a bare `cannot find -lX11`). Backends whose
+  requirements are plain linker flags (FB, SIXEL, AppKit's
+  `-framework Cocoa`) need no dependency. A consumer linking a shell
+  target needs the same platform packages the generating build used.
   The headless path (`imprint::imapp_canvas` alone) is platform-clean.
   Locked by `test/installed_smoke` (staging install + find_package
   consumer that links `imprint::shell_backend` and the C ABI, CI

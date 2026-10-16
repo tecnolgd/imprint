@@ -39,7 +39,7 @@ endif()
 if ((IMPRINT_WITH_TESTS OR IMPRINT_WITH_DEMOS) AND NOT IMPRINT_WITH_SHELL)
     message(FATAL_ERROR
         "IMPRINT_WITH_SHELL=OFF conflicts with IMPRINT_WITH_TESTS/IMPRINT_WITH_DEMOS "
-        "(the test battery and the ${STORY} executable both need the shell); "
+        "(the test battery and the demo executable both need the shell); "
         "add -DIMPRINT_WITH_SHELL=ON")
 endif()
 
