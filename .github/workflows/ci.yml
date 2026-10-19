@@ -162,7 +162,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
             -DSTORY=hello \
             -DIMPRINT_WERROR=ON
-          cmake --build build_win_probe -j"$(nproc)" --target shell_common shell_hostloop
+          cmake --build build_win_probe -j"$(nproc)" --target shell_common shell_hostloop hello
 
   linux-16bpp:
     runs-on: ubuntu-latest
