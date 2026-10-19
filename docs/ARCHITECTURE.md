@@ -86,7 +86,9 @@ and cover the suites registered in `test/test_main.cpp` (see that file
 for the live count — platform/feature increments follow the same
 pattern); the platform input-mapping
 suites follow their platform (win32 suite on Windows, x11 suite where
-the X11 shell builds).
+the X11 shell builds), and the shell-loop suite (`shell_loop`) needs an
+X display: it skips without one and CI's X11 job runs it under Xvfb
+with `IM_TEST_REQUIRE_DISPLAY=1` (X-7).
 
 ### 3.1 Per-target policy (what belongs where)
 

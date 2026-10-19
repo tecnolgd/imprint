@@ -209,7 +209,7 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 | WebAssembly | `demo/wasm/build.sh`（docker emscripten） | `build.sh showcase` が ORION NX-07 ページを自己完結する単一 `.js` として生成（wasm 埋め込み済み）。node スモークテスト付き |
 | Python | `binding` 共有ライブラリをビルドしてから `SDL_VIDEODRIVER=dummy python3 demo/python/myapp.py --lib <libzbapi>` | ctypes + pygame ホスト |
 
-テスト：`<build>/bin/test_imui`——ローカルの `EXPECT` マクロ（NDEBUG セーフ、テストフレームワークなし）。デスクトップは `ctest -R test_imui`（またはバイナリ直実行）、NDS ではスキップ。`binding/test/test_zbapi` は `assert()` に依存するため、`NDEBUG` なしの構成（Debug またはビルドタイプ未指定）でビルドしてください。
+テスト：`<build>/bin/test_imui`——ローカルの `EXPECT` マクロ（NDEBUG セーフ、テストフレームワークなし）。デスクトップは `ctest -R test_imui`（またはバイナリ直実行）、NDS ではスキップ。`binding/test/test_zbapi` は `assert()` に依存するため、`NDEBUG` なしの構成（Debug またはビルドタイプ未指定）でビルドしてください。`shell_loop` スイートだけは実際のホストイベントループを動かすため X ディスプレイが必要で、無い場合はスキップします。ヘッドレスでは `xvfb-run -a env IM_TEST_REQUIRE_DISPLAY=1 <build>/bin/test_imui shell_loop` で実行します（X11 の CI ジョブがこれを行います）。
 
 ## ウィンドウと表示
 

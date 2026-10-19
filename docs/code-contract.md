@@ -1885,6 +1885,16 @@ int run(zb::SharedPtr<zb::app::IApp> app, const run_options& options = {});
 - Single thread, always: `run` owns the thread it is called on. The
   §4.11 automation contract is unchanged — a test drives the app
   headlessly instead of calling `run`; `run` is for interactive hosts.
+- **The loop itself is under test (X-7).** `test_shell_loop` drives the
+  real X11 `run` — event pump, `feed_input`, paint, `region_to_present`,
+  teardown — twice in one process: the second call must reuse the app's
+  existing window and start from the state the first one started from
+  (§11.1), and both loops must leave `painted`/`closed` empty on the
+  app's window (no handler outlives its loop). The suite skips without
+  an X display; CI's `linux-x11` job runs it under Xvfb with
+  `IM_TEST_REQUIRE_DISPLAY=1`, which makes a missing server a failure
+  rather than a silent skip. Windows/macOS loops are still compile-only:
+  their `run` bodies need a desktop session the runners do not have.
 
 ---
 

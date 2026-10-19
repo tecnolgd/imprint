@@ -153,12 +153,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
-        run: apt-get update && apt-get install -y --no-install-recommends cmake make python3 libx11-dev
-      # compile-only: the CI container has no X server
+        run: apt-get update && apt-get install -y --no-install-recommends cmake make python3 libx11-dev xvfb
       - name: Configure and build (X11 backend)
         run: |
           cmake -S . -B build_ci -DIM_SHELL_BACKEND=X11
           cmake --build build_ci -j"$(nproc)"
+      # X-7: the only job that executes a real shell event loop. Everything
+      # else compiles the loops and never runs one; the suite drives run()
+      # twice in one process (code-contract 11.1) and asserts the frame
+      # reached the app buffer and that no shell handler survived the loop.
+      # IM_TEST_REQUIRE_DISPLAY turns a missing server into a failure, so
+      # this coverage cannot silently degrade to a skip.
+      - name: Shell loop battery (X11 under Xvfb)
+        run: |
+          xvfb-run -a env IM_TEST_REQUIRE_DISPLAY=1 ./build_ci/bin/test_imui shell_loop
 
   linux-fb:
     runs-on: ubuntu-latest

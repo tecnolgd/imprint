@@ -104,11 +104,16 @@ if (WIN32)
 elseif (UNIX AND IM_SHELL_BACKEND STREQUAL "X11")
     target_sources(test_imui PRIVATE
         test_x11_input.cpp
+        test_shell_loop.cpp
         ${PROJECT_SOURCE_DIR}/imshell/src/linux/x11_input.cpp
     )
-    target_compile_definitions(test_imui PRIVATE IM_TEST_X11_INPUT=1)
+    target_compile_definitions(test_imui PRIVATE IM_TEST_X11_INPUT=1 IM_TEST_SHELL_LOOP=1)
     target_include_directories(test_imui PRIVATE ${PROJECT_SOURCE_DIR}/imshell/src/linux)
     target_link_libraries(test_imui PRIVATE X11)
+    # X-7: the suite drives the real X11 host loop, so it links the
+    # library-mode loop. The exe's own x11_input.cpp above defines the
+    # translator symbols first; the archive's copy is never pulled
+    target_link_libraries(test_imui PRIVATE shell_hostloop)
 endif()
 
 # plan 2: the TTF subset suites run only when the table is compiled in

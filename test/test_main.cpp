@@ -71,6 +71,9 @@ int test_win_input();
 #if defined(IM_TEST_X11_INPUT)
 int test_x11_input();
 #endif
+#if defined(IM_TEST_SHELL_LOOP)
+int test_shell_loop();
+#endif
 #if defined(IMCORE_HAS_TTF_SUBSET)
 int test_ttf_subset();
 int test_font_size();
@@ -152,6 +155,9 @@ static const suite g_suites[] = {
 #endif
 #if defined(IM_TEST_X11_INPUT)
     {"x11_input", test_x11_input},
+#endif
+#if defined(IM_TEST_SHELL_LOOP)
+    {"shell_loop", test_shell_loop},
 #endif
 #if defined(IMCORE_HAS_TTF_SUBSET)
     {"ttf_subset", test_ttf_subset},

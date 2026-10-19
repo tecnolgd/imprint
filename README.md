@@ -292,7 +292,10 @@ Tests: `<build>/bin/test_imui` — a local `EXPECT` macro (NDEBUG-safe,
 no test framework); run via `ctest -R test_imui` (or the binary) on
 desktop; skipped on NDS. `binding/test/test_zbapi` additionally relies
 on `assert()` and must be built without `NDEBUG` (Debug or no build
-type).
+type). The `shell_loop` suite is the one that drives a real host event
+loop; it needs an X display and skips without one — run it headless
+with `xvfb-run -a env IM_TEST_REQUIRE_DISPLAY=1 <build>/bin/test_imui
+shell_loop` (the X11 CI job does exactly this).
 
 ## Window & presentation
 

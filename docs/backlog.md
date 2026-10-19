@@ -22,9 +22,10 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-7…X-18 (the CI gap that
-   let the correctness defects live, plus the hardening/bookkeeping
-   tail). Nothing in the batch reopens a
+   order is inside the batch. What remains is X-8 and X-10…X-18 (the
+   warning set, plus the hardening/bookkeeping tail). X-7 and X-9 landed
+   (2026-10-19: a real X11 loop under Xvfb in CI, and one shared 64-bit
+   geometry helper). Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
 ### Batch V — Visual Presentation (open remainder only)
@@ -164,14 +165,6 @@ priority; no item reopens a ratified ruling.
 
 **The CI gap that let the landed correctness defects live:**
 
-- **X-7. No shell event loop is executed in CI.** The battery runs pure
-  translators plus the presenter in isolation (`test/CMakeLists.txt`);
-  `run_win`/`run_x11`/`run_fb`/`run_mac`/sixel loops are compiled and
-  never run — which is precisely where X-10 lives (and where X-4's
-  frame-scope leak lived: it was desk-verified, not executed).
-  Acceptance: at
-  least one headless-capable loop under test (X11 + Xvfb, or the FB/SIXEL
-  loop from a fake frame source) plus the repeated-`run()` teardown test.
 - **X-8. The build enables no compiler warnings.** The only compile
   option in the tree is MSVC `/utf-8` (`CMakeLists.txt:76`): no
   `-Wall -Wextra`, no `/W4`, no `-Wconversion`, no `-Werror`, no
@@ -184,13 +177,6 @@ priority; no item reopens a ratified ruling.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 
-- **X-9. 32-bit percent/scale arithmetic has no 64-bit intermediate**
-  (`flex_panel.cpp:202/221/403`, `widget.cpp:872-873/597-599`,
-  `panel.cpp:46-53`, `dialog.cpp:66-76`). The discipline exists locally
-  (`knob.cpp:162` uses `int64_t` with the reason in a comment) but is not
-  systemic; one shared helper closes the class. (The audit *withdrew* a
-  reported division by zero at `dialog.cpp:83` as unreachable by algebra —
-  recorded in the ledger so it is not re-filed.)
 - **X-10. 16bpp presenter enforcement is asymmetric**: X11
   (`run_x11.cpp:28-31`) and mac (`run_mac.mm:356-359`) throw, Windows
   carries a NOTE only (`run_win.cpp:190-197`) → abgr1555 blitted into a

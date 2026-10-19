@@ -256,7 +256,10 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 测试：`<build>/bin/test_imui`——本地 `EXPECT` 宏（NDEBUG 安全，无测试框架）；
 桌面用 `ctest -R test_imui`（或直接运行二进制），NDS 跳过。
 `binding/test/test_zbapi` 另依赖 `assert()`，必须在无 `NDEBUG` 的构建下编译
-（Debug 或不设构建类型）。
+（Debug 或不设构建类型）。只有 `shell_loop` 套件真正驱动宿主事件循环，因此需要 X
+显示；没有时它会跳过。无头运行用
+`xvfb-run -a env IM_TEST_REQUIRE_DISPLAY=1 <build>/bin/test_imui shell_loop`
+（X11 的 CI job 正是这样做的）。
 
 ## 窗口与呈现
 
