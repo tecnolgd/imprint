@@ -139,6 +139,31 @@ jobs:
           cmake -S . -B build_warn -DIMPRINT_WERROR=ON
           cmake --build build_warn -j"$(nproc)"
 
+  # X-21: `imshell/src/win/*` is compiled only by MSVC in windows-desktop,
+  # which cannot see the GCC families the rest of the tree is held to
+  # (-Wold-style-cast, -Wmissing-field-initializers, shadow, sign-compare).
+  # This job runs the project warning set over exactly those sources
+  # through a mingw-w64 cross build -- the CI mirror of the local
+  # `win-probe` kit target and of README "Build" row "Windows TU probe".
+  # MSVC-only diagnostics stay windows-desktop's (and its failure-only
+  # warning-inventory step's) job; the two jobs together cover the TU.
+  mingw-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mingw-w64
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends g++-mingw-w64-x86-64
+      - name: Configure and build the Windows shell TUs (project warning set + -Werror)
+        run: |
+          cmake -S . -B build_win_probe \
+            -DCMAKE_SYSTEM_NAME=Windows \
+            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+            -DSTORY=hello \
+            -DIMPRINT_WERROR=ON
+          cmake --build build_win_probe -j"$(nproc)" --target shell_common shell_hostloop
+
   linux-16bpp:
     runs-on: ubuntu-latest
     container: gcc:13

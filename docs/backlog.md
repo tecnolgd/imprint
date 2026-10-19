@@ -23,13 +23,16 @@ Dependency-driven: each tier unlocks what follows.
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
    order is inside the batch. What remains is X-10…X-21 (the
-   hardening/bookkeeping tail, plus the three X-8 follow-ups — the
-   tree-wide `clang-format` reformat, the `-Wconversion` triage and the
-   local Windows-TU compile probe).
+   hardening/bookkeeping tail, plus the two X-8 follow-ups — the
+   tree-wide `clang-format` reformat and the `-Wconversion` triage).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
    one shared 64-bit geometry helper); **X-8 landed the same day** (a
    per-compiler warning set with `-Werror` in-tree, clean across the
-   whole build matrix; `cmake/imprint-warnings.cmake` is its home).
+   whole build matrix; `cmake/imprint-warnings.cmake` is its home), and
+   **X-21 landed the same day** (the mingw-w64 cross probe that puts the
+   Windows-only shell TUs under that set: `win-probe` locally, the
+   `mingw-probe` CI job, plus the failure-only MSVC warning inventory in
+   `windows-desktop`).
    Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
@@ -183,17 +186,6 @@ priority; no item reopens a ratified ruling.
   `e->text_flags &= ~1` `:966`). Not adopted with X-8 — the two flags
   would have to be clean first or the real findings drown. Triage by
   fixing (or proving) the sites, then add both to the X-8 set.
-- **X-21. Windows-only TUs have no local verifier.** `imshell/src/win/`
-  (`run_win.cpp`, `win_input.cpp`, `main.cpp`) is compiled by no local
-  target, so the warning set (shadow, sign-compare, unused, syntax)
-  reaches the tree only through the `windows-desktop` job: the C4456 at
-  `run_win.cpp:183` (2026-10-19 — a chrome-bar `RECT r` shadowing the
-  presented rect) was that class's first catch. Either remedy is enough:
-  a `windows.h` stub + clang syntax probe (the ObjC++
-  `build/objcpp_probe/` precedent) or a compile-only mingw-w64 target
-  (`g++-mingw-w64-x86-64` is packaged). Not a CI-correctness
-  prerequisite: the job already rebuilds with `-DIMPRINT_WERROR=OFF` and
-  lists every diagnostic after a failed gate.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 
