@@ -114,6 +114,11 @@ endforeach()
 if (IMPRINT_WERROR_FLAG)
     add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJCXX>:${IMPRINT_WERROR_FLAG}>")
 endif()
+# definitions the per-compiler set needs (MSVC's CRT opt-outs); the
+# module owns them so a reader finds the whole set in one file
+if (IMPRINT_WARNING_DEFINITIONS)
+    add_compile_definitions(${IMPRINT_WARNING_DEFINITIONS})
+endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

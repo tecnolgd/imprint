@@ -21,11 +21,15 @@
 # Vendored code does not ride the set: third_party/stb compiles only
 # through the wrapper TUs, whose include directory is marked SYSTEM
 # (imcore/CMakeLists.txt), so vendored-header diagnostics stay out of
-# the project's output.
+# the project's output. On MSVC that marking depends on CMake's
+# `/external:I` handling of SYSTEM directories (the Windows CI job
+# enables neither codec, so it cannot catch a CMake that lacks it: a
+# Windows build with USE_PNG / USE_JPEG / the TTF path on such a CMake
+# would surface stb diagnostics).
 #
 # The set is per-compiler and per-language: C++-only flags go through
-# $<COMPILE_LANGUAGE:CXX> so a C TU (host_compat.c, test_zbapi.c) never
-# sees "valid for C++ but not for C" warnings.
+# $<COMPILE_LANGUAGE:CXX>/:OBJCXX> so a C TU (host_compat.c, test_zbapi.c)
+# never sees "valid for C++ but not for C" warnings.
 #
 # Keep it clean on every entry of the build matrix (GCC and Clang on
 # Linux, AppleClang on macOS, MSVC on Windows, arm-none-eabi-gcc on the
@@ -34,6 +38,7 @@
 
 set(IMPRINT_WARNING_FLAGS_C)
 set(IMPRINT_WARNING_FLAGS_CXX)
+set(IMPRINT_WARNING_DEFINITIONS)
 set(IMPRINT_WERROR_FLAG)
 
 if (MSVC)
@@ -43,6 +48,22 @@ if (MSVC)
     list(APPEND IMPRINT_WARNING_FLAGS_C /W4 /permissive-)
     list(APPEND IMPRINT_WARNING_FLAGS_CXX /W4 /permissive-)
     set(IMPRINT_WERROR_FLAG /WX)
+    # /W4 bundles two families the GCC/Clang set leaves out on purpose
+    # (X-20: 308 findings measured, dominated by benign sign/index
+    # conversions), so they are switched off to reach parity -- this is
+    # not a place to park a finding that has another home:
+    #   C4244 / C4242 / C4267   int->smaller, size_t->int = -Wconversion
+    #   C4245                   signed->unsigned          = -Wsign-conversion
+    # C4018 / C4389 are signed/unsigned *comparisons*: they map to
+    # -Wsign-compare, which the common set does enable, and stay on.
+    # Delete this line when X-20 lands.
+    list(APPEND IMPRINT_WARNING_FLAGS_C /wd4244 /wd4242 /wd4267 /wd4245)
+    list(APPEND IMPRINT_WARNING_FLAGS_CXX /wd4244 /wd4242 /wd4267 /wd4245)
+    # C4996 in its CRT form (`fopen`, `sscanf`, `getenv` ...): the tree
+    # uses the ISO C entry points deliberately -- the `_s` variants exist
+    # only on MSVC -- so the advisory is opted out the documented way
+    # instead of sprinkling pragmas at each call site.
+    list(APPEND IMPRINT_WARNING_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang|Emscripten")
     # the common set: -Wall -Wextra are the baseline both families
     # implement; the rest are the high-signal subset that both accept.
@@ -76,6 +97,7 @@ endif()
 if (NOT IMPRINT_WARNINGS)
     set(IMPRINT_WARNING_FLAGS_C)
     set(IMPRINT_WARNING_FLAGS_CXX)
+    set(IMPRINT_WARNING_DEFINITIONS)
     set(IMPRINT_WERROR_FLAG)
 elseif (NOT IMPRINT_WERROR)
     set(IMPRINT_WERROR_FLAG)
