@@ -176,7 +176,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
-        run: apt-get update && apt-get install -y --no-install-recommends cmake make python3 libx11-dev xvfb
+        # xauth is what xvfb-run drives the server with; the gcc:13 image
+        # has neither it nor the --no-install-recommends Recommends edge
+        # (the first run of this job died on "xauth command not found")
+        run: apt-get update && apt-get install -y --no-install-recommends cmake make python3 libx11-dev xvfb xauth
       - name: Configure and build (X11 backend)
         run: |
           cmake -S . -B build_ci -DIM_SHELL_BACKEND=X11
