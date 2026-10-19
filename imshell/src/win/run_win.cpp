@@ -197,12 +197,17 @@ namespace
         BITMAPINFO bmi = {
             sizeof(BITMAPINFOHEADER),
             g_buffer_width,
-            -g_buffer_height, // top-down
+            -g_buffer_height,  // top-down
             1,
             zb::ui::core::ImColor_Depth,
             BI_RGB,
-            (DWORD)((((g_buffer_width * zb::ui::core::ImColor_Depth) + 31) & ~31) >> 3) * (DWORD)g_buffer_height,
-            0, 0, 0, 0};
+            static_cast<DWORD>((((g_buffer_width * zb::ui::core::ImColor_Depth) + 31) & ~31) >> 3) *
+                static_cast<DWORD>(g_buffer_height),
+            0,
+            0,
+            0,
+            0,              // biXPelsPerMeter, biYPelsPerMeter, biClrUsed, biClrImportant
+            {0, 0, 0, 0}};  // bmiColors: unused with BI_RGB
 
         // I-2a: the buffer region stretches into its dest rect with
         // nearest-neighbor resampling (COLORONCOLOR) -- the dest rect is
@@ -252,7 +257,7 @@ namespace zb::shell
             wcx.hInstance = GetModuleHandle(nullptr);
             wcx.hIcon = LoadIcon(NULL, IDI_APPLICATION);
             wcx.hCursor = LoadCursor(NULL, IDC_ARROW);
-            wcx.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+            wcx.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
             wcx.lpszMenuName = NULL;
             wcx.lpszClassName = AppClassName;
             wcx.hIconSm = wcx.hIcon;
@@ -375,7 +380,7 @@ namespace zb::shell
         g_pending.clear();
         g_presentation = {};
 
-        return (int)msg.wParam;
+        return static_cast<int>(msg.wParam);
     }
 }
 
@@ -457,5 +462,5 @@ extern "C" LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             }
         }
     }
-    return (int)DefWindowProc(hwnd, msg, wParam, lParam);
+    return static_cast<int>(DefWindowProc(hwnd, msg, wParam, lParam));
 }
