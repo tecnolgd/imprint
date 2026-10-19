@@ -74,6 +74,41 @@ jobs:
         run: |
           cmake -S . -B build_ci
           cmake --build build_ci --config Debug
+      # X-8: MSVC has no local verifier (no Visual Studio outside the
+      # windows-* runners) and /WX stops at the first warning, so a red run
+      # would otherwise report one warning per round. When the gate fails,
+      # build the whole tree again with the error gate off and list every
+      # diagnostic -- the CI mirror of the local `warnings-survey`. The
+      # gate step above stays `IMPRINT_WERROR=ON` (the in-tree default).
+      - name: MSVC warning inventory (after a failed gate)
+        if: failure()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          cmake -S . -B build_diag -DIMPRINT_WERROR=OFF *> build_diag.log
+          cmake --build build_diag --config Debug *>> build_diag.log
+          $build_ok = $LASTEXITCODE -eq 0
+          $summary = "## MSVC warning inventory (-DIMPRINT_WERROR=OFF)`n"
+          if (Test-Path build_diag.log) {
+            $warnings = Select-String -Path build_diag.log -Pattern ': warning [A-Z]+[0-9]+:' |
+              ForEach-Object { $_.Line.Trim() } | Sort-Object -Unique
+          } else {
+            $warnings = @()
+            Write-Host "the inventory build produced no log (configure failed?)"
+          }
+          if ($warnings.Count -eq 0) {
+            $summary += "no compiler warning: the failure above is not a warning"
+            Write-Host "full -DIMPRINT_WERROR=OFF build reported no compiler warning; the failure above is not a warning"
+          } else {
+            Write-Host "MSVC diagnostics (unique lines: $($warnings.Count)):"
+            $warnings | ForEach-Object { Write-Host "  $_" }
+            $summary += '```' + "`n" + ($warnings -join "`n") + "`n" + '```' + "`n"
+          }
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if ((-not $build_ok) -and (Test-Path build_diag.log)) {
+            Write-Host "the inventory build itself did not complete; its last lines:"
+            Get-Content build_diag.log -Tail 40
+          }
       - name: Run test suites and C-ABI smoke
         run: |
           ./build_ci/bin/Debug/test_imui.exe
