@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "scale.hpp"
+
 namespace zb::ui
 {
     int ScrollPanel::max_scroll() const
@@ -66,12 +68,14 @@ namespace zb::ui
         // proportional thumb (ListBox rule): viewport share of the
         // content, floored at the gutter width so it stays grabbable
         const int content_h = s.height + max;
-        const int th = track_h * s.height / content_h;
+        // X-9: the thumb share and its offset ride the 64-bit helper (a
+        // deep content height makes track_h * s.height wrap int)
+        const int th = detail::ratio(track_h, s.height, content_h);
         const int thumb = th < gutter ? gutter : th;
         *x0 = s.width - gutter;
         *y0 = 1;
         *height = track_h;
-        *thumb_y = 1 + top_ * (track_h - thumb) / max;
+        *thumb_y = 1 + detail::ratio(top_, track_h - thumb, max);
         *thumb_h = thumb;
     }
 

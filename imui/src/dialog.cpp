@@ -85,8 +85,7 @@ namespace zb::ui
                 for (const auto &b : btns)
                 {
                     const int w = b->get_size().width;
-                    const int shrunk =
-                        detail::ratio(w, avail, detail::clamp_int(buttons_total));
+                    const int shrunk = detail::ratio(w, avail, buttons_total);
                     b->set_size(shrunk > 0 ? shrunk : 1, b->get_size().height);
                 }
             }

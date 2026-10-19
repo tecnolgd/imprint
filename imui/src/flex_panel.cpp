@@ -567,8 +567,10 @@ namespace zb::ui
                             basis_claim(items[i], direction, avail_main) < 0)
                         {
                             ++seen;
-                            const int share = (seen == count) ? pool - given
-                                                              : pool * pct / total_pct;
+                            const int share =
+                                (seen == count)
+                                    ? pool - given
+                                    : detail::ratio(pool, pct, total_pct);
                             const int clamped = std::max(0, share);
                             changed |= (main_now(*items[i].child, direction) != clamped);
                             set_main_size(*items[i].child, direction, clamped);

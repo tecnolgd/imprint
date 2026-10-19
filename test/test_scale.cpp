@@ -68,6 +68,15 @@ int test_scale()
         EXPECT(detail::ratio(100, 5, -3) == 0);
     }
 
+    // the denominator carries the 64-bit form: a total that itself grew
+    // past int (a row of hostile widths) stays exact instead of wrapping
+    {
+        const int64_t big_total = static_cast<int64_t>(INT32_MAX) + 1;
+        EXPECT(detail::ratio(INT32_MAX, 1, big_total) == 0);  // ~1.0 -> 0
+        EXPECT(detail::ratio(INT32_MAX, 4, big_total) == 3);
+        EXPECT(detail::ratio(1000, 1, 2) == 500);
+    }
+
     // end-to-end wiring: a flex percent child resolves through the
     // helper. On a content box wider than INT32_MAX/100 the raw product
     // wrapped (the share came out negative and clamped to 0); the

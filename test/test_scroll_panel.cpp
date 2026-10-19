@@ -10,6 +10,7 @@
 #include "html.hpp"
 #include "label.hpp"
 #include "panel.hpp"
+#include "scale.hpp"
 #include "scroll_panel.hpp"
 #include "ui_builder.hpp"
 #include "ui_file.hpp"
@@ -26,6 +27,9 @@ namespace
         return wgt;
     }
 
+    // scrollbar_rect is private and stays private: its X-9 arithmetic is
+    // pinned at the helper level in test_scale instead of through a probe
+
     bool same_buffer(const core::Graphics &a, const core::Graphics &b, int w, int h)
     {
         return std::memcmp(a.data(), b.data(),
@@ -36,6 +40,25 @@ namespace
 
 int test_scroll_panel()
 {
+    // X-9: the scrollbar thumb math rides the 64-bit helper (pinned here
+    // at the helper level -- scrollbar_rect is private and stays private).
+    // A 60000px viewport over a 6e7px content makes track_h * height
+    // 3.6e9, which wrapped int before X-9: the thumb came out negative and
+    // was floored at the gutter for every content depth.
+    {
+        constexpr int track_h = 60000 - 2;
+        constexpr int view_h = 60000;
+        constexpr int content_h = 60000000;
+        const int th = detail::ratio(track_h, view_h, content_h);
+        EXPECT(th > 0);           // wrapped negative before X-9
+        EXPECT(th >= 8);          // still at least the grabbable gutter
+        EXPECT(th <= track_h);
+        const int thumb = th < 8 ? 8 : th;
+        const int thumb_y = 1 + detail::ratio(content_h / 2, track_h - thumb, content_h);
+        EXPECT(thumb_y >= 1);
+        EXPECT(thumb_y + thumb <= track_h + 1);
+    }
+
     // geometry + clipping: the content scrolls under a hard viewport edge
     {
         ScrollPanel sp;

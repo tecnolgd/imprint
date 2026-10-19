@@ -45,9 +45,12 @@ namespace zb::ui::detail
     }
 
     /* value * num / den -- a proportional share against a total (the
-     * dialog button shrink). den <= 0 is a caller bug; returning 0 keeps
-     * the helper total instead of trapping on the divide */
-    inline int ratio(const int value, const int num, const int den)
+     * dialog button shrink, the scrollbar thumb, a percent line share).
+     * den carries the 64-bit form so a total that itself grew past int
+     * (a row of hostile widths) stays exact; den <= 0 is a caller bug and
+     * returns 0, keeping the helper total instead of trapping on the
+     * divide */
+    inline int ratio(const int value, const int num, const int64_t den)
     {
         if (den <= 0)
         {

@@ -28,6 +28,7 @@
 #include "core/error.hpp"
 #include "iapp.hpp"
 #include "shell/run.hpp"
+#include "text/glyph_provider.hpp"
 #include "theme.hpp"
 
 #include <X11/Xlib.h>
@@ -172,6 +173,26 @@ namespace
     {
         std::printf("[shell_loop] skipped: %s\n", reason);
     }
+
+    /*
+     * run() installs the platform font on its init path
+     * (install_platform_font, code-contract 2.4). That is process-wide
+     * state: under USE_FONT_SIZE it would leave a rasterized provider
+     * behind for every later suite (test_font_size asserts the default
+     * is null). The shell installs it for its own loop, so the battery
+     * restores the pre-loop default on the way out -- the RAII shape the
+     * AGENTS.md checklist asks for from anything that seats a global.
+     */
+    struct default_font_guard
+    {
+        zb::SharedPtr<zb::ui::GlyphProvider> saved =
+            zb::ui::default_glyph_provider();
+
+        ~default_font_guard()
+        {
+            zb::ui::set_default_glyph_provider(saved);
+        }
+    };
 }
 
 int test_shell_loop()
@@ -202,6 +223,9 @@ int test_shell_loop()
 
     auto probe = zb::make_shared<loop_probe>();
     zb::SharedPtr<IApp> app = probe;
+
+    // run() seats the platform font globally; the battery owns the default
+    default_font_guard font_guard;
 
     zb::shell::run_options options;
     options.width = 96;
