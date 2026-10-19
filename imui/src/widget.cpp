@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "text/utf8.hpp"
+#include "scale.hpp"
 
 namespace zb::ui
 {
@@ -621,7 +622,8 @@ namespace zb::ui
             int v = ps->off[i];
             if ((ps->off_pct & (1U << i)) != 0U)
             {
-                v = v * (i % 2 == 0 ? s.width : s.height) / 100;
+                // X-9: the side's share rides the 64-bit helper
+                v = detail::pct(i % 2 == 0 ? s.width : s.height, v);
             }
             return v;
         };
@@ -683,10 +685,10 @@ namespace zb::ui
             // rotated paints solid only (builder refused the rest)
             if (ps->grad_kind == 0)
             {
-                const int ox = ps->rot_ox_pct != 0 ? ps->rot_ox * w / 100
-                                                  : ps->rot_ox;
-                const int oy = ps->rot_oy_pct != 0 ? ps->rot_oy * h / 100
-                                                  : ps->rot_oy;
+                const int ox = ps->rot_ox_pct != 0 ? detail::pct(w, ps->rot_ox)
+                                                   : ps->rot_ox;
+                const int oy = ps->rot_oy_pct != 0 ? detail::pct(h, ps->rot_oy)
+                                                   : ps->rot_oy;
                 area.fill_round_rect_rotated(x, y, w, h, radius, ps->rot_ang,
                                              x + ox, y + oy, ps->bg);
             }
@@ -992,8 +994,8 @@ namespace zb::ui
         else if (dress_.bg_kind == 2)
         {
             area.fill_radial(face_inset, face_inset, fx2, fy2,
-                             s.width * dress_.bg_ax / 100,
-                             s.height * dress_.bg_ay / 100, dress_.bg_from,
+                             detail::pct(s.width, dress_.bg_ax),
+                             detail::pct(s.height, dress_.bg_ay), dress_.bg_from,
                              dress_.bg_p0, dress_.bg_to, dress_.bg_p1,
                              face_radius);
         }

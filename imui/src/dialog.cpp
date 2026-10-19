@@ -1,5 +1,7 @@
 #include "dialog.hpp"
 
+#include "scale.hpp"
+
 namespace zb::ui
 {
     Dialog::Dialog()
@@ -69,7 +71,10 @@ namespace zb::ui
         if (!btns.empty())
         {
             const int gaps = buttons->spacing * static_cast<int>(btns.size() - 1);
-            int buttons_total = 0;
+            // X-9: the row total accumulates in 64 bits (a hostile button
+            // width cannot wrap it), and the proportion below rides the
+            // shared helper
+            int64_t buttons_total = 0;
             for (const auto &b : btns)
             {
                 buttons_total += b->get_size().width;
@@ -80,7 +85,8 @@ namespace zb::ui
                 for (const auto &b : btns)
                 {
                     const int w = b->get_size().width;
-                    const int shrunk = w * avail / buttons_total;
+                    const int shrunk =
+                        detail::ratio(w, avail, detail::clamp_int(buttons_total));
                     b->set_size(shrunk > 0 ? shrunk : 1, b->get_size().height);
                 }
             }

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "scale.hpp"
+
 namespace zb::ui
 {
     namespace
@@ -199,7 +201,8 @@ namespace zb::ui
             const int pct = main_percent(w, d);
             if (pct > 0)
             {
-                return cap_max(w, is_row(d), pct * content_main / 100);
+                // X-9: the share rides the 64-bit helper (see scale.hpp)
+                return cap_max(w, is_row(d), detail::pct(content_main, pct));
             }
             return main_demand(w, d);
         }
@@ -218,7 +221,7 @@ namespace zb::ui
             {
                 return cap_max(
                     *item.child, is_row(d),
-                    std::max(0, item.basis_pct * content_main / 100));
+                    std::max(0, detail::pct(content_main, item.basis_pct)));
             }
             return -1;
         }
@@ -400,7 +403,7 @@ namespace zb::ui
             const int pct = cross_percent(*item.child, direction);
             if (pct > 0)
             {
-                const int resolved = std::max(0, pct * avail_cross / 100);
+                const int resolved = std::max(0, detail::pct(avail_cross, pct));
                 changed |= (cross_now(*item.child, direction) != resolved);
                 set_cross_size(*item.child, direction, resolved);
             }
@@ -1012,7 +1015,7 @@ namespace zb::ui
         }
         auto off_px = [&](const int side, const int base) {
             return child.abs_off_pct(side)
-                       ? child.abs_off(side) * base / 100
+                       ? detail::pct(base, child.abs_off(side))
                        : child.abs_off(side);
         };
         const bool has_l = child.abs_off(0) != kUnset;
@@ -1035,7 +1038,7 @@ namespace zb::ui
         }
         else if (child.is_width_percent())
         {
-            w = child.width_percent() * cbw / 100;
+            w = detail::pct(cbw, child.width_percent());
         }
         else
         {
@@ -1053,7 +1056,7 @@ namespace zb::ui
         }
         else if (child.is_height_percent())
         {
-            h = child.height_percent() * cbh / 100;
+            h = detail::pct(cbh, child.height_percent());
         }
         else
         {

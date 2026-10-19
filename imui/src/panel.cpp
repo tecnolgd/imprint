@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include "scale.hpp"
+
 namespace zb::ui
 {
     std::unique_ptr<Widget> Panel::remove_child(Widget *w)
@@ -35,22 +37,26 @@ namespace zb::ui
         // the layout owns all child geometry writes: report the whole
         // container area (children cannot move outside its bounds)
         mark_dirty();
-        auto pos = padding;
+        // X-9: the in-flow cursor rides a 64-bit intermediate -- a margin
+        // chain from a hostile or degenerate tree must not wrap it; the
+        // write into the child's position saturates back into int
+        int64_t pos = padding;
         for (auto &child : children)
         {
             // in-flow margins ride around the border box (H-3)
             if (orientation::vertical == orient)
             {
-                child->set_position(padding + child->margin_left(),
-                                    pos + child->margin_top());
-                pos += child->margin_top() + child->get_size().height +
-                       child->margin_bottom() + spacing;
+                child->set_position(detail::add(padding, child->margin_left()),
+                                    detail::clamp_int(pos + child->margin_top()));
+                pos += static_cast<int64_t>(child->margin_top()) +
+                       child->get_size().height + child->margin_bottom() + spacing;
             }
             else
             {
-                child->set_position(pos + child->margin_left(), padding + child->margin_top());
-                pos += child->margin_left() + child->get_size().width +
-                       child->margin_right() + spacing;
+                child->set_position(detail::clamp_int(pos + child->margin_left()),
+                                    detail::add(padding, child->margin_top()));
+                pos += static_cast<int64_t>(child->margin_left()) +
+                       child->get_size().width + child->margin_right() + spacing;
             }
             child->layout();
         }

@@ -25,6 +25,7 @@ int test_text();
 int test_flex();
 int test_percent();
 int test_ptr();
+int test_scale();
 int test_codec();
 int test_gif();
 int test_checkbox();
@@ -108,6 +109,7 @@ static const suite g_suites[] = {
     {"flex", test_flex},
     {"percent", test_percent},
     {"ptr", test_ptr},
+    {"scale", test_scale},
     {"codec", test_codec},
     {"gif", test_gif},
     {"checkbox", test_checkbox},

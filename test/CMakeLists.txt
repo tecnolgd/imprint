@@ -31,6 +31,7 @@ add_executable(
     test_flex.cpp
     test_percent.cpp
     test_ptr.cpp
+    test_scale.cpp
     test_codec.cpp
     test_gif.cpp
     test_checkbox.cpp
@@ -82,6 +83,11 @@ target_link_libraries(
 )
 
 target_include_directories(test_imui PRIVATE ${PROJECT_SOURCE_DIR}/imshell/include)
+
+# X-9: the shared geometry-scaling helper lives in imui/src (private,
+# like imshell/src/linux for x11_input.hpp above) and is unit-tested
+# directly by test_scale.cpp
+target_include_directories(test_imui PRIVATE ${PROJECT_SOURCE_DIR}/imui/src)
 
 # P4 terminal target: sixel/term_input ride shell_common (pure TUs, see
 # imshell/CMakeLists.txt); their suites below only need the headers
