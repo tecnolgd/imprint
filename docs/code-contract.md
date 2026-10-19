@@ -439,6 +439,14 @@ keeps only API-level supplements.
   and the test battery (`test/`, `binding/test`) prints suite counters and
   allocation-gate readings with `std::printf` — CI-parsed machine output, not
   log messages (the "all tests passed" line is a documented contract).
+  One more carve-out (X-5): the shell main guard
+  (`imshell/include/shell/main_guard.hpp`) calls `Logging::log` directly
+  instead of the `LE` macro. The macro's stream temporary runs the sink
+  from its implicitly-`noexcept` destructor, so a throwing log handler
+  would terminate inside that destruction; the guard's diagnostic runs
+  from a catch block, where an escaping throw is `std::terminate` — the
+  one thing it exists to prevent — so it calls the sink inside its own
+  `try`.
 
 ### 3.1 V-5 composition widgets (ToggleSwitch / GaugeDial / Knob / TrendLine)
 
@@ -559,6 +567,25 @@ whitelist is the boundary):
 - Determinism: parse-time flattening is plain IEEE double with a
   fixed chord tolerance and depth cap, so desktop/WASM/NDS flatten
   identically; the draw keeps the no-FPU-per-pixel rule.
+- **Coordinate validation (X-6):** a double becomes Q10 only after it
+  has been validated in double space — NaN (a degenerate canvas
+  transform) reads as 0, a magnitude past ±16000 px lands on the bound
+  (the value the old post-clamp produced for an in-int64 input), and
+  only then is the in-range product cast. The shape this replaced cast
+  first and clamped after, which is `float-cast-overflow` UB for any
+  input outside `int64` — reachable from a hostile `d=` number, which
+  used to arrive through `strtod` unbounded. NaN was the sharper edge:
+  both comparisons in the clamp are false for it, so nothing clamped it.
+  Rounding is unchanged (half away from zero at the px → Q10 step), so
+  every in-range coordinate still maps to the same bit. A multiply is
+  validated the same way: the stroke-width chain multiplies a capped
+  Q10 width by the viewBox scale and by the transform's Q10 length, each
+  bounded but their product 2^69 at the caps, so `mul_q10` computes
+  `(a*b)/kQ10` from the left factor's quotient and remainder — every
+  partial product stays inside int64 and the result is bit-identical.
+  The set-time trig range reduction folds a non-finite or absurd angle
+  (`set_transform` is host-facing input) to the identity rotation rather
+  than leaving its integer turn count.
 
 ### 3.3 Character event contract
 
@@ -965,6 +992,28 @@ instead of clipping**. What the offset does and does not touch:
   since `int` converts to `long long`, `double` and `bool`. Newer
   libc++/libstdc++ accept it, Xcode 10's libc++ does not, so the header
   gates it with a deleted overload and every toolchain agrees.
+- **Px geometry is range-gated at materialization (X-5).** The parse
+  side is deliberately tolerant — `apply_length` accepts any px digit
+  string and stores it as `long long` — so the property table in
+  `ui_builder.cpp` is where a design value becomes an `int` geometry
+  field, and the gate lives there: lengths clamp into `[0, 1<<20]`,
+  signed offsets into `[-(1<<20), 1<<20]`. The unchecked narrowing this
+  replaced was reachable exactly as written (`width:1000000000px` with a
+  blurred `box-shadow` asked the shadow field for ~1e18 bytes and threw
+  `bad_alloc` out of an init path), and it covered every px geometry
+  prop: sizes, min/max, margins, position, aspect, border widths, corner
+  radius, box-shadow offsets/blur/spread, text-shadow offsets, letter
+  spacing, line height, spacing/padding including the root transfer, and
+  the SVG child geometry the canvas reads back (viewBox x/y/w/h, `line`
+  coordinates, text x/y). The cap is chosen for the arithmetic the gated
+  value feeds, not by taste: `1<<20` px is still ~three orders of
+  magnitude past any real surface, keeps every derived layout sum inside
+  `int`, and keeps the SVG canvas's per-sample `int64` products inside
+  range (the viewBox stroke scale `w*h*kQ10*kQ10` ≤ 2^60, the
+  coordinate map `|dx|*w*kQ10` ≤ 2^51 — a `1<<24` cap overflowed the
+  former for a tiny viewBox). Props that are not geometry (gradient
+  stops, control ranges, enum selectors) keep their own setter clamps or
+  are compare-only — this gate is not a blanket numeric clamp.
 - Two parsing front-ends feed that representation: `parse_ui_text`
   (the `.ui` text format, batch G) and `parse_html` (the HTML/CSS
   subset, batch H; grammar and whitelist in `docs/html-path.md`). Both
@@ -1075,7 +1124,31 @@ instead of clipping**. What the offset does and does not touch:
   retained and grown to the high-water mark (no per-frame allocation).
   blur==0 keeps the hard
   silhouette; binary depths threshold the coverage at half (the standard
-  `plot_aa` rule, like the inset). Outer shadows paint in a dedicated
+  `plot_aa` rule, like the inset). The mask box is clipped to the surface
+  expanded by the Gaussian support BEFORE anything is sized (X-5): no
+  drawn pixel can see the mask farther than the support from the surface
+  — the draw area is always surface-clamped — so the clip is exact, and
+  it is what keeps a declared box's field from being sized from the
+  declared geometry (the ~1e18-byte `width:1000000000px` case, which also
+  made the blur cost quadratic in the declared box). Cells of the clipped
+  box carry the ORIGINAL box's coverage: a clipped edge lies at least one
+  support outside the surface, so re-rounding the shrunken box there
+  would leak a wrong corner into exactly the pixels the clip protects;
+  the corner bands therefore read the declared geometry. An empty clip
+  (a box the surface cannot reach at all) paints nothing. The inset ring
+  walk is bounded by the same surface rect — it steps only the rows and
+  columns the surface covers, since a pixel outside it can never be
+  plotted (`plot_aa` clips to the draw area, which is surface-clamped) —
+  so a declared `width:1000000000px` box costs surface-area work rather
+  than width×height no-op calls per frame, and the clamp is pixel-exact
+  (the skipped cells were unreachable, not merely clipped). The two blur
+  passes accumulate the mirrored radius pair together: a sign-symmetric
+  loop cancels the same terms, but its running sum dips by their
+  magnitudes on the way — -1.1e19 at blur 255, past `int64` — so each
+  radius reads both mirrors as one non-negative pair (the pair is the
+  mask at `x - d` and `x + d`), which leaves the accumulator bounded by
+  the convolution `255 * wsum2` and the field bit-identical. Outer shadows
+  paint in a dedicated
   first pass under a clip expanded by offset+spread+ceil(1.5 blur) in
   every direction — the filter's true support, not blur, so the tail
   between blur and 1.5 blur survives — bounded by the SURFACE, not by
@@ -1752,6 +1825,16 @@ int run(zb::SharedPtr<zb::app::IApp> app, const run_options& options = {});
   into a host that keeps driving the app afterward. Corollary: **after
   `run` returns the app must not be `paint()`ed again** (the
   presenters are gone; a final snapshot is taken before closing).
+- **`run` leaves no frame-scope state behind (X-4).** Every global the
+  shell installs for the loop — the app handle, the view/window handle,
+  the presentation buffer and its size, the registered subscriptions —
+  is reset before `run` returns. A second `run` in the same process (the
+  library-mode case above) therefore starts from the state the first one
+  started from, and no handler outlives its loop. The macOS shell kept
+  the view/app pointers and both live subscriptions past `[nsapp run]`,
+  so a second `run` dispatched events into a destroyed view and re-seated
+  handlers on the previous app; the Windows shell's teardown was the
+  shape to mirror.
 - `run_options` is creation-time only. The buffer never resizes after
   `create_window` (I-2a); there is no runtime resize/reshape API. A
   resolution change is therefore a **recreate-the-app** operation —
@@ -1770,6 +1853,20 @@ int run(zb::SharedPtr<zb::app::IApp> app, const run_options& options = {});
 - App callbacks keep the §1.5 contract (a handler must not throw); the
   shell treats a throwing handler exactly as the shells did before the
   extraction.
+- **Framework-mode `main`s do not let any exception escape (X-5).**
+  Every shell `main` (`win/main.cpp`, the Linux X11/FB/terminal mains,
+  `mac/main.mm`, `nds/main.cpp`) runs its body through
+  `zb::shell::guarded_main` (`imshell/include/shell/main_guard.hpp`):
+  `zb::ui::error` and every other escape — `std::bad_alloc` from a
+  design-file value, a container's `length_error`, a platform API's
+  `runtime_error`, a non-`std` throw — becomes one error-level log line
+  plus exit 1. Before this, each `main` caught `zb::ui::error` alone, so
+  anything else walked out of `main` and called `std::terminate` with no
+  diagnostic at all. The diagnostic itself is best-effort (the guard's
+  body runs from a catch block, so a throw out of it would terminate):
+  the message build and a throwing log handler are both contained. This
+  is a framework-mode rule only — a library-mode host owns `main` and
+  its own failure policy.
 
 ### 11.3 Platform surface
 

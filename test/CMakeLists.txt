@@ -64,6 +64,7 @@ add_executable(
     test_knob.cpp
     test_trend_line.cpp
     test_svg.cpp
+    test_main_guard.cpp
 )
 
 target_link_libraries(

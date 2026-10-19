@@ -32,6 +32,76 @@ namespace zb::ui
             return v;
         }
 
+        /*
+         * X-6: every double -> Q10 conversion validates BEFORE it
+         * converts. The shape this replaces cast first and clamped after
+         * -- `clamp_q10(static_cast<int64_t>(d * kQ10 + 0.5))` -- and
+         * converting an out-of-range double to an integer is
+         * float-cast-overflow UB, reachable from a hostile coordinate
+         * (path data numbers arrive through strtod unbounded; the
+         * canvas is also fed by the .ui materializer). NaN was worse:
+         * both comparisons inside clamp_q10 are false for it, so nothing
+         * clamped the value at all. The helpers reject in double space
+         * instead -- NaN (a degenerate transform) reads as 0, a
+         * magnitude past the bound lands exactly on +-kCoordMax*kQ10,
+         * the same value the old post-clamp produced for an in-int64
+         * input -- and only an in-range value is cast. Rounding stays
+         * half away from zero, so every in-range coordinate maps to the
+         * bit the old code produced.
+         */
+        constexpr int64_t kQ10Bound = kCoordMax * kQ10;
+
+        // a value already in Q10 (the affine product cv below)
+        int64_t q10_of_clamped(const double v)
+        {
+            if (!(v == v))
+            {
+                return 0;  // NaN
+            }
+            if (v <= -static_cast<double>(kQ10Bound))
+            {
+                return -kQ10Bound;
+            }
+            if (v >= static_cast<double>(kQ10Bound))
+            {
+                return kQ10Bound;
+            }
+            return static_cast<int64_t>(v);
+        }
+
+        // device px (double) -> Q10
+        int64_t q10_of_px(const double v)
+        {
+            if (!(v == v))
+            {
+                return 0;  // NaN
+            }
+            if (v <= -static_cast<double>(kCoordMax))
+            {
+                return -kQ10Bound;
+            }
+            if (v >= static_cast<double>(kCoordMax))
+            {
+                return kQ10Bound;
+            }
+            return static_cast<int64_t>(v * kQ10 + (v >= 0 ? 0.5 : -0.5));
+        }
+
+        /*
+         * X-6: (a * b) / kQ10 for non-negative Q10 lengths, without
+         * letting the product leave int64. The stroke-width chain
+         * multiplies a Q10 width by the viewBox scale (<= 2^30) and then
+         * by the transform's Q10 length (<= 2^25); at the property
+         * gate's caps (a <= 2^20 px canvas, a 1x1 viewBox, a 1e9 scale)
+         * that second product is 2^69. Splitting the left factor into
+         * quotient and remainder keeps every partial product <= 2^59 and
+         * is exact integer division, so no result moves.
+         */
+        int64_t mul_q10(const int64_t a, const int64_t b)
+        {
+            return (a / kQ10) * b + ((a % kQ10) * b) / kQ10;
+        }
+
         // isqrt for the stroke scale (Q10 sqrt of a Q20 ratio): Newton
         // with an exact correction pass, no libm (the integer-math rule,
         // widget.cpp Gaussian precedent)
@@ -91,6 +161,16 @@ namespace zb::ui
         // only; the embedded link has no libm trig.
         void sincos_deg(const double deg, double &s, double &c)
         {
+            // X-6: the turn count leaves through an integer cast, so a
+            // non-finite or absurd angle (set_transform is host-facing)
+            // folds to the identity rotation rather than leaving the
+            // cast's range
+            if (!(deg > -1e18 && deg < 1e18))
+            {
+                s = 0.0;
+                c = 1.0;
+                return;
+            }
             double x = deg;
             if (x < 0)
             {
@@ -228,6 +308,10 @@ namespace zb::ui
         }
         const double det = tf_a_ * tf_d_ - tf_b_ * tf_c_;
         double ad = det < 0 ? -det : det;
+        if (!(ad >= 0))
+        {
+            return kQ10;  // NaN: no usable scale
+        }
         if (ad > 1e9)
         {
             ad = 1e9;  // keep the Q10 product inside int64
@@ -460,14 +544,10 @@ namespace zb::ui
             double bxd = (l.x2 - vb_x_) * dsx;
             double byd = (l.y2 - vb_y_) * dsy;
             apply_tf(bxd, byd);
-            ax = clamp_q10(static_cast<int64_t>(
-                axd * kQ10 + (axd >= 0 ? 0.5 : -0.5)));
-            ay = clamp_q10(static_cast<int64_t>(
-                ayd * kQ10 + (ayd >= 0 ? 0.5 : -0.5)));
-            bx = clamp_q10(static_cast<int64_t>(
-                bxd * kQ10 + (bxd >= 0 ? 0.5 : -0.5)));
-            by = clamp_q10(static_cast<int64_t>(
-                byd * kQ10 + (byd >= 0 ? 0.5 : -0.5)));
+            ax = q10_of_px(axd);
+            ay = q10_of_px(ayd);
+            bx = q10_of_px(bxd);
+            by = q10_of_px(byd);
         }
 
         // device stroke width = viewBox width * the geometric mean of
@@ -476,19 +556,18 @@ namespace zb::ui
         // overflow the squared radius below). The width is rounded into
         // Q10, not truncated first: a fractional stroke-width must
         // survive to the hairline threshold (html-path.md)
-        int64_t dev_w = static_cast<int64_t>(
-            (l.width > 0.0 ? l.width : 1.0) * kQ10 + 0.5);
+        int64_t dev_w = q10_of_px(l.width > 0.0 ? l.width : 1.0);
         if (vb_w_ > 0 && vb_h_ > 0)
         {
             const int64_t ratio = static_cast<int64_t>(s.width) * s.height *
                                       (kQ10 * kQ10) /
                                   (static_cast<int64_t>(vb_w_) * vb_h_);
-            dev_w = dev_w * isqrt64(ratio) / kQ10;
+            dev_w = mul_q10(dev_w, isqrt64(ratio));
         }
         const int64_t lenq = tf_len_q10();
         if (lenq != kQ10)
         {
-            dev_w = dev_w * lenq / kQ10;
+            dev_w = mul_q10(dev_w, lenq);
         }
         if (dev_w > kCoordMax * kQ10)
         {
@@ -668,30 +747,27 @@ namespace zb::ui
             {
                 apply_tf(dx, dy);
             }
-            qx[i] = clamp_q10(static_cast<int64_t>(
-                dx * kQ10 + (dx >= 0 ? 0.5 : -0.5)));
-            qy[i] = clamp_q10(static_cast<int64_t>(
-                dy * kQ10 + (dy >= 0 ? 0.5 : -0.5)));
+            qx[i] = q10_of_px(dx);
+            qy[i] = q10_of_px(dy);
         }
 
         // device stroke width = viewBox width * the geometric mean of
         // the two axis scales (the draw_line_stroke formula); rounded
         // into Q10 so a fractional stroke-width survives
-        int64_t dev_w = static_cast<int64_t>(
-            (width > 0.0 ? width : 1.0) * kQ10 + 0.5);
+        int64_t dev_w = q10_of_px(width > 0.0 ? width : 1.0);
         if (vb_w_ > 0 && vb_h_ > 0)
         {
             const int64_t ratio = static_cast<int64_t>(s.width) * s.height *
                                       (kQ10 * kQ10) /
                                   (static_cast<int64_t>(vb_w_) * vb_h_);
-            dev_w = dev_w * isqrt64(ratio) / kQ10;
+            dev_w = mul_q10(dev_w, isqrt64(ratio));
         }
         // the user affine scales the band by sqrt(|det|); identity
         // skips (byte-identical renders)
         const int64_t lenq = tf_len_q10();
         if (lenq != kQ10)
         {
-            dev_w = dev_w * lenq / kQ10;
+            dev_w = mul_q10(dev_w, lenq);
         }
         if (dev_w > kCoordMax * kQ10)
         {
@@ -920,9 +996,7 @@ namespace zb::ui
         const double sy = vb_h_ > 0 ? static_cast<double>(sz.height) / vb_h_
                                     : 1.0;
         const auto map_q10 = [&](const double v, const double scale) {
-            const double d = v * scale;
-            return clamp_q10(static_cast<int64_t>(
-                d * kQ10 + (d >= 0 ? 0.5 : -0.5)));
+            return q10_of_px(v * scale);
         };
         if (tf_active_ && (tf_b_ != 0.0 || tf_c_ != 0.0))
         {
@@ -939,10 +1013,8 @@ namespace zb::ui
                 double dx = (outline[i].first - vb_x_) * sx;
                 double dy = (outline[i].second - vb_y_) * sy;
                 apply_tf(dx, dy);
-                fx[i] = clamp_q10(static_cast<int64_t>(
-                    dx * kQ10 + (dx >= 0 ? 0.5 : -0.5)));
-                fy[i] = clamp_q10(static_cast<int64_t>(
-                    dy * kQ10 + (dy >= 0 ? 0.5 : -0.5)));
+                fx[i] = q10_of_px(dx);
+                fy[i] = q10_of_px(dy);
             }
             draw_evenodd_fill(area, fx, fy, s.fill);
             return;
@@ -960,14 +1032,12 @@ namespace zb::ui
             // push it into Q10 here
             const double ncx = tf_a_ * cx + tf_c_ * cy + tf_e_ * kQ10;
             const double ncy = tf_b_ * cx + tf_d_ * cy + tf_f_ * kQ10;
-            cx = clamp_q10(static_cast<int64_t>(
-                ncx + (ncx >= 0 ? 0.5 : -0.5)));
-            cy = clamp_q10(static_cast<int64_t>(
-                ncy + (ncy >= 0 ? 0.5 : -0.5)));
+            cx = q10_of_clamped(ncx + (ncx >= 0 ? 0.5 : -0.5));
+            cy = q10_of_clamped(ncy + (ncy >= 0 ? 0.5 : -0.5));
             const double ax = tf_a_ < 0 ? -tf_a_ : tf_a_;
             const double ad = tf_d_ < 0 ? -tf_d_ : tf_d_;
-            rxd = static_cast<int64_t>(ax * rxd);
-            ryd = static_cast<int64_t>(ad * ryd);
+            rxd = q10_of_clamped(ax * static_cast<double>(rxd));
+            ryd = q10_of_clamped(ad * static_cast<double>(ryd));
         }
         if (rxd == 0 || ryd == 0)
         {
@@ -1238,10 +1308,8 @@ namespace zb::ui
                     {
                         apply_tf(dx, dy);
                     }
-                    fx[i] = clamp_q10(static_cast<int64_t>(
-                        dx * kQ10 + (dx >= 0 ? 0.5 : -0.5)));
-                    fy[i] = clamp_q10(static_cast<int64_t>(
-                        dy * kQ10 + (dy >= 0 ? 0.5 : -0.5)));
+                    fx[i] = q10_of_px(dx);
+                    fy[i] = q10_of_px(dy);
                 }
                 draw_evenodd_fill(area, fx, fy, p.fill);
             }

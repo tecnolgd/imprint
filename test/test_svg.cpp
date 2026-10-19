@@ -1,5 +1,7 @@
 #include "test.hpp"
 
+#include <limits>
+
 #include "flex_panel.hpp"
 #include "svg_canvas.hpp"
 #include "theme.hpp"
@@ -693,6 +695,116 @@ int test_svg()
             };
             EXPECT(stroke_pixels(1.5) > stroke_pixels(1.0));
         }
+    }
+
+    // X-6: the double -> Q10 conversions validate before they convert.
+    // Every case here used to leave an integer cast's range (UB) or, for
+    // NaN, slip through clamp_q10 entirely -- the comparisons in it are
+    // false for NaN.
+    {
+        const double nan_v = std::numeric_limits<double>::quiet_NaN();
+        const double inf_v = std::numeric_limits<double>::infinity();
+
+        // a path point at 1e18 px clamps to the coordinate bound (+16000
+        // px), so the segment still covers the surface width; the old
+        // cast-then-clamp left the out-of-range conversion unspecified and
+        // aimed the segment off-surface
+        SvgCanvas v;
+        v.set_view_box(0, 0, 100, 50);
+        v.set_size(100, 50);
+        SvgCanvas::Path p;
+        p.pts = {{10, 25}, {1e18, 25}};
+        p.color = core::colors::Black;
+        v.add_path(p);
+        core::Graphics g(100, 50, nullptr);
+        g.fill(core::colors::White);
+        v.draw(g);
+        EXPECT(test::pixel_at(g, 99, 25) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(g, 99, 10) == core::colors::White.pixel);
+
+        // an infinite coordinate behaves the same way
+        v.clear_vectors();
+        SvgCanvas::Path pi;
+        pi.pts = {{10, 25}, {inf_v, 25}};
+        pi.color = core::colors::Black;
+        v.add_path(pi);
+        core::Graphics gi(100, 50, nullptr);
+        gi.fill(core::colors::White);
+        v.draw(gi);
+        EXPECT(test::pixel_at(gi, 99, 25) == core::colors::Black.pixel);
+
+        // NaN (a degenerate transform) folds to 0: a NaN half-extent is
+        // the degenerate-radius rule, nothing renders
+        v.clear_vectors();
+        SvgCanvas::Shape e;
+        e.kind = SvgCanvas::Shape::Kind::ellipse;
+        e.cx = 50;
+        e.cy = 25;
+        e.rx = nan_v;
+        e.ry = 10;
+        e.has_fill = true;
+        e.fill = core::colors::Black;
+        v.add_shape(e);
+        core::Graphics gn(100, 50, nullptr);
+        gn.fill(core::colors::White);
+        v.draw(gn);
+        int ink = 0;
+        for (int y = 0; y < 50; ++y)
+        {
+            for (int x = 0; x < 100; ++x)
+            {
+                ink += test::pixel_at(gn, x, y) != core::colors::White.pixel;
+            }
+        }
+        EXPECT(ink == 0);
+
+        // a non-finite/absurd transform folds to the identity rotation
+        // instead of leaving sincos_deg's integer turn count (host-facing
+        // API input)
+        SvgCanvas vt;
+        vt.set_view_box(0, 0, 100, 50);
+        vt.set_size(100, 50);
+        vt.set_transform(0, 0, 1e300);
+        SvgCanvas::Line l{10, 25, 90, 25, core::colors::Black};
+        vt.add_line(l);
+        core::Graphics gt(100, 50, nullptr);
+        gt.fill(core::colors::White);
+        vt.draw(gt);
+        EXPECT(test::pixel_at(gt, 50, 25) == core::colors::Black.pixel);
+        EXPECT(test::pixel_at(gt, 50, 10) == core::colors::White.pixel);
+        EXPECT(test::pixel_at(gt, 9, 25) == core::colors::White.pixel);
+    }
+
+    // X-6: the stroke-width chain multiplies the capped width by the
+    // viewBox scale and by the transform's Q10 length. At the property
+    // gate's caps -- a 1<<20 px canvas, a 1x1 viewBox, a 1e9 scale --
+    // the second product alone is 2^69, which leaves int64: the
+    // sanitizer battery reports it in the run log (UBSan recovers, so
+    // the run's own status stays green), while mul_q10 computes the
+    // same value with partial products <= 2^59. The band itself is
+    // skipped: the collapsed segment has no width and butt caps draw
+    // nothing, so the surface must come out untouched.
+    {
+        SvgCanvas vw;
+        vw.set_view_box(0, 0, 1, 1);
+        vw.set_size(1 << 20, 1 << 20);
+        vw.set_transform(0, 0, 0, 1e9, 1e9);
+        SvgCanvas::Line lw{1 << 20, 1 << 20, 1 << 20, 1 << 20,
+                           core::colors::Black};
+        lw.width = 1e9;
+        vw.add_line(lw);
+        core::Graphics gw(64, 64, nullptr);
+        gw.fill(core::colors::White);
+        vw.draw(gw);
+        int painted = 0;
+        for (int y = 0; y < 64; ++y)
+        {
+            for (int x = 0; x < 64; ++x)
+            {
+                painted += test::pixel_at(gw, x, y) != core::colors::White.pixel;
+            }
+        }
+        EXPECT(painted == 0);
     }
 
     return test::report("svg");

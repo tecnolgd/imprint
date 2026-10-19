@@ -2820,7 +2820,13 @@ namespace zb::ui
         }
 
         // SVG numbers: optional sign, digits, optional fraction; rounded
-        // half away from zero into a clamped int (SVG authors write 2.5)
+        // half away from zero into a clamped int (SVG authors write 2.5).
+        // A magnitude past the cap is rejected, not clamped: the value is
+        // meaningless as geometry and every downstream double -> Q10
+        // conversion assumes a bounded coordinate (X-6 -- path data
+        // numbers share this cap through convert_path_d's reader).
+        constexpr long long kSvgNumMax = 1000000000LL;
+
         bool parse_svg_num(const std::string &s, long long &out)
         {
             std::size_t i = 0;
@@ -2840,7 +2846,7 @@ namespace zb::ui
             {
                 any = true;
                 ip = ip * 10 + (s[i] - '0');
-                if (ip > 1000000000LL)
+                if (ip > kSvgNumMax)
                 {
                     return false;
                 }
@@ -2850,7 +2856,7 @@ namespace zb::ui
             if (i < s.size() && s[i] == '.')
             {
                 ++i;
-                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < 1000000000LL)
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < kSvgNumMax)
                 {
                     fp = fp * 10 + (s[i] - '0');
                     scale *= 10;
@@ -2897,7 +2903,7 @@ namespace zb::ui
             {
                 any = true;
                 ip = ip * 10 + (s[i] - '0');
-                if (ip > 1000000000LL)
+                if (ip > kSvgNumMax)
                 {
                     return false;
                 }
@@ -2907,7 +2913,7 @@ namespace zb::ui
             if (i < s.size() && s[i] == '.')
             {
                 ++i;
-                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < 1000000000LL)
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < kSvgNumMax)
                 {
                     fp = fp * 10 + (s[i] - '0');
                     scale *= 10;
@@ -2963,7 +2969,7 @@ namespace zb::ui
             if (i < s.size() && s[i] == '.')
             {
                 ++i;
-                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < 1000000000LL)
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9' && scale < kSvgNumMax)
                 {
                     fp = fp * 10 + (s[i] - '0');
                     scale *= 10;
@@ -3438,6 +3444,23 @@ namespace zb::ui
                     return false;
                 }
                 v = std::strtod(b, nullptr);
+                // X-6: the sibling readers (parse_svg_num,
+                // parse_svg_double, the rotate() angle) reject a
+                // magnitude over kSvgNumMax, and this token is the one
+                // that used to accept anything: strtod is unbounded, so
+                // `M 0 0 L 99999999999999999999 10` handed a 1e20
+                // coordinate to the canvas -- whose double -> Q10 cast
+                // is float-cast-overflow UB -- while a long enough
+                // digit run overflowed strtod to infinity (NaN-safe
+                // comparison: infinity and NaN both fail it). Out of
+                // range drops the path with the caller's warning, the
+                // same tolerance the attribute parsers use.
+                if (!(v >= -static_cast<double>(kSvgNumMax) &&
+                      v <= static_cast<double>(kSvgNumMax)))
+                {
+                    p = b;
+                    return false;
+                }
                 return true;
             };
             double cx = 0, cy = 0;       // current point

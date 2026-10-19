@@ -461,6 +461,20 @@ namespace zb::shell
             [win makeKeyAndOrderFront:nil];
             [nsapp activateIgnoringOtherApps:YES];
             [nsapp run];
+
+            // X-4 teardown (mirrors the win shell, code-contract §11.1):
+            // the run loop has stopped, so nothing else will use the
+            // frame-scope globals, and a second run() in this process
+            // must not inherit them. The subscriptions detach while the
+            // app (their event source) is still alive -- the painted
+            // handler tests g_view, the closed handler would stop a
+            // later run's loop -- then the view and the app go away.
+            g_painted_sub.reset();
+            g_closed_sub.reset();
+            g_view = nil;
+            g_app.reset();
+            g_buffer_width = 0;
+            g_buffer_height = 0;
         }
 
         return 0;

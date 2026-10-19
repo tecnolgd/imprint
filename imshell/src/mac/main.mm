@@ -3,8 +3,8 @@
 // their own main (OBJCXX enabled) instead of this executable.
 #include <iostream>
 #include "app_maker.hpp"
-#include "core/error.hpp"
 #include "logging.hpp"
+#include "shell/main_guard.hpp"
 #include "shell/run.hpp"
 
 int main(int argc, char *argv[])
@@ -15,13 +15,7 @@ int main(int argc, char *argv[])
     });
 
     LD << "run on mac (AppKit)";
-    try
-    {
-        return zb::shell::run(zb::app::make_app());
-    }
-    catch (const zb::ui::error &e)
-    {
-        LE << e.what();
-        return 1;
-    }
+    // X-5: every escape becomes a diagnostic + exit 1 (main_guard.hpp)
+    return zb::shell::guarded_main(
+        [] { return zb::shell::run(zb::app::make_app()); });
 }

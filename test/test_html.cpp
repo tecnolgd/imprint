@@ -1522,6 +1522,38 @@ int test_html()
             nullptr);
         EXPECT(rs.children[0].children.empty());
 
+        // X-6: the path-number reader shares the attribute parsers' cap
+        // (kSvgNumMax). A hostile d= used to reach the canvas unbounded
+        // -- every coordinate beyond it ends in a double -> Q10 cast
+        // whose out-of-range conversion is UB -- and now drops the path
+        // with the same warning as any other unsupported data.
+        {
+            const std::string bignum(400, '9');  // strtod overflows to inf
+            ui_node rbi = parse_html(
+                ("<div><svg><path d=\"M 0 0 L " + bignum +
+                 " 10\" stroke=\"red\"/></svg></div>\n")
+                    .c_str(),
+                nullptr);
+            EXPECT(rbi.children[0].children.empty());
+        }
+        ui_node rbig = parse_html(
+            "<div><svg><path d=\"M 0 0 L 99999999999999999999 10\""
+            " stroke=\"red\"/></svg></div>\n",
+            nullptr);
+        EXPECT(rbig.children[0].children.empty());
+        // the cap is exactly the sibling parsers': one past drops, the
+        // bound itself is accepted
+        ui_node rover = parse_html(
+            "<div><svg><path d=\"M 0 0 L 1000000001 0\" stroke=\"red\"/>"
+            "</svg></div>\n",
+            nullptr);
+        EXPECT(rover.children[0].children.empty());
+        ui_node rat = parse_html(
+            "<div><svg><path d=\"M 0 0 L 1000000000 0\" stroke=\"red\"/>"
+            "</svg></div>\n",
+            nullptr);
+        EXPECT(rat.children[0].children.size() == 1);
+
         // path outside svg builds nothing (off-whitelist like line/text)
         bool ok8 = true;
         ui_node r8 = parse_html("<path d=\"M 0 0 L 1 1\"/>\n", &ok8);
@@ -2725,6 +2757,241 @@ int test_html()
         EXPECT(test::pixel_at(g, 50, 50) == core::colors::Green.pixel);
         EXPECT(test::pixel_at(g, 50, 0) == core::colors::Black.pixel);
         EXPECT(test::pixel_at(g, 50, 100) == core::colors::White.pixel);
+    }
+
+    // X-5: a hostile design file declares 1e9 px of geometry with a
+    // blurred shadow. The property gate turns the declared px into a
+    // bounded int and the shadow field is clipped to the surface, so the
+    // box paints instead of asking for ~1e18 bytes of mask and throwing
+    // bad_alloc out of the shell's init path.
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<div><div style=\"width:1000000000px;height:1000000000px;"
+            "background:#ffffff;box-shadow:0 0 255px #000\">"
+            "<label>x</label></div></div>\n",
+            &ok);
+        EXPECT(ok);
+        // the parser keeps the declared magnitude -- gating a design
+        // value into an int field is the property table's job
+        EXPECT(test::vget<long long>(node_prop_v(root.children[0], "width")) ==
+               1000000000LL);
+        FlexPanel host;
+        host.set_size(64, 64);
+        build(host, root);
+        host.layout();
+        auto *huge = host.get_items()[0].child.get();
+        EXPECT(huge->get_size().width == (1 << 20));
+        EXPECT(huge->get_size().height == (1 << 20));
+        core::Graphics g(64, 64, nullptr);
+        bool threw = false;
+        try
+        {
+            host.draw(g);
+        }
+        catch (...)
+        {
+            threw = true;
+        }
+        EXPECT(!threw);
+    }
+
+    // X-5: the field clip is exact. The 8x8 blur-1 square above is fully
+    // inside its surface, so it locks the clip-inactive case; here the
+    // box overflows a small surface, so the clip really cuts the mask box
+    // and the corner bands must still read the ORIGINAL box's geometry.
+    // Rendering the same document on a clipping (12x12) and a generous
+    // (64x48) surface: every pixel the small surface shows must match.
+    {
+        bool ok = false;
+        ui_node doc = parse_html(
+            "<div><div style=\"width:20px;height:14px;background:#ffffff;"
+            "box-shadow: 0 0 2px black\">"
+            "<label>x</label></div></div>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel wide;
+        wide.set_size(64, 48);
+        wide.set_background_color(core::colors::White);
+        build(wide, doc);
+        wide.layout();
+        core::Graphics ga(64, 48, nullptr);
+        wide.draw(ga);
+
+        FlexPanel tight;
+        tight.set_size(12, 12);
+        tight.set_background_color(core::colors::White);
+        build(tight, doc);
+        tight.layout();
+        core::Graphics gb(12, 12, nullptr);
+        tight.draw(gb);
+
+        int mismatch = -1;
+        for (int y = 0; y < 12 && mismatch < 0; ++y)
+        {
+            for (int x = 0; x < 12; ++x)
+            {
+                if (test::pixel_at(ga, x, y) != test::pixel_at(gb, x, y))
+                {
+                    mismatch = y * 12 + x;
+                    break;
+                }
+            }
+        }
+        EXPECT(mismatch < 0);
+        if (mismatch >= 0)
+        {
+            std::printf("  clip mismatch at (%d,%d)\n", mismatch % 12,
+                        mismatch / 12);
+        }
+    }
+
+    // X-5: the same hostile geometry with an INSET shadow. The field was
+    // bounded already, but the ring walk still stepped the declared box
+    // (width*height no-op plot_aa calls, ~1e18 here): bounded work, not
+    // just a bounded allocation, is what this locks. The blur stays small
+    // so the field itself is cheap -- the walk is the hazard.
+    {
+        bool ok = false;
+        ui_node root = parse_html(
+            "<div><div style=\"width:1000000000px;height:1000000000px;"
+            "background:#ffffff;box-shadow: inset 0 0 5px 10px #000\">"
+            "<label>x</label></div></div>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel host;
+        host.set_size(64, 64);
+        build(host, root);
+        host.layout();
+        core::Graphics g(64, 64, nullptr);
+        bool threw = false;
+        try
+        {
+            host.draw(g);
+        }
+        catch (...)
+        {
+            threw = true;
+        }
+        EXPECT(!threw);
+        // the ring lands on the surface's top-left corner at full
+        // strength (the 10px spread puts the hole's mask past the blur
+        // support there), so the clamp must not have dropped the pixels
+        // it can still reach
+        EXPECT(test::pixel_at(g, 0, 0) != core::colors::White.pixel);
+    }
+
+    // X-5: the inset clamp is exact too. Same 20x14 rounded box on a
+    // clipping and a generous surface: the ring pixels the small surface
+    // shows must be identical (the clamp only skips plot_aa calls that
+    // the surface would have thrown away).
+    {
+        bool ok = false;
+        ui_node doc = parse_html(
+            "<div><div style=\"width:20px;height:14px;background:#ffffff;"
+            "border-radius:3px;box-shadow: inset 0 0 2px black\">"
+            "<label>x</label></div></div>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel wide;
+        wide.set_size(64, 48);
+        wide.set_background_color(core::colors::White);
+        build(wide, doc);
+        wide.layout();
+        core::Graphics ga(64, 48, nullptr);
+        wide.draw(ga);
+
+        FlexPanel tight;
+        tight.set_size(12, 12);
+        tight.set_background_color(core::colors::White);
+        build(tight, doc);
+        tight.layout();
+        core::Graphics gb(12, 12, nullptr);
+        tight.draw(gb);
+
+        int mismatch = -1;
+        for (int y = 0; y < 12 && mismatch < 0; ++y)
+        {
+            for (int x = 0; x < 12; ++x)
+            {
+                if (test::pixel_at(ga, x, y) != test::pixel_at(gb, x, y))
+                {
+                    mismatch = y * 12 + x;
+                    break;
+                }
+            }
+        }
+        EXPECT(mismatch < 0);
+        if (mismatch >= 0)
+        {
+            std::printf("  inset clip mismatch at (%d,%d)\n", mismatch % 12,
+                        mismatch / 12);
+        }
+    }
+
+    // X-5: the SVG canvas is design-file geometry too -- its viewBox and
+    // line/text coordinates used to be unchecked narrowings, and they are
+    // what the canvas reads back through measure() and its viewBox scale.
+    {
+        bool ok = false;
+        ui_node doc = parse_html(
+            "<div><svg style=\"width:1000000000px;height:1000000000px\" "
+            "viewBox=\"0 0 1000000000 1000000000\">"
+            "<line x1=\"-1000000000\" y1=\"0\" x2=\"1000000000\" "
+            "y2=\"1000000000\" stroke=\"red\"/></svg></div>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel host;
+        host.set_size(64, 64);
+        build(host, doc);
+        host.layout();
+        auto *canvas = host.get_items()[0].child.get();
+        // the CSS box and the viewBox are gated the same way
+        const auto cs = canvas->get_size();
+        const auto cm = canvas->measure();
+        if (cs.width > (1 << 20) || cm.width != (1 << 20))
+        {
+            std::printf("  svg gate: size=%dx%d measure=%dx%d\n", cs.width,
+                        cs.height, cm.width, cm.height);
+        }
+        EXPECT(cs.width == (1 << 20));
+        EXPECT(cm.width == (1 << 20));
+        EXPECT(cm.height == (1 << 20));
+    }
+
+    // X-5: the same capped canvas with a degenerate viewBox is the case
+    // the cap exists for. The viewBox stroke scale forms
+    // w*h*kQ10*kQ10 -- 2^68 at the old 1<<24 cap, 2^60 here -- so this
+    // document locks the cap's effect on that int64 product under the
+    // sanitizer battery. The stroke scale is computed before any
+    // clipping, so the segment collapses onto one point past the
+    // coordinate bound: the product is exercised without asking the
+    // rasterizer to walk a bound-sized band.
+    {
+        bool ok = false;
+        ui_node doc = parse_html(
+            "<div><svg style=\"width:1000000000px;height:1000000000px\" "
+            "viewBox=\"0 0 1 1\">"
+            "<line x1=\"1000000000\" y1=\"1000000000\" x2=\"1000000000\" "
+            "y2=\"1000000000\" stroke=\"red\"/></svg></div>\n",
+            &ok);
+        EXPECT(ok);
+        FlexPanel host;
+        host.set_size(64, 64);
+        build(host, doc);
+        host.layout();
+        EXPECT(host.get_items()[0].child->get_size().width == (1 << 20));
+        core::Graphics g(64, 64, nullptr);
+        bool threw = false;
+        try
+        {
+            host.draw(g);
+        }
+        catch (...)
+        {
+            threw = true;
+        }
+        EXPECT(!threw);
     }
 
     return test::report("html");

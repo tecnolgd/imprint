@@ -15,6 +15,7 @@
 #include "app_maker.hpp"
 #include "logging.hpp"
 #include "shell/input_source.hpp"
+#include "shell/main_guard.hpp"
 #include "shell/platform_font.hpp"
 #include "shell/sixel.hpp"
 #include "shell/term_input.hpp"
@@ -82,6 +83,84 @@ namespace
         bool restored_ = false;
         bool saved_valid_ = false;
     };
+
+    // the framework-mode body (code-contract §11); main wraps it in
+    // zb::shell::guarded_main (X-5)
+    int run_terminal()
+    {
+        int buffer_w = 0;
+        int buffer_h = 0;
+        resolve_buffer_size(buffer_w, buffer_h);
+
+        terminal_session session;
+        if (!session.begin())
+        {
+            // headless host or no tty: fail instead of a loop that can
+            // never receive input
+            LE << "terminal unavailable (stdin is not a tty), exiting";
+            return 1;
+        }
+
+        zb::shell::install_platform_font();
+        auto app = make_app();
+        app->create_window(static_cast<uint32_t>(buffer_w),
+                           static_cast<uint32_t>(buffer_h));
+        const auto window = app->window();
+
+        // the app requests to quit by closing its window (e.g. a QUIT button)
+        bool app_closed = false;
+        // held for the loop's lifetime (code-contract §11.1)
+        const auto closed_sub = app->on_closed([&app_closed]() { app_closed = true; });
+
+        // painted callback: the frame is owed, present at the next loop tick
+        bool frame_owed = false;
+        const auto painted_sub = app->on_painted([&frame_owed](const void *) { frame_owed = true; });
+
+        zb::shell::term_input::parser parser(buffer_w, buffer_h);
+        std::vector<zb::input::input_event> events;
+
+        // the first frame goes out immediately, like the FB shell
+        app->paint();
+        std::fputs("\x1b[H", stdout);
+        zb::shell::sixel::write_frame(window->data(), buffer_w, buffer_h);
+
+        while (!app_closed)
+        {
+            // 30ms poll: input arrives when it arrives, the frame presents
+            // when the painted callback says one is owed
+            pollfd fds{STDIN_FILENO, POLLIN, 0};
+            if (poll(&fds, 1, 30) > 0)
+            {
+                char chunk[256];
+                const ssize_t n = ::read(STDIN_FILENO, chunk, sizeof(chunk));
+                if (n <= 0)
+                {
+                    break;  // stdin closed
+                }
+                events.clear();
+                parser.feed(chunk, static_cast<std::size_t>(n), events);
+                // the parser maps into buffer pixels already; the events go
+                // through the shared feed_input seam (A-2)
+                for (const zb::input::input_event &ev : events)
+                {
+                    if (app_closed)
+                    {
+                        break;
+                    }
+                    zb::shell::feed_input(*app, ev);
+                }
+            }
+            if (frame_owed)
+            {
+                frame_owed = false;
+                std::fputs("\x1b[H", stdout);  // cursor home, overwrite
+                zb::shell::sixel::write_frame(window->data(), buffer_w, buffer_h);
+            }
+        }
+
+        session.restore();
+        return 0;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -93,76 +172,6 @@ int main(int argc, char *argv[])
 
     LD << "run on terminal (SIXEL)";
 
-    int buffer_w = 0;
-    int buffer_h = 0;
-    resolve_buffer_size(buffer_w, buffer_h);
-
-    terminal_session session;
-    if (!session.begin())
-    {
-        // headless host or no tty: fail instead of a loop that can
-        // never receive input
-        LE << "terminal unavailable (stdin is not a tty), exiting";
-        return 1;
-    }
-
-    zb::shell::install_platform_font();
-    auto app = make_app();
-    app->create_window(static_cast<uint32_t>(buffer_w),
-                       static_cast<uint32_t>(buffer_h));
-    const auto window = app->window();
-
-    // the app requests to quit by closing its window (e.g. a QUIT button)
-    bool app_closed = false;
-    // held for the loop's lifetime (code-contract §11.1)
-    const auto closed_sub = app->on_closed([&app_closed]() { app_closed = true; });
-
-    // painted callback: the frame is owed, present at the next loop tick
-    bool frame_owed = false;
-    const auto painted_sub = app->on_painted([&frame_owed](const void *) { frame_owed = true; });
-
-    zb::shell::term_input::parser parser(buffer_w, buffer_h);
-    std::vector<zb::input::input_event> events;
-
-    // the first frame goes out immediately, like the FB shell
-    app->paint();
-    std::fputs("\x1b[H", stdout);
-    zb::shell::sixel::write_frame(window->data(), buffer_w, buffer_h);
-
-    while (!app_closed)
-    {
-        // 30ms poll: input arrives when it arrives, the frame presents
-        // when the painted callback says one is owed
-        pollfd fds{STDIN_FILENO, POLLIN, 0};
-        if (poll(&fds, 1, 30) > 0)
-        {
-            char chunk[256];
-            const ssize_t n = ::read(STDIN_FILENO, chunk, sizeof(chunk));
-            if (n <= 0)
-            {
-                break;  // stdin closed
-            }
-            events.clear();
-            parser.feed(chunk, static_cast<std::size_t>(n), events);
-            // the parser maps into buffer pixels already; the events go
-            // through the shared feed_input seam (A-2)
-            for (const zb::input::input_event &ev : events)
-            {
-                if (app_closed)
-                {
-                    break;
-                }
-                zb::shell::feed_input(*app, ev);
-            }
-        }
-        if (frame_owed)
-        {
-            frame_owed = false;
-            std::fputs("\x1b[H", stdout);  // cursor home, overwrite
-            zb::shell::sixel::write_frame(window->data(), buffer_w, buffer_h);
-        }
-    }
-
-    session.restore();
-    return 0;
+    // X-5: every escape becomes a diagnostic + exit 1 (main_guard.hpp)
+    return zb::shell::guarded_main(run_terminal);
 }

@@ -1,6 +1,7 @@
 #include "widget.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 #include "text/utf8.hpp"
@@ -98,12 +99,57 @@ namespace zb::ui
         // retained and grown to the high-water mark (no per-frame
         // allocation; paints are single-threaded). Returns the field
         // and its origin/extent; pixels outside it read zero.
-        const uint8_t *gaussian_field(const int mleft, const int mtop,
+        //
+        // X-5: the surface rect in the field's own coordinate frame (the
+        // active draw offset, see draw_background_impl). The mask box
+        // used to be sized verbatim from the declared geometry, and a
+        // design file declares any px: `width:1000000000px;
+        // height:1000000000px; box-shadow:0 0 255px #000` asked for
+        // ~1e18 bytes and threw bad_alloc out of an init path (the blur
+        // cost was quadratic in the declared box too). No drawn pixel
+        // sees the mask farther than the Gaussian support away from the
+        // surface -- the draw area is always surface-clamped -- so the
+        // mask box is clipped to the surface expanded by the support
+        // before anything is sized. An empty rect (r < l) means nothing
+        // is drawable.
+        struct field_clip
+        {
+            int l = 0;
+            int t = 0;
+            int r = -1;
+            int b = -1;
+        };
+
+        const uint8_t *gaussian_field(const field_clip &clip,
+                                      const int mleft, const int mtop,
                                       const int mright, const int mbottom,
                                       const int mradius, const int blur,
                                       int &fx0, int &fy0, int &fw, int &fh)
         {
             const int support = blur > 0 ? (3 * blur + 1) / 2 : 0;
+            // the mask box clipped to what the surface can reach (X-5):
+            // int64 intermediate -- l - support must not wrap for a box
+            // parked far off the surface
+            const int64_t bleft64 =
+                std::max<int64_t>(mleft, static_cast<int64_t>(clip.l) - support);
+            const int64_t btop64 =
+                std::max<int64_t>(mtop, static_cast<int64_t>(clip.t) - support);
+            const int64_t bright64 =
+                std::min<int64_t>(mright, static_cast<int64_t>(clip.r) + support);
+            const int64_t bbottom64 =
+                std::min<int64_t>(mbottom, static_cast<int64_t>(clip.b) + support);
+            fx0 = 0;
+            fy0 = 0;
+            fw = 0;
+            fh = 0;
+            if (bleft64 > bright64 || btop64 > bbottom64)
+            {
+                return nullptr;  // nothing the surface can see
+            }
+            const int bleft = static_cast<int>(bleft64);
+            const int btop = static_cast<int>(btop64);
+            const int bright = static_cast<int>(bright64);
+            const int bbottom = static_cast<int>(bbottom64);
             static std::vector<int64_t> wtab;
             if (static_cast<int>(wtab.size()) < support + 1)
             {
@@ -126,13 +172,13 @@ namespace zb::ui
             }
             const int64_t wsum2 = wsum * wsum;
 
-            // field region = mask box expanded by the support; the mask
-            // is zero past the box, so the clamped prefix reads below
-            // are the exact zero-padded convolution
-            fx0 = mleft - support;
-            fy0 = mtop - support;
-            fw = mright - mleft + 2 * support + 1;
-            fh = mbottom - mtop + 2 * support + 1;
+            // field region = clipped mask box expanded by the support;
+            // the mask is zero past the clipped box, so the clamped
+            // prefix reads below are the exact zero-padded convolution
+            fx0 = bleft - support;
+            fy0 = btop - support;
+            fw = bright - bleft + 2 * support + 1;
+            fh = bbottom - btop + 2 * support + 1;
             const size_t need = static_cast<size_t>(fw) * fh;
 
             static std::vector<uint8_t> mask;
@@ -141,35 +187,35 @@ namespace zb::ui
                 mask.resize(need);
             }
             std::fill(mask.begin(), mask.begin() + need, 0);
-            for (int y = mtop; y <= mbottom; ++y)
-            {
-                uint8_t *rowp = &mask[static_cast<size_t>(y - fy0) * fw +
-                                      (mleft - fx0)];
-                std::fill(rowp, rowp + (mright - mleft + 1), 255);
-            }
+            // the CLIPPED box's rows carry the ORIGINAL box's exact
+            // coverage: a clipped edge is by construction >= support
+            // outside the surface, so re-rounding it there (the box
+            // would be a different rounded box) would leak a wrong
+            // corner into the pixels the clip exists to protect
             const int rc = core::Graphics::inscribed_radius(
                 mright - mleft + 1, mbottom - mtop + 1, mradius);
-            if (rc > 0)
+            for (int y = btop; y <= bbottom; ++y)
             {
-                for (int y = mtop; y <= mbottom; ++y)
+                uint8_t *rowp = &mask[static_cast<size_t>(y - fy0) * fw];
+                std::fill(rowp + (bleft - fx0), rowp + (bright - fx0) + 1, 255);
+                if (rc <= 0 || (y >= mtop + rc && y <= mbottom - rc))
                 {
-                    if (y >= mtop + rc && y <= mbottom - rc)
-                    {
-                        continue;  // straight-section row: all 255
-                    }
-                    uint8_t *rowp = &mask[static_cast<size_t>(y - fy0) * fw];
-                    for (int x = mleft; x < mleft + rc; ++x)
-                    {
-                        rowp[x - fx0] = static_cast<uint8_t>(
-                            core::Graphics::rounded_overlap255(
-                                mleft, mtop, mright, mbottom, mradius, x, y));
-                    }
-                    for (int x = mright - rc + 1; x <= mright; ++x)
-                    {
-                        rowp[x - fx0] = static_cast<uint8_t>(
-                            core::Graphics::rounded_overlap255(
-                                mleft, mtop, mright, mbottom, mradius, x, y));
-                    }
+                    continue;  // straight-section row: all 255
+                }
+                // corner bands: only the cells inside the clipped box
+                for (int x = std::max(bleft, mleft);
+                     x < std::min(bright + 1, mleft + rc); ++x)
+                {
+                    rowp[x - fx0] = static_cast<uint8_t>(
+                        core::Graphics::rounded_overlap255(
+                            mleft, mtop, mright, mbottom, mradius, x, y));
+                }
+                for (int x = std::max(bleft, mright - rc + 1);
+                     x <= std::min(bright, mright); ++x)
+                {
+                    rowp[x - fx0] = static_cast<uint8_t>(
+                        core::Graphics::rounded_overlap255(
+                            mleft, mtop, mright, mbottom, mradius, x, y));
                 }
             }
 
@@ -198,14 +244,33 @@ namespace zb::ui
                 for (int x = 0; x < fw; ++x)
                 {
                     int64_t h = 0;
-                    for (int d = -support; d <= support; ++d)
+                    // X-5 (review): radius d contributes two mirrored
+                    // windows, +d and -d; added in that order their
+                    // terms cancel pairwise, but only after the
+                    // accumulator has dipped by the sum of their
+                    // magnitudes -- at blur 255 that dip is -1.1e19,
+                    // past int64 (signed-overflow UB, reported by the
+                    // sanitizer battery). Reading both mirrors of one
+                    // radius together keeps the pair, and therefore
+                    // every running sum, non-negative: the pair IS the
+                    // mask at x - d and x + d, so the value does not
+                    // change and the sum stays bounded by the
+                    // convolution, 255 * wsum2.
+                    for (int d = 0; d <= support; ++d)
                     {
-                        const int64_t w =
-                            wtab[static_cast<size_t>(d < 0 ? -d : d)];
-                        const int hi = x + d + 1;
-                        const int lo = x - d;
-                        h += w * (pfx[hi < 0 ? 0 : hi > fw ? fw : hi] -
-                                  pfx[lo < 0 ? 0 : lo > fw ? fw : lo]);
+                        const int64_t w = wtab[static_cast<size_t>(d)];
+                        const int hi_p = x + d + 1;
+                        const int lo_p = x - d;
+                        const int hi_m = x - d + 1;
+                        const int lo_m = x + d;
+                        const int64_t p =
+                            pfx[hi_p < 0 ? 0 : hi_p > fw ? fw : hi_p] -
+                            pfx[lo_p < 0 ? 0 : lo_p > fw ? fw : lo_p];
+                        const int64_t m =
+                            d > 0 ? pfx[hi_m < 0 ? 0 : hi_m > fw ? fw : hi_m] -
+                                        pfx[lo_m < 0 ? 0 : lo_m > fw ? fw : lo_m]
+                                  : 0;
+                        h += w * (p + m);
                     }
                     hp[x] = h;
                 }
@@ -234,14 +299,22 @@ namespace zb::ui
                 for (int y = 0; y < fh; ++y)
                 {
                     int64_t v = 0;
-                    for (int d = -support; d <= support; ++d)
+                    // mirrored pairs as in pass 1 (same value, no dip)
+                    for (int d = 0; d <= support; ++d)
                     {
-                        const int64_t w =
-                            wtab[static_cast<size_t>(d < 0 ? -d : d)];
-                        const int hi = y + d + 1;
-                        const int lo = y - d;
-                        v += w * (colp[hi < 0 ? 0 : hi > fh ? fh : hi] -
-                                  colp[lo < 0 ? 0 : lo > fh ? fh : lo]);
+                        const int64_t w = wtab[static_cast<size_t>(d)];
+                        const int hi_p = y + d + 1;
+                        const int lo_p = y - d;
+                        const int hi_m = y - d + 1;
+                        const int lo_m = y + d;
+                        const int64_t p =
+                            colp[hi_p < 0 ? 0 : hi_p > fh ? fh : hi_p] -
+                            colp[lo_p < 0 ? 0 : lo_p > fh ? fh : lo_p];
+                        const int64_t m =
+                            d > 0 ? colp[hi_m < 0 ? 0 : hi_m > fh ? fh : hi_m] -
+                                        colp[lo_m < 0 ? 0 : lo_m > fh ? fh : lo_m]
+                                  : 0;
+                        v += w * (p + m);
                     }
                     cov[static_cast<size_t>(y) * fw + x] =
                         static_cast<uint8_t>((v + wsum2 / 2) / wsum2);
@@ -250,7 +323,8 @@ namespace zb::ui
             return cov.data();
         }
 
-        void paint_inset_shadow(core::Graphics &area, int width, int height,
+        void paint_inset_shadow(core::Graphics &area, const field_clip &surface,
+                                int width, int height,
                                 int radius, int border, int ox, int oy,
                                 int blur, int spread, const core::Color &color)
         {
@@ -275,16 +349,26 @@ namespace zb::ui
             // hole at full strength.
             int fx0, fy0, fw, fh;
             const uint8_t *field = gaussian_field(
-                left + spread + ox, top + spread + oy,
+                surface, left + spread + ox, top + spread + oy,
                 right - spread + ox, bottom - spread + oy,
                 std::max(0, inner_radius - spread), blur, fx0, fy0, fw, fh);
-            for (int y = top; y <= bottom; ++y)
+            // X-5: the declared box can be far larger than the surface (a
+            // design file declares any px; the field above is clipped for
+            // the same reason). A pixel outside the surface rect can never
+            // be plotted -- plot_aa clips to the draw area, which is
+            // surface-bounded by construction -- so the ring walk is
+            // clamped to it. Unclamped, a 1e9px box cost width*height
+            // no-op plot_aa calls (~1e18) inside one frame: a hang, not
+            // just a large allocation.
+            const int ry1 = std::min(bottom, surface.b);
+            for (int y = std::max(top, surface.t); y <= ry1; ++y)
             {
                 const auto clip = rounded_shadow_span(left, top, right, bottom,
                                                       inner_radius, y);
                 const int start = std::max(left, clip.left - 1);
                 const int end = std::min(right, clip.right + 1);
-                for (int x = start; x <= end; ++x)
+                const int rx1 = std::min(end, surface.r);
+                for (int x = std::max(start, surface.l); x <= rx1; ++x)
                 {
                     // the clip's boundary pixels take their true area overlap
                     // with the padding box: the 1D chord fraction flickers
@@ -323,7 +407,8 @@ namespace zb::ui
         // wall exactly at the contour; the triangular kernel after it
         // still died at 1 blur with a linear slope. plot_aa gates
         // clip/damage and binary depths (half-coverage rule).
-        void paint_outer_shadow(core::Graphics &area, const int x0,
+        void paint_outer_shadow(core::Graphics &area, const field_clip &surface,
+                                const int x0,
                                 const int y0, const int x1, const int y1,
                                 const int radius, const int blur,
                                 const core::Color &color)
@@ -334,8 +419,12 @@ namespace zb::ui
             }
             int fx0, fy0, fw, fh;
             const uint8_t *field =
-                gaussian_field(x0, y0, x1, y1, radius, blur,
+                gaussian_field(surface, x0, y0, x1, y1, radius, blur,
                                fx0, fy0, fw, fh);
+            if (fw <= 0 || fh <= 0)
+            {
+                return;  // the surface sees no part of the silhouette
+            }
             for (int y = fy0; y < fy0 + fh; ++y)
             {
                 for (int x = fx0; x < fx0 + fw; ++x)
@@ -655,6 +744,39 @@ namespace zb::ui
                                       const int sh_dx, const int sh_dy) const
     {
         const auto s = get_size();
+        // X-5: the surface rect in THIS frame, for the shadow/inset clip
+        // (see gaussian_field, paint_inset_shadow). Both are bounded by
+        // it because a design file declares any box size (a 1e9px box
+        // asked the field for ~1e18 bytes, and the inset ring walk for
+        // ~1e18 plot_aa calls).
+        //
+        // Drawing coordinates are relative to the ACTIVE DRAW OFFSET,
+        // which is exactly abs_pos - (sh_dx, sh_dy) here. The clip chain
+        // composes each level's origin additively from the surface origin
+        // -- clip_safe's requested origin (the "local origin is the
+        // requested box" rule) plus the parent's offset -- so the offset
+        // in the dress phase (sh_dx == sh_dy == 0) is the widget's own
+        // absolute position, and the shadow phase shifts it by the padded
+        // box it just clipped to (draw_background_shadows_only). The same
+        // invariant is what makes clip_surface_safe's absolute surface
+        // coordinates sound (P-2e); a divergence here would break that
+        // contract too, not just this clip.
+        const auto abs_pos = get_absolute_position();
+        const auto surf = area.size();
+        // saturating int64 -> int: a saturated bound only ever widens the
+        // clip (a superset of the surface still renders identically)
+        const auto frame_coord = [](const int64_t v) {
+            return static_cast<int>(std::clamp(
+                v, static_cast<int64_t>(INT32_MIN),
+                static_cast<int64_t>(INT32_MAX)));
+        };
+        const int64_t fox = static_cast<int64_t>(abs_pos.x) - sh_dx;
+        const int64_t foy = static_cast<int64_t>(abs_pos.y) - sh_dy;
+        field_clip surface;
+        surface.l = frame_coord(-fox);
+        surface.t = frame_coord(-foy);
+        surface.r = frame_coord(static_cast<int64_t>(surf.width) - 1 - fox);
+        surface.b = frame_coord(static_cast<int64_t>(surf.height) - 1 - foy);
         // corner radius shared by the background and the border (P-1):
         // px clamps to half the smaller side, the half form resolves
         // 50% at draw time
@@ -765,7 +887,7 @@ namespace zb::ui
                     // stepped halo — the spill decays smoothly from half
                     // strength at the contour; binary depths threshold
                     // the coverage at half inside plot_aa
-                    paint_outer_shadow(area, x0, y0, x1, y1,
+                    paint_outer_shadow(area, surface, x0, y0, x1, y1,
                                        radius + sh.spread, sh.blur, sh.c);
                 }
                 else
@@ -934,7 +1056,7 @@ namespace zb::ui
             for (int k = 0; k < ext_->n_sh_in && k < 2; ++k)
             {
                 const shadow_spec &sh = ext_->sh_in[k];
-                paint_inset_shadow(area, s.width, s.height, radius,
+                paint_inset_shadow(area, surface, s.width, s.height, radius,
                                    dress_.border_w, sh.ox, sh.oy,
                                    sh.blur, sh.spread, sh.c);
             }

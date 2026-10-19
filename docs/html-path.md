@@ -201,7 +201,7 @@ build; this rule governs the build-time gate only.
 | `border` | `Npx solid <color>` | `set_border`; any other style/grammar drops the border |
 | `border-top` | `Npx solid <color>` | full-width top band over the background; radius corners not cut; other sides are off-whitelist |
 | `opacity` | number `0..1`, `N%` | build-time fold into the widget's own paint alphas (bg/stops/border/text); descendants are not composited |
-| `box-shadow` | `[inset] OXpx OYpx [blur] [spread] <color>`, comma list | inset = a Gaussian-blurred hole punched out of the face (exact-area rounded mask, σ = blur/2, spread contracts the hole); outer = a Gaussian spill bounded by the **surface** (escapes nested box clips via `clip_surface_safe` — visible on opaque boxes; damage reports the expanded offset+spread+1.5-blur bounds); max 2 + 2, extras warn-and-drop |
+| `box-shadow` | `[inset] OXpx OYpx [blur] [spread] <color>`, comma list | inset = a Gaussian-blurred hole punched out of the face (exact-area rounded mask, σ = blur/2, spread contracts the hole); outer = a Gaussian spill bounded by the **surface** (escapes nested box clips via `clip_surface_safe` — visible on opaque boxes; damage reports the expanded offset+spread+1.5-blur bounds); max 2 + 2, extras warn-and-drop. The blur mask is clipped to the surface expanded by the Gaussian support, so a declared box of any size costs only the visible field (X-5; the clipped cells keep the declared box's coverage, so the clip never changes a drawn pixel) |
 | `border-radius` | `Npx` (single), `50%` | px, or half the smaller side at draw time; multi-value drops |
 | `position` | `relative`, `absolute` | `relative` = in-flow + containing block for abs descendants (its own offsets ignored); `absolute` = out of flow (code-contract P-3); anything else = static |
 | `top` / `left` / `right` / `bottom` | `Npx`, `N%`, bare `0`, `auto` | abs offsets against the containing-block content box (`auto` = unset; only read on absolutely positioned elements) |
@@ -330,7 +330,13 @@ out of scope:
   triplets after `C` extra curves, etc.); `A`/`a` and anything
   unparseable drop the whole path with one LW warning (an arc-capable
   renderer is not pretended). Coordinates are viewBox units, decimals
-  accepted. Every curve segment flattens adaptively at parse time
+  accepted. A number's magnitude is capped at 1e9 viewBox units — the
+  same cap the attribute readers apply (`viewBox`, `cx`, `r`, …), and
+  the reason it exists is that the number feeds a double → Q10 cast at
+  draw time (X-6): past the cap the value is not geometry any more, so
+  the whole `d` drops with the same warning instead of handing the
+  canvas a coordinate outside the cast's range. Every curve segment
+  flattens adaptively at parse time
   (de Casteljau subdivision to a ~0.1 viewBox-unit chord tolerance,
   depth-capped) into a polyline; the canvas then strokes the polyline
   with the same device-space geometry as `line` (per-pixel capsule

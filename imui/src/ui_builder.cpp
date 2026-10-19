@@ -137,6 +137,45 @@ namespace zb::ui
 
         // --- the tag table -----------------------------------------------
 
+        // X-5: the design-file readers store a px value as `long long`
+        // and the parse side is deliberately tolerant (CSS `apply_length`
+        // accepts any digit string), so the property table is where a
+        // design value becomes an int geometry field. That used to be a
+        // bare `static_cast`: out of range is implementation-defined, and
+        // in range it is still absurd -- `width:1000000000px` reaches the
+        // outer-shadow field as ~1e18 bytes (the field clip in widget.cpp
+        // is the other half of that fix). Px geometry is therefore
+        // range-gated here as it is applied: lengths into [0, kMaxPx],
+        // signed offsets into [-kMaxPx, kMaxPx]. The cap is what keeps
+        // the derived arithmetic of the layers below inside its own
+        // stated range: int layout sums, and -- for the SVG canvas, whose
+        // per-sample math assumes a real surface -- the int64 products
+        // w*h*kQ10*kQ10 of the viewBox stroke scale (2^60 at this cap)
+        // and |dx|*w*kQ10 of the coordinate map (2^51). kMaxPx is
+        // deliberately generous (real surfaces are ~three orders of
+        // magnitude smaller). Non-geometry numeric props (gradient stops,
+        // control ranges, enum selectors) keep their own setter clamps or
+        // are compare-only; they are not this class.
+        constexpr long long kMaxPx = 1LL << 20;  // 1 048 576 px
+
+        int px_of(const ui_node &n, const char *name,
+                  const long long fallback = 0)
+        {
+            const long long v = prop_of(n, name, fallback);
+            return static_cast<int>(v < 0 ? 0 : (v > kMaxPx ? kMaxPx : v));
+        }
+
+        int px_offset_of(const ui_node &n, const char *name,
+                         const long long fallback = 0)
+        {
+            const long long v = prop_of(n, name, fallback);
+            if (v < -kMaxPx)
+            {
+                return static_cast<int>(-kMaxPx);
+            }
+            return static_cast<int>(v > kMaxPx ? kMaxPx : v);
+        }
+
         // the string keys here are the ones a future designer-file
         // deserializer must emit; keep in sync with the builders in
         // ui_builder.hpp
@@ -779,9 +818,7 @@ namespace zb::ui
                 core::Color bc;
                 if (parse_color(prop_of(n, "border_t_c", std::string{}), bc))
                 {
-                    w.set_top_border(
-                        static_cast<int>(prop_of(n, "border_t_w", 0LL)),
-                        fold_opacity(bc, op));
+                    w.set_top_border(px_of(n, "border_t_w"), fold_opacity(bc, op));
                 }
             }
             // P-2e box shadows: up to two per kind ride sh_oN_/sh_iN_;
@@ -806,14 +843,10 @@ namespace zb::ui
                     {
                         continue;
                     }
-                    const int ox = static_cast<int>(
-                        prop_of(n, oxk.c_str(), 0LL));
-                    const int oy = static_cast<int>(
-                        prop_of(n, (base + "_oy").c_str(), 0LL));
-                    const int blur = static_cast<int>(
-                        prop_of(n, (base + "_blur").c_str(), 0LL));
-                    const int spread = static_cast<int>(
-                        prop_of(n, (base + "_spread").c_str(), 0LL));
+                    const int ox = px_offset_of(n, oxk.c_str());
+                    const int oy = px_offset_of(n, (base + "_oy").c_str());
+                    const int blur = px_of(n, (base + "_blur").c_str());
+                    const int spread = px_of(n, (base + "_spread").c_str());
                     if (kd == 0)
                     {
                         w.add_shadow_outer(ox, oy, blur, spread,
@@ -831,9 +864,7 @@ namespace zb::ui
                 core::Color bc;
                 if (parse_color(prop_of(n, "border_color", std::string{}), bc))
                 {
-                    w.set_border(
-                        static_cast<int>(prop_of(n, "border_w", 0LL)),
-                        fold_opacity(bc, op));
+                    w.set_border(px_of(n, "border_w"), fold_opacity(bc, op));
                 }
             }
             if (prop_of(n, "radius_half", false))
@@ -842,8 +873,7 @@ namespace zb::ui
             }
             else if (has_prop(n, "radius_px"))
             {
-                w.set_corner_radius(
-                    static_cast<int>(prop_of(n, "radius_px", 0LL)));
+                w.set_corner_radius(px_of(n, "radius_px"));
             }
         }
 
@@ -868,8 +898,7 @@ namespace zb::ui
                 if (has_wpx == has_hpx)
                 {
                     // both declared (or neither leniently): two-axis set
-                    w.set_size(static_cast<int>(prop_of(n, "width", 0LL)),
-                               static_cast<int>(prop_of(n, "height", 0LL)));
+                    w.set_size(px_of(n, "width"), px_of(n, "height"));
                 }
                 else
                 {
@@ -877,8 +906,8 @@ namespace zb::ui
                     // axis (its measure, e.g. a button's text height) --
                     // set_size marks both explicit, so clear the missing
                     // axis's flag right after
-                    const int wp = static_cast<int>(prop_of(n, "width", 0LL));
-                    const int hp = static_cast<int>(prop_of(n, "height", 0LL));
+                    const int wp = px_of(n, "width");
+                    const int hp = px_of(n, "height");
                     if (has_wpx)
                     {
                         w.set_size(wp, w.get_size().height);
@@ -904,41 +933,38 @@ namespace zb::ui
             // the cross axis may come from anywhere settled)
             if (prop_of(n, "aspect_w", 0LL) > 0 && prop_of(n, "aspect_h", 0LL) > 0)
             {
-                w.set_aspect_ratio(static_cast<int>(prop_of(n, "aspect_w", 0LL)),
-                                   static_cast<int>(prop_of(n, "aspect_h", 0LL)));
+                w.set_aspect_ratio(px_of(n, "aspect_w"), px_of(n, "aspect_h"));
             }
             // D-1: per-axis min/max constraints (non-negative px; the
             // setter clamps negatives to unconstrained)
             if (has_prop(n, "min_width"))
             {
-                w.set_min_width(static_cast<int>(prop_of(n, "min_width", 0LL)));
+                w.set_min_width(px_of(n, "min_width"));
             }
             if (has_prop(n, "max_width"))
             {
-                w.set_max_width(static_cast<int>(prop_of(n, "max_width", 0LL)));
+                w.set_max_width(px_of(n, "max_width"));
             }
             if (has_prop(n, "min_height"))
             {
-                w.set_min_height(static_cast<int>(prop_of(n, "min_height", 0LL)));
+                w.set_min_height(px_of(n, "min_height"));
             }
             if (has_prop(n, "max_height"))
             {
-                w.set_max_height(static_cast<int>(prop_of(n, "max_height", 0LL)));
+                w.set_max_height(px_of(n, "max_height"));
             }
             // in-flow margins (H-3): presence-gated so bare widgets stay
             // allocation-free (set_margin skips the all-zero case too)
             if (has_prop(n, "margin_t") || has_prop(n, "margin_r") ||
                 has_prop(n, "margin_b") || has_prop(n, "margin_l"))
             {
-                w.set_margin(static_cast<int>(prop_of(n, "margin_t", 0LL)),
-                             static_cast<int>(prop_of(n, "margin_r", 0LL)),
-                             static_cast<int>(prop_of(n, "margin_b", 0LL)),
-                             static_cast<int>(prop_of(n, "margin_l", 0LL)));
+                w.set_margin(px_of(n, "margin_t"), px_of(n, "margin_r"),
+                             px_of(n, "margin_b"), px_of(n, "margin_l"));
             }
             if (has_prop(n, "pos_x") || has_prop(n, "pos_y"))
             {
-                w.set_position(static_cast<int>(prop_of(n, "pos_x", 0LL)),
-                               static_cast<int>(prop_of(n, "pos_y", 0LL)));
+                w.set_position(px_offset_of(n, "pos_x"),
+                               px_offset_of(n, "pos_y"));
             }
             const std::string text = prop_of(n, "text", std::string{});
             if (!text.empty())
@@ -1003,8 +1029,7 @@ namespace zb::ui
             // so malformed drops the whole shadow)
             if (has_prop(n, "letter_px"))
             {
-                w.set_letter_spacing(
-                    static_cast<int>(prop_of(n, "letter_px", 0LL)));
+                w.set_letter_spacing(px_of(n, "letter_px"));
             }
             if (prop_of(n, "bold", false))
             {
@@ -1018,8 +1043,8 @@ namespace zb::ui
                 {
                     w.set_text_shadow(
                         fold_opacity(sc, elem_opacity(n)),
-                        static_cast<int>(prop_of(n, "shadow_dx", 0LL)),
-                        static_cast<int>(prop_of(n, "shadow_dy", 0LL)));
+                        px_offset_of(n, "shadow_dx"),
+                        px_offset_of(n, "shadow_dy"));
                 }
             }
             // per-widget font size (code-contract §2.4): presence-gated
@@ -1058,7 +1083,7 @@ namespace zb::ui
         }
         if (has_prop(n, "line_h"))
         {
-            w.set_line_height(static_cast<int>(prop_of(n, "line_h", 0LL)));
+            w.set_line_height(px_of(n, "line_h"));
         }
         if (has_prop(n, "halign"))
         {
@@ -1120,11 +1145,11 @@ namespace zb::ui
             };
             if (gate("spacing"))
             {
-                f.set_spacing(static_cast<int>(prop_of(n, "spacing", 0LL)));
+                f.set_spacing(px_of(n, "spacing"));
             }
             if (gate("padding"))
             {
-                f.set_padding(static_cast<int>(prop_of(n, "padding", 0LL)));
+                f.set_padding(px_of(n, "padding"));
             }
             // per-side padding (html shorthand/longhand fold): sides the
             // node declares win over the uniform base; undeclared sides
@@ -1133,15 +1158,14 @@ namespace zb::ui
             {
                 static const char *const side_keys[4] = {
                     "padding_t", "padding_r", "padding_b", "padding_l"};
-                const int base = static_cast<int>(prop_of(n, "padding", 0LL));
+                const int base = px_of(n, "padding");
                 int sides[4] = {base, base, base, base};
                 bool any = false;
                 for (int si = 0; si < 4; ++si)
                 {
                     if (has_prop(n, side_keys[si]))
                     {
-                        sides[si] = static_cast<int>(
-                            prop_of(n, side_keys[si], 0LL));
+                        sides[si] = px_of(n, side_keys[si]);
                         any = true;
                     }
                 }
@@ -1241,10 +1265,12 @@ namespace zb::ui
                 // children (svg_line/svg_text) consumed here, never
                 // recursed (see materialize)
                 SvgCanvas &v = *as_svg(w);
-                v.set_view_box(static_cast<int>(prop_of(n, "vb_x", 0LL)),
-                               static_cast<int>(prop_of(n, "vb_y", 0LL)),
-                               static_cast<int>(prop_of(n, "vb_w", 0LL)),
-                               static_cast<int>(prop_of(n, "vb_h", 0LL)));
+                // X-5: the viewBox is design-file px geometry like every
+                // other length, and it reaches the canvas by the same
+                // unchecked narrowing (measure()/the viewBox scale read
+                // it back), so it takes the gate too
+                v.set_view_box(px_offset_of(n, "vb_x"), px_offset_of(n, "vb_y"),
+                               px_of(n, "vb_w"), px_of(n, "vb_h"));
                 // the svg element's own opacity multiplies every child
                 // (the per-level product already folded at parse time)
                 const long long base_alpha = prop_of(n, "opacity", 255LL);
@@ -1261,10 +1287,10 @@ namespace zb::ui
                             prop_of(c, "stroke_alpha", 255LL) * base_alpha / 255;
                         stroke.set_a(static_cast<uint8_t>(alpha));
                         SvgCanvas::Line l;
-                        l.x1 = static_cast<int>(prop_of(c, "x1", 0LL));
-                        l.y1 = static_cast<int>(prop_of(c, "y1", 0LL));
-                        l.x2 = static_cast<int>(prop_of(c, "x2", 0LL));
-                        l.y2 = static_cast<int>(prop_of(c, "y2", 0LL));
+                        l.x1 = px_offset_of(c, "x1");
+                        l.y1 = px_offset_of(c, "y1");
+                        l.x2 = px_offset_of(c, "x2");
+                        l.y2 = px_offset_of(c, "y2");
                         l.color = stroke;
                         l.width = prop_of(c, "stroke_w", 1.0);
                         l.round_caps = prop_of(c, "stroke_round", false);
@@ -1279,8 +1305,8 @@ namespace zb::ui
                         }
                         SvgCanvas::Text t;
                         t.text = utf8_to_utf16(s.c_str());
-                        t.x = static_cast<int>(prop_of(c, "x", 0LL));
-                        t.y = static_cast<int>(prop_of(c, "y", 0LL));
+                        t.x = px_offset_of(c, "x");
+                        t.y = px_offset_of(c, "y");
                         core::Color fill;
                         if (parse_color(prop_of(c, "fill", std::string{}), fill))
                         {
@@ -1877,11 +1903,11 @@ namespace zb::ui
             FlexPanel &f = *as_flex(host);
             if (has_prop(root, "spacing"))
             {
-                f.set_spacing(static_cast<int>(prop_of(root, "spacing", 0LL)));
+                f.set_spacing(px_of(root, "spacing"));
             }
             if (has_prop(root, "padding"))
             {
-                f.set_padding(static_cast<int>(prop_of(root, "padding", 0LL)));
+                f.set_padding(px_of(root, "padding"));
             }
             if (has_prop(root, "wrap"))
             {
@@ -1893,11 +1919,11 @@ namespace zb::ui
             Panel &p = *as_panel(host);
             if (has_prop(root, "spacing"))
             {
-                p.set_spacing(static_cast<int>(prop_of(root, "spacing", 0LL)));
+                p.set_spacing(px_of(root, "spacing"));
             }
             if (has_prop(root, "padding"))
             {
-                p.set_padding(static_cast<int>(prop_of(root, "padding", 0LL)));
+                p.set_padding(px_of(root, "padding"));
             }
         }
         // the root's own box dress styles the host (contract: document

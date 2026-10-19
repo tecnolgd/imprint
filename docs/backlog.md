@@ -22,9 +22,9 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-4…X-8 (correctness
-   plus the CI gap that let the defects live) and the
-   hardening/bookkeeping tail. Nothing in the batch reopens a
+   order is inside the batch. What remains is X-7…X-18 (the CI gap that
+   let the correctness defects live, plus the hardening/bookkeeping
+   tail). Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
 ### Batch V — Visual Presentation (open remainder only)
@@ -140,14 +140,17 @@ history in `git log`.
   runs Debug"** — no Linux CI job sets a build type, so `DEBUG` is
   undefined there. Waiting on: add `-DCMAKE_BUILD_TYPE=Debug` to the
   Linux jobs vs. amend §8's premise.
-- **W-14 (IM-HOST-003 remainder). Shell/ABI hardening, six sub-items**:
+- **W-14 (IM-HOST-003 remainder). Shell/ABI hardening, five sub-items**:
   `run_win` assigns
   global `g_app` before a throwing `CreateWindowEx`; the C-ABI
   `catch(...)` handlers log via the allocating `LE` path (OOM can throw
-  out of `extern "C"`); shell `main`s catch only `zb::ui::error`; no DPI
+  out of `extern "C"`); no DPI
   awareness on win/mac; `maps_pointer()` omits `touch_*`; no C-ABI
   re-entrancy guard. Each is small; the set needs a hardening-vs-accept
   ruling (some, like allocating loggers, are the documented design).
+  (The sixth — "shell `main`s catch only `zb::ui::error`" — landed with
+  X-5, 2026-10-17: every framework-mode `main` now runs through
+  `zb::shell::guarded_main`.)
 
 ### Batch X — Independent Audit (2026-10-15; audit-ordered, mostly decision-free)
 
@@ -159,48 +162,14 @@ which also carries the audit's strengths list, the positioning/demo
 proposals and one *withdrawn* finding. Ordered by the audit's recommended
 priority; no item reopens a ratified ruling.
 
-**Correctness — real defects in default paths:**
-
-- **X-4. The macOS shell leaks frame-scope state across `run()`**
-  (code-contract §11.1). `run_mac.mm:53-60` holds
-  `g_app`/`g_view`/`g_painted_sub`/`g_closed_sub`; `:354` enters and
-  `:466` returns with no reset of any of them, while `run_win.cpp:366-372`
-  is the correct shape (review-4 fixed the Windows half only). A second
-  `run()` sends events to a destroyed view and re-seats a live
-  subscription — the library-mode case §11.1 was written for. Acceptance:
-  mirror the win teardown + the repeated-`run()` test from X-7.
-- **X-5. Unbounded design-file geometry reaches the shadow-field
-  allocation, and `bad_alloc` escapes every desktop shell.**
-  `apply_length` accepts any px (`html.cpp:2746`, no cap in `parse_int`) →
-  `ui_builder.cpp:871-881/914-926` narrows `long long`→`int` unchecked →
-  `Widget::set_size` stores it verbatim (`widget.hpp:90/101`) → the
-  outer-shadow field is sized from the **unclipped** box
-  (`widget.cpp:136` `need = fw*fh`, `:138` resize, fill loop `:339-349`).
-  `box-shadow` is whitelisted (`docs/html-path.md:204`), so
-  `width:1000000000px; height:1000000000px; box-shadow:0 0 255px #000`
-  asks for ~1e18 bytes: the shells catch only `zb::ui::error`
-  (`win/main.cpp:17`, `linux/main_fb.cpp:20-26`) → terminate, while the
-  C ABI's `catch (...)` (`zbapi.cpp:311-321`) turns it into a silent empty
-  frame. One fix, three parts: clamp the field to the surface (which also
-  removes the quadratic blur cost), range-gate the prop narrowing
-  (`long long`→`int` with no check is a defect however it is reached), and
-  close the "shell mains catch only `zb::ui::error`" class already listed
-  in W-14.
-- **X-6. SVG path coordinates clamp *after* the cast** (`svg_canvas.cpp:463-471`,
-  `671-673`, `924-946`, `1241-1243`: `clamp_q10(static_cast<int64_t>(d *
-  kQ10 …))`), and `d=` numbers come from `strtod` (`html.cpp:3438-3441`)
-  with no finiteness or magnitude check anywhere (grep: zero hits), while
-  the attribute parsers *do* cap (`html.cpp:2843`) — an unintended
-  asymmetry, and `float-cast-overflow` UB from a hostile `d=`.
-  Acceptance: validate before the multiply, extend the `d=` battery, keep
-  both cap paths symmetric.
-
-**The CI gap that let the above live:**
+**The CI gap that let the landed correctness defects live:**
 
 - **X-7. No shell event loop is executed in CI.** The battery runs pure
   translators plus the presenter in isolation (`test/CMakeLists.txt`);
   `run_win`/`run_x11`/`run_fb`/`run_mac`/sixel loops are compiled and
-  never run — which is precisely where X-4 and X-10 live. Acceptance: at
+  never run — which is precisely where X-10 lives (and where X-4's
+  frame-scope leak lived: it was desk-verified, not executed).
+  Acceptance: at
   least one headless-capable loop under test (X11 + Xvfb, or the FB/SIXEL
   loop from a fake frame source) plus the repeated-`run()` teardown test.
 - **X-8. The build enables no compiler warnings.** The only compile
@@ -208,7 +177,8 @@ priority; no item reopens a ratified ruling.
   `-Wall -Wextra`, no `/W4`, no `-Wconversion`, no `-Werror`, no
   `.clang-format`, no clang-tidy — and the sanitizer job is Tier-3 over
   `test_imui`/`test_zbapi` only (`ci.yml:259-283`). `-Wconversion` alone
-  flags X-5's narrowing class. Acceptance: a per-compiler warning set with
+  would have flagged the `long long`→`int` narrowing class the audit's
+  X-5 landed a fix for. Acceptance: a per-compiler warning set with
   `-Werror`, `.clang-format` in-tree, and the first-pass cleanup either
   here or as a recorded follow-up.
 
@@ -277,6 +247,22 @@ priority; no item reopens a ratified ruling.
   it standard-clean); `event.hpp:131` `subscribe()` returns an RAII
   registration guard without `[[nodiscard]]`, so discarding it unsubscribes
   on the same statement.
+- **X-18. The SVG rasterizer walks the DECLARED geometry, not the draw
+  area** (found by review while landing X-6; not a regression, not in
+  X-4/X-5/X-6's acceptance). X-6 bounds every coordinate at ±16000 px,
+  but the walks are still sized before any clip: `draw_line_stroke` steps
+  the segment's bbox expanded by `dev_w` (`svg_canvas.cpp:602-615`), the
+  shape fill the box its Q10 radii span (`:1047-1059`), and
+  `stroke_points` / the path fill do the same (`:849`, `:1134`) — a
+  16000 px stroke band or radius on a 64 px surface is ~1e9 plot calls
+  per shape. Measured: one `stroke-width:999999999px`
+  line on a 2^20 px canvas (a 1x1 viewBox multiplies the width into the
+  coordinate bound) added ~330 s to the html suite. Bounded, but a
+  stalled frame from a hostile design file. Fix shape: intersect each
+  walk with the draw area (surface-clamped by construction, the X-5
+  inset-ring precedent) at the rasterizer entry; needs a cost mechanism
+  the battery can assert on (wall-clock tests are flaky), so it is not a
+  silent edit.
 
 ### Batch F — Event Loop Extension & Frame Automation (Long-term)
 
