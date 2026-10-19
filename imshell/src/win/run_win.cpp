@@ -180,8 +180,8 @@ namespace
             {
                 if (b->w > 0 && b->h > 0)
                 {
-                    const RECT r{b->x, b->y, b->x + b->w, b->y + b->h};
-                    FillRect(hDC, &r, black);
+                    const RECT bar_rc{b->x, b->y, b->x + b->w, b->y + b->h};
+                    FillRect(hDC, &bar_rc, black);
                 }
             }
         }
