@@ -462,5 +462,5 @@ extern "C" LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             }
         }
     }
-    return static_cast<int>(DefWindowProc(hwnd, msg, wParam, lParam));
+    return DefWindowProc(hwnd, msg, wParam, lParam);
 }
