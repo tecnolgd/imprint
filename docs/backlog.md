@@ -163,7 +163,7 @@ which also carries the audit's strengths list, the positioning/demo
 proposals and one *withdrawn* finding. Ordered by the audit's recommended
 priority; no item reopens a ratified ruling.
 
-**The CI gap that let the landed correctness defects live:**
+**Build and test coverage gaps:**
 
 - **X-8. The build enables no compiler warnings.** The only compile
   option in the tree is MSVC `/utf-8` (`CMakeLists.txt:76`): no
