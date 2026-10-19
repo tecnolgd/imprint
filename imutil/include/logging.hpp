@@ -100,7 +100,7 @@ namespace zb
                 const auto now = std::chrono::system_clock::now();
                 auto dat = std::chrono::system_clock::to_time_t(now);
                 std::tm buf{};
-#if defined(_MSC_VER)
+#if defined(_WIN32)
                 localtime_s(&buf, &dat);
 #else
                 localtime_r(&dat, &buf);
