@@ -555,6 +555,8 @@ satisfies. Changing any of these is an architecture change.
 | `IMPRINT_WITH_TESTS`      | ON (top level) / OFF (subproject) | — | configure-time gate: the test battery (implies the demo app libraries) |
 | `IMPRINT_WITH_DEMOS`      | ON (top level) / OFF (subproject) | — | configure-time gate: demo app libraries + `binding` + the `${STORY}` executable (framework mode, §3.2); implies tools when ON |
 | `IMPRINT_WITH_SHELL`      | ON (top level) / OFF (subproject) | — | configure-time gate: the platform shell (`shell_common` / `shell_hostloop` / `shell_backend` + the backend mains); OFF keeps the platform's packages (X11) out of a headless consumer (§3.2) |
+| `IMPRINT_WARNINGS`        | ON      | —             | the project's per-compiler warning set (`cmake/imprint-warnings.cmake`): `-Wall -Wextra -Wpedantic` + format/shadow/cast family (and C++-only `-Wold-style-cast`, `-Wnon-virtual-dtor`, …) for gcc/clang/apple-clang/emscripten, `/W4 /permissive-` for MSVC; vendored headers stay out via `SYSTEM` includes |
+| `IMPRINT_WERROR`          | ON (top level) / OFF (subproject) | — | promote that set to errors (`-Werror` / `/WX`); off as a subproject so a consumer's newer compiler cannot fail their build on a diagnostic we have not seen |
 
 `USE_INTEGER_GEOMETRY` and `USE_NON_ATOMIC_PTR` are examples of the
 framework's philosophy: **compile-time configuration per target list is a

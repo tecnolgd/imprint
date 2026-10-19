@@ -33,7 +33,7 @@ static void test_subscribe_within_invoke_is_deferred()
     int late_calls = 0;
     int early_calls = 0;
 
-    ev += [&](const int v)
+    ev += [&](const int)
     {
         ++early_calls;
         // subscribing from a handler must not fire the new handler

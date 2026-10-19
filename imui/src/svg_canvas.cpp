@@ -1329,6 +1329,8 @@ namespace zb::ui
             // font-size rides the CTM); it resolves against the process
             // font family like every widget seam, the bitmap fallback
             // staying the documented degradation when none is installed
+            const GlyphProvider *provider = nullptr;
+#if defined(IMCORE_HAS_TTF_RUNTIME)
             const auto sz = get_size();
             double sy = vb_h_ > 0
                             ? static_cast<double>(sz.height) / vb_h_
@@ -1341,8 +1343,6 @@ namespace zb::ui
                 t.font_size > 0.0
                     ? static_cast<int>(t.font_size * sy + 0.5)
                     : 0;
-            const GlyphProvider *provider = nullptr;
-#if defined(IMCORE_HAS_TTF_RUNTIME)
             zb::SharedPtr<GlyphProvider> held;
             if (px >= 1 && px <= 128 && has_font_family())
             {

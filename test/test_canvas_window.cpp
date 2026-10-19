@@ -36,7 +36,6 @@ int test_canvas_window()
 
         auto b = std::make_unique<Button>();
         b->set_size(20, 20);
-        auto *pbtn = b.get();
         int clicks = 0;
         b->clicked += [&clicks]() { ++clicks; };
         root.add_child(std::move(b));
@@ -218,7 +217,6 @@ int test_canvas_window()
 
         auto btn = std::make_unique<Button>();
         btn->set_size(20, 20);
-        auto *pbtn = btn.get();
         int clicks = 0;
         btn->clicked += [&clicks]() { ++clicks; };
 

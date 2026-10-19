@@ -92,6 +92,29 @@ if (MSVC)
     add_compile_options(/utf-8)
 endif()
 
+# X-8 warning baseline: the per-compiler warning set + its -Werror hook
+# (cmake/imprint-warnings.cmake holds the flags and the rationale). The
+# options are declared here so every target in the tree can read them.
+option(IMPRINT_WARNINGS "Enable the project's per-compiler warning set" ON)
+option(IMPRINT_WERROR "Treat the project's warnings as errors (default: in-tree builds only)" ${IMPRINT_IS_TOP_LEVEL})
+include(cmake/imprint-warnings.cmake)
+# one option per flag, so each carries its own language gate: a flag that
+# exists only in C++ must never reach a C TU (gcc warns "valid for C++
+# but not for C" -- and -Werror turns that into a build failure)
+foreach(_imprint_flag IN LISTS IMPRINT_WARNING_FLAGS_C)
+    add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:${_imprint_flag}>")
+endforeach()
+foreach(_imprint_flag IN LISTS IMPRINT_WARNING_FLAGS_CXX)
+    add_compile_options(
+        "$<$<COMPILE_LANGUAGE:CXX>:${_imprint_flag}>"
+        "$<$<COMPILE_LANGUAGE:OBJCXX>:${_imprint_flag}>")
+endforeach()
+# the error gate is one flag for every compiled language (adding it per
+# language would emit it twice on a C++ TU)
+if (IMPRINT_WERROR_FLAG)
+    add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJCXX>:${IMPRINT_WERROR_FLAG}>")
+endif()
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -282,7 +305,8 @@ if (IMPRINT_USE_TOOLS AND NOT NDS_PLATFORM)
     # library-codec option)
     add_executable(imprint-render tools/imprint_render.cpp)
     target_link_libraries(imprint-render PRIVATE imui imapp_snapshot)
-    target_include_directories(imprint-render PRIVATE
+    # SYSTEM: vendored stb stays out of the project warning set
+    target_include_directories(imprint-render SYSTEM PRIVATE
         ${PROJECT_SOURCE_DIR}/third_party/stb)
 endif()
 

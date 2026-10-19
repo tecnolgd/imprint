@@ -308,10 +308,6 @@ namespace zb::ui
         {
             return static_cast<Knob *>(&w);
         }
-        TrendLine *as_trend(Widget &w)
-        {
-            return static_cast<TrendLine *>(&w);
-        }
         SvgCanvas *as_svg(Widget &w)
         {
             return static_cast<SvgCanvas *>(&w);
@@ -1303,22 +1299,22 @@ namespace zb::ui
                         {
                             continue;
                         }
-                        SvgCanvas::Text t;
-                        t.text = utf8_to_utf16(s.c_str());
-                        t.x = px_offset_of(c, "x");
-                        t.y = px_offset_of(c, "y");
+                        SvgCanvas::Text txt;
+                        txt.text = utf8_to_utf16(s.c_str());
+                        txt.x = px_offset_of(c, "x");
+                        txt.y = px_offset_of(c, "y");
                         core::Color fill;
                         if (parse_color(prop_of(c, "fill", std::string{}), fill))
                         {
                             const long long alpha =
                                 prop_of(c, "fill_alpha", 255LL) * base_alpha / 255;
                             fill.set_a(static_cast<uint8_t>(alpha));
-                            t.color = fill;
-                            t.has_color = true;
+                            txt.color = fill;
+                            txt.has_color = true;
                         }
-                        t.anchor = static_cast<int>(prop_of(c, "anchor", 0LL));
-                        t.font_size = prop_of(c, "text_fs", 0.0);
-                        v.add_text(t);
+                        txt.anchor = static_cast<int>(prop_of(c, "anchor", 0LL));
+                        txt.font_size = prop_of(c, "text_fs", 0.0);
+                        v.add_text(txt);
                     }
                     else if (c.type == "svg_path")
                     {
@@ -1938,9 +1934,9 @@ namespace zb::ui
         {
             host.set_text_color(fold_opacity(c, elem_opacity(root)));
         }
-        for (const ui_node &c : root.children)
+        for (const ui_node &child : root.children)
         {
-            materialize(host, host.is_flex_container(), c, binder);
+            materialize(host, host.is_flex_container(), child, binder);
         }
         return host;
     }

@@ -105,6 +105,16 @@ namespace zb::ui::core
         // shell's dmaCopy counts depth/8-per-pixel bytes)
         uint8_t bytes[sizeof(pixel_t)];  // 32bpp only: endian-neutral byte view
 
+        // Both trivial members are declared explicitly: the union declares
+        // copy assignment below, which would deprecate the implicit copy
+        // constructor (-Wdeprecated-copy), and declaring that copy
+        // constructor in turn suppresses the implicit default constructor
+        // (the pixel word carries a default member initializer). The
+        // defaulted pair keeps the word copy trivial and the layout
+        // unchanged (the static_asserts below pin the size).
+        constexpr basic_color() = default;
+        constexpr basic_color(const basic_color &) = default;
+
         operator pixel_t() const { return pixel; }
         void operator=(const pixel_t c) { pixel = c; }
         void operator=(const basic_color &c) { pixel = c.pixel; }

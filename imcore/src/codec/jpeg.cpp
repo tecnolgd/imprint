@@ -29,15 +29,15 @@ int Image::write_jpeg(
     auto gsize = g.size();
     auto row_bit_stride = gsize.width * 3; // 24bit jpeg only
     image_info img_inf{
-        (uint32_t)gsize.width,
-        (uint32_t)gsize.height,
-        (uint32_t)row_bit_stride,
+        static_cast<uint32_t>(gsize.width),
+        static_cast<uint32_t>(gsize.height),
+        static_cast<uint32_t>(row_bit_stride),
         3};
 
     std::vector<unsigned char> row(row_bit_stride);
 
-    auto dat = (Color *)g.data();
-    auto write_row = [&](std::vector<unsigned char> &row)
+    auto dat = static_cast<const Color *>(g.data());
+    auto write_row = [&](std::vector<unsigned char> &row_out)
     {
         for (int i = 0; i < gsize.width; i++)
         {
@@ -45,9 +45,9 @@ int Image::write_jpeg(
                 break;
 
             auto cd = dat[cur_row * gsize.width + i];
-            row.push_back(cd.r());
-            row.push_back(cd.g());
-            row.push_back(cd.b());
+            row_out.push_back(cd.r());
+            row_out.push_back(cd.g());
+            row_out.push_back(cd.b());
         }
         cur_row++;
         return true;
@@ -88,7 +88,7 @@ int Image::write_jpeg_file(
     // stb has no streaming writer: collect the rows first (RGB, 3 comp),
     // then hand the whole buffer to stbi_write_jpg.
     auto row_stride = img_width * 3;
-    std::vector<unsigned char> image_data((size_t)row_stride * img_height);
+    std::vector<unsigned char> image_data(static_cast<size_t>(row_stride) * img_height);
     std::vector<unsigned char> row(row_stride);
     for (uint32_t i = 0; i < img_height; i++)
     {
@@ -100,7 +100,7 @@ int Image::write_jpeg_file(
         }
         if (row.size() < row_stride)
             row.resize(row_stride, 0x00);
-        std::memcpy(image_data.data() + (size_t)i * row_stride, row.data(), row_stride);
+        std::memcpy(image_data.data() + static_cast<size_t>(i) * row_stride, row.data(), row_stride);
     }
 
     FILE *outfile = fopen(file_name.c_str(), "wb");
@@ -117,7 +117,8 @@ int Image::write_jpeg_file(
     else if (q > 100)
         q = 100;
 
-    if (0 == stbi_write_jpg(file_name.c_str(), (int)img_width, (int)img_height, 3, image_data.data(), q))
+    if (0 == stbi_write_jpg(file_name.c_str(), static_cast<int>(img_width), static_cast<int>(img_height),
+                            3, image_data.data(), q))
     {
         LE << "Writing jpeg file failed. (" << file_name << ")";
         return 4;
@@ -137,13 +138,14 @@ int Image::read_jpg(Graphics &g, const std::string &file_name, int start_x, int 
     };
     auto jpg_read_row = [&jpg_inf, &jpg_img](unsigned char *buf)
     {
-        uint8_t r = 0, g = 0, b = 0;
-        for (int i = 0; i < (int)jpg_inf.image_width; i++)
+        // cr/cg/cb: `g` is the enclosing read's Graphics target
+        uint8_t cr = 0, cg = 0, cb = 0;
+        for (int i = 0; i < static_cast<int>(jpg_inf.image_width); i++)
         {
-            r = *buf++;
-            g = *buf++;
-            b = *buf++;
-            jpg_img.push_back(Color::from(r, g, b));
+            cr = *buf++;
+            cg = *buf++;
+            cb = *buf++;
+            jpg_img.push_back(Color::from(cr, cg, cb));
         }
         return true;
     };
@@ -194,8 +196,8 @@ int Image::read_jpeg_file(
         return 4;
     }
 
-    auto img_width_u = (uint32_t)img_width;
-    auto img_height_u = (uint32_t)img_height;
+    auto img_width_u = static_cast<uint32_t>(img_width);
+    auto img_height_u = static_cast<uint32_t>(img_height);
     auto row_stride = img_width_u * 3; // stb yields RGB with req_comp=3
     image_info iminf{
         img_width_u,

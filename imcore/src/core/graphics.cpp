@@ -430,7 +430,7 @@ Graphics::ptr Graphics::clone(int x, int y, int32_t width, int32_t height) const
         throw error("clone area out of bounds");
     }
 
-    auto g = Graphics::make_ptr((uint32_t)width, (uint32_t)height);
+    auto g = Graphics::make_ptr(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
     g->set_draw_area(0, 0, width, height);
     for (int row = 0; row < height; row++)
     {
@@ -547,12 +547,12 @@ void Graphics::set_draw_area(int x, int y, int width, int height)
     if (sy >= imsize.height)
         sy = imsize.height - 1;
 
-    auto endx = sx + (int)width - 1;
-    if (endx > (int)imsize.width - 1)
-        endx = (int)imsize.width - 1;
-    auto endy = sy + (int)height - 1;
-    if (endy > (int)imsize.height - 1)
-        endy = (int)imsize.height - 1;
+    auto endx = sx + static_cast<int>(width) - 1;
+    if (endx > static_cast<int>(imsize.width) - 1)
+        endx = static_cast<int>(imsize.width) - 1;
+    auto endy = sy + static_cast<int>(height) - 1;
+    if (endy > static_cast<int>(imsize.height) - 1)
+        endy = static_cast<int>(imsize.height) - 1;
 
     draw_area = {sx, sy, endx, endy};
 }
@@ -912,10 +912,10 @@ Color Graphics::alpha_blend(const Color &front_color, const Color &back_color)
 
     const uint32_t inv_alpha = 0xFF - alpha;
     Color rst{};
-    rst.set_r((uint8_t)((front_color.r() * alpha + back_color.r() * inv_alpha) / 0xFF));
-    rst.set_g((uint8_t)((front_color.g() * alpha + back_color.g() * inv_alpha) / 0xFF));
-    rst.set_b((uint8_t)((front_color.b() * alpha + back_color.b() * inv_alpha) / 0xFF));
-    rst.set_a((uint8_t)(alpha + back_color.a() * inv_alpha / 0xFF));  // source-over alpha
+    rst.set_r(static_cast<uint8_t>((front_color.r() * alpha + back_color.r() * inv_alpha) / 0xFF));
+    rst.set_g(static_cast<uint8_t>((front_color.g() * alpha + back_color.g() * inv_alpha) / 0xFF));
+    rst.set_b(static_cast<uint8_t>((front_color.b() * alpha + back_color.b() * inv_alpha) / 0xFF));
+    rst.set_a(static_cast<uint8_t>(alpha + back_color.a() * inv_alpha / 0xFF));  // source-over alpha
     return rst;
 }
 
@@ -1406,13 +1406,13 @@ void Graphics::fill_triangle_depth(int x1, int y1, float z1,
     // z interpolated along the edges and across each row span
     int xa = x1, ya = y1, xb = x2, yb = y2, xc = x3, yc = y3;
     float za = z1, zb = z2, zc = z3;
-    const auto sort_vertices = [](int &xa, int &ya, float &za, int &xb, int &yb, float &zb)
+    const auto sort_vertices = [](int &ax, int &ay, float &az, int &bx, int &by, float &bz)
     {
-        if (yb < ya)
+        if (by < ay)
         {
-            std::swap(xa, xb);
-            std::swap(ya, yb);
-            std::swap(za, zb);
+            std::swap(ax, bx);
+            std::swap(ay, by);
+            std::swap(az, bz);
         }
     };
     sort_vertices(xa, ya, za, xb, yb, zb);
@@ -1425,23 +1425,23 @@ void Graphics::fill_triangle_depth(int x1, int y1, float z1,
 
     // a value on the edge (x1,y1)-(x2,y2) at row y; y1 == y2 keeps the
     // vertex value
-    const auto edge_x = [](const int y, const int x1, const int y1, const int x2, const int y2) -> int
+    const auto edge_x = [](const int y, const int ex1, const int ey1, const int ex2, const int ey2) -> int
     {
-        const int dy = y2 - y1;
+        const int dy = ey2 - ey1;
         if (dy == 0)
         {
-            return x1;
+            return ex1;
         }
-        return x1 + (x2 - x1) * (y - y1) / dy;
+        return ex1 + (ex2 - ex1) * (y - ey1) / dy;
     };
-    const auto edge_z = [](const int y, const int y1, const float z1, const int y2, const float z2) -> float
+    const auto edge_z = [](const int y, const int ez_y1, const float ez1, const int ez_y2, const float ez2) -> float
     {
-        const int dy = y2 - y1;
+        const int dy = ez_y2 - ez_y1;
         if (dy == 0)
         {
-            return z1;
+            return ez1;
         }
-        return z1 + (z2 - z1) * static_cast<float>(y - y1) / static_cast<float>(dy);
+        return ez1 + (ez2 - ez1) * static_cast<float>(y - ez_y1) / static_cast<float>(dy);
     };
 
     for (int y = ya; y <= yc; y++)
@@ -2871,12 +2871,12 @@ void Graphics::fill_triangle(
     // sort the vertices top to bottom; the long edge (a-c) spans the
     // whole triangle, the other two edges meet at the middle vertex b
     int xa = x1, ya = y1, xb = x2, yb = y2, xc = x3, yc = y3;
-    const auto sort_vertices = [](int &xa, int &ya, int &xb, int &yb)
+    const auto sort_vertices = [](int &ax, int &ay, int &bx, int &by)
     {
-        if (yb < ya)
+        if (by < ay)
         {
-            std::swap(xa, xb);
-            std::swap(ya, yb);
+            std::swap(ax, bx);
+            std::swap(ay, by);
         }
     };
     sort_vertices(xa, ya, xb, yb);
@@ -2888,14 +2888,14 @@ void Graphics::fill_triangle(
     }
 
     // x on the edge (x1,y1)-(x2,y2) at row y; y1 == y2 keeps the vertex x
-    const auto edge_x = [](const int y, const int x1, const int y1, const int x2, const int y2) -> int
+    const auto edge_x = [](const int y, const int ex1, const int ey1, const int ex2, const int ey2) -> int
     {
-        const int dy = y2 - y1;
+        const int dy = ey2 - ey1;
         if (dy == 0)
         {
-            return x1;
+            return ex1;
         }
-        return x1 + (x2 - x1) * (y - y1) / dy;
+        return ex1 + (ex2 - ex1) * (y - ey1) / dy;
     };
 
     // scanline fill: one draw_line per row between the long edge and the
@@ -2960,7 +2960,7 @@ void Graphics::draw_ellipse(int cx, int cy, int rx, int ry, const Color &colr)
         }
     }
 
-    d = sx * ((int64_t)y * y + y) + sy * ((int64_t)x - 1) * (x - 1) - sy * sx;
+    d = sx * (static_cast<int64_t>(y) * y + y) + sy * (static_cast<int64_t>(x) - 1) * (x - 1) - sy * sx;
 
     while (x >= 0)
     {
@@ -3016,7 +3016,6 @@ void Graphics::fill_ellipse(int cx, int cy, int rx, int ry, const Color &colr)
         draw_line(cx - dx, cy + y, cx + dx, cy + y, colr);
     }
 #else
-    const double rx2 = static_cast<double>(crx) * crx;
     const double ry2 = static_cast<double>(cry) * cry;
     for (int y = -cry; y <= cry; y++)
     {

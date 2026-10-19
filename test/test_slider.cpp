@@ -187,7 +187,6 @@ int test_slider()
     // drawing: track across the widget, thumb at the value position
     {
         Tree t;
-        InputDispatcher d;
         core::Graphics g(120, 60, nullptr);
         t.root.draw(g);
 

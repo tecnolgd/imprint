@@ -105,7 +105,8 @@ namespace
 int main(int argc, char **argv)
 {
     const char *out_path = "showcase.gif";
-    const char *png_path = nullptr;
+    // read on every build, written only by the USE_PNG branch below
+    [[maybe_unused]] const char *png_path = nullptr;
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--png") == 0 && i + 1 < argc)

@@ -297,6 +297,15 @@ loop; it needs an X display and skips without one — run it headless
 with `xvfb-run -a env IM_TEST_REQUIRE_DISPLAY=1 <build>/bin/test_imui
 shell_loop` (the X11 CI job does exactly this).
 
+Every build in this tree compiles with the project warning set
+(`cmake/imprint-warnings.cmake`: `-Wall -Wextra -Wpedantic` and
+friends, `/W4 /permissive-` on MSVC), and an in-tree build promotes it
+to errors — `-DIMPRINT_WERROR=OFF` is the escape hatch for a compiler
+that ships a new diagnostic before the tree is cleaned (subproject
+builds default it off). `.clang-format` in the repository root is the
+style reference for new and edited code; the tree-wide reformat of
+older files is backlog X-19.
+
 ## Window & presentation
 
 The app owns a **fixed-size pixel buffer** (`create_window(w, h)`) and never

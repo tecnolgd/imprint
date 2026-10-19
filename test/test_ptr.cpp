@@ -64,7 +64,10 @@ int test_ptr()
     // same-type self-move is a safe no-op
     {
         zb::SharedPtr<PtrDerived> d = zb::make_shared<PtrDerived>();
-        d = std::move(d);
+        // through an alias so the self-move is a runtime fact, not a
+        // literal the compiler rejects up front (-Wself-move)
+        zb::SharedPtr<PtrDerived> &alias = d;
+        d = std::move(alias);
         EXPECT(static_cast<bool>(d));
     }
     EXPECT(PtrDerived::alive == 0);

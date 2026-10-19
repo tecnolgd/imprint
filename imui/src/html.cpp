@@ -658,22 +658,22 @@ namespace zb::ui
             // (html-path.md): without this a comment glues to its
             // neighbor declaration and the neighbor silently drops
             // (series7 :root lost every commented var's successor)
-            auto skip_space = [](const char *&p, const char *end) {
+            auto skip_space = [](const char *&p, const char *limit) {
                 for (;;)
                 {
-                    while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' ||
-                                       *p == '\r'))
+                    while (p < limit && (*p == ' ' || *p == '\t' || *p == '\n' ||
+                                         *p == '\r'))
                     {
                         ++p;
                     }
-                    if (p + 1 < end && p[0] == '/' && p[1] == '*')
+                    if (p + 1 < limit && p[0] == '/' && p[1] == '*')
                     {
                         p += 2;
-                        while (p + 1 < end && !(p[0] == '*' && p[1] == '/'))
+                        while (p + 1 < limit && !(p[0] == '*' && p[1] == '/'))
                         {
                             ++p;
                         }
-                        if (p + 1 < end)
+                        if (p + 1 < limit)
                         {
                             p += 2;
                         }
@@ -685,7 +685,7 @@ namespace zb::ui
             // a comment inside a shorthand value must not poison the
             // whole declaration either
             auto strip_comments = [](std::string v) {
-                std::string out;
+                std::string kept;
                 for (std::size_t i = 0; i < v.size();)
                 {
                     if (v[i] == '/' && i + 1 < v.size() && v[i + 1] == '*')
@@ -699,11 +699,11 @@ namespace zb::ui
                     }
                     else
                     {
-                        out.push_back(v[i]);
+                        kept.push_back(v[i]);
                         ++i;
                     }
                 }
-                return out;
+                return kept;
             };
             const char *p = begin;
             while (p < end)
@@ -993,13 +993,13 @@ namespace zb::ui
                                                   ":before", ":after"};
                     for (int ti = 0; ti < 4 && pseudo == 0; ++ti)
                     {
-                        const std::string tail = tails[ti];
-                        if (low.size() > tail.size() &&
-                            low.compare(low.size() - tail.size(),
-                                        tail.size(), tail) == 0)
+                        const std::string suffix = tails[ti];
+                        if (low.size() > suffix.size() &&
+                            low.compare(low.size() - suffix.size(),
+                                        suffix.size(), suffix) == 0)
                         {
                             std::string base = part.substr(
-                                0, part.size() - tail.size());
+                                0, part.size() - suffix.size());
                             const std::size_t end =
                                 base.find_last_not_of(" \t\n\r");
                             if (end != std::string::npos)
@@ -2373,22 +2373,22 @@ namespace zb::ui
                 }
                 i = k;
             }
-            for (std::size_t i = 1; i < pos.size(); ++i)
+            for (std::size_t ci = 1; ci < pos.size(); ++ci)
             {
-                if (pos[i] < pos[i - 1])
+                if (pos[ci] < pos[ci - 1])
                 {
-                    pos[i] = pos[i - 1];  // CSS clamp rule
+                    pos[ci] = pos[ci - 1];  // CSS clamp rule
                 }
-                if (pos[i] > 360)
+                if (pos[ci] > 360)
                 {
-                    pos[i] = 360;
+                    pos[ci] = 360;
                 }
             }
             n.prop("bg_con_from", from);
-            for (std::size_t i = 0; i < colors.size(); ++i)
+            for (std::size_t ci = 0; ci < colors.size(); ++ci)
             {
-                n.prop("bg_con_p" + std::to_string(i), pos[i]);
-                n.prop("bg_con_c" + std::to_string(i), colors[i]);
+                n.prop("bg_con_p" + std::to_string(ci), pos[ci]);
+                n.prop("bg_con_c" + std::to_string(ci), colors[ci]);
             }
             return true;
         }

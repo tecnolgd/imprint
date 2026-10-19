@@ -60,8 +60,8 @@ int Image::read_png_file(
         return 4;
     }
 
-    auto img_width_u = (uint32_t)img_width;
-    auto img_height_u = (uint32_t)img_height;
+    auto img_width_u = static_cast<uint32_t>(img_width);
+    auto img_height_u = static_cast<uint32_t>(img_height);
     auto row_stride = img_width_u * 4; // stb always yields RGBA with req_comp=4
     image_info iminf
     {
@@ -109,14 +109,15 @@ int Image::read_png(
     };
     auto png_read_row = [&png_inf, &png_img](unsigned char *buf)
     {
-        uint8_t a = 0, r = 0, g = 0, b = 0;
-        for (int i = 0; i < (int)png_inf.image_width; i++)
+        // ca/cr/cg/cb: `g` is the enclosing read's Graphics target
+        uint8_t ca = 0, cr = 0, cg = 0, cb = 0;
+        for (int i = 0; i < static_cast<int>(png_inf.image_width); i++)
         {
-            r = *buf++;
-            g = *buf++;
-            b = *buf++;
-            a = *buf++;
-            png_img.push_back(Color::from(r, g, b, a));
+            cr = *buf++;
+            cg = *buf++;
+            cb = *buf++;
+            ca = *buf++;
+            png_img.push_back(Color::from(cr, cg, cb, ca));
         }
         return true;
     };
@@ -156,7 +157,7 @@ int Image::write_png_file(
     // RGB, 4 = RGBA) decides both the row stride and the encoded channel
     // count -- the info fields are the row contract, not decoration.
     auto row_stride = img_width * comps;
-    std::vector<unsigned char> image_data((size_t)row_stride * img_height);
+    std::vector<unsigned char> image_data(static_cast<size_t>(row_stride) * img_height);
     std::vector<unsigned char> row(row_stride);
     for (uint32_t i = 0; i < img_height; i++)
     {
@@ -168,7 +169,7 @@ int Image::write_png_file(
         }
         if (row.size() < row_stride)
             row.resize(row_stride, 0x00);
-        std::memcpy(image_data.data() + (size_t)i * row_stride, row.data(), row_stride);
+        std::memcpy(image_data.data() + static_cast<size_t>(i) * row_stride, row.data(), row_stride);
     }
 
     FILE *outfile = fopen(file_name.c_str(), "wb");
@@ -179,7 +180,8 @@ int Image::write_png_file(
     }
     fclose(outfile);
 
-    if (0 == stbi_write_png(file_name.c_str(), (int)img_width, (int)img_height, (int)comps, image_data.data(), (int)row_stride))
+    if (0 == stbi_write_png(file_name.c_str(), static_cast<int>(img_width), static_cast<int>(img_height),
+                            static_cast<int>(comps), image_data.data(), static_cast<int>(row_stride)))
     {
         // stbi_failure_reason belongs to the READ side (stb_image); it
         // says nothing about a write failure, so it is not reported here
@@ -199,13 +201,13 @@ int Image::write_png(
 
     std::vector<unsigned char> row(row_bit_stride);
     image_info img_inf{
-        (uint32_t)gsize.width,
-        (uint32_t)gsize.height,
-        (uint32_t)row_bit_stride,
+        static_cast<uint32_t>(gsize.width),
+        static_cast<uint32_t>(gsize.height),
+        static_cast<uint32_t>(row_bit_stride),
         4};
 
-    auto dat = (Color *)g.data();
-    auto write_row = [&](std::vector<unsigned char> &row)
+    auto dat = static_cast<const Color *>(g.data());
+    auto write_row = [&](std::vector<unsigned char> &row_out)
     {
         for (int i = 0; i < gsize.width; i++)
         {
@@ -213,16 +215,16 @@ int Image::write_png(
                 break;
 
             auto cd = dat[cur_row * gsize.width + i];
-            row.push_back(cd.r());
-            row.push_back(cd.g());
-            row.push_back(cd.b());
+            row_out.push_back(cd.r());
+            row_out.push_back(cd.g());
+            row_out.push_back(cd.b());
 #if COLOR_DEPTH == 16
             // color16's single alpha bit must expand to full opacity, not
             // the byte 0/1: a 16bpp screenshot was ~fully transparent
-            row.push_back(cd.a() != 0 ? 0xFF : 0x00);
+            row_out.push_back(cd.a() != 0 ? 0xFF : 0x00);
 #else
             // 32bpp alpha is already a full byte: keep it, PNG is lossless
-            row.push_back(cd.a());
+            row_out.push_back(cd.a());
 #endif
         }
         cur_row++;

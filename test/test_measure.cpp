@@ -23,7 +23,7 @@ namespace
         mutable int measures = 0;
 
         bool covers(const char16_t) const override { return true; }
-        text_metrics measure(const char16_t *str, const int len) const override
+        text_metrics measure(const char16_t *, const int len) const override
         {
             ++measures;
             return {6 * len, 7, 6};

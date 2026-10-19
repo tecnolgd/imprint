@@ -144,7 +144,8 @@ int test_graphics()
             const uint32_t gch = (front.g() * a + back.g() * inv) / 0xFF;
             const uint32_t b = (front.b() * a + back.b() * inv) / 0xFF;
             const uint32_t av = a + back.a() * inv / 0xFF;
-            return core::Color::from((uint8_t)r, (uint8_t)gch, (uint8_t)b, (uint8_t)av).pixel;
+            return core::Color::from(static_cast<uint8_t>(r), static_cast<uint8_t>(gch),
+                                     static_cast<uint8_t>(b), static_cast<uint8_t>(av)).pixel;
         };
         const auto blend2_ref = [blend_ref](uint32_t back_pixel)
         {

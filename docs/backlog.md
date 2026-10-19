@@ -22,10 +22,14 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-8 and X-10…X-18 (the
-   warning set, plus the hardening/bookkeeping tail). X-7 and X-9 landed
-   (2026-10-19: a real X11 loop under Xvfb in CI, and one shared 64-bit
-   geometry helper). Nothing in the batch reopens a
+   order is inside the batch. What remains is X-10…X-20 (the
+   hardening/bookkeeping tail, plus the two X-8 follow-ups — the
+   tree-wide `clang-format` reformat and the `-Wconversion` triage).
+   X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
+   one shared 64-bit geometry helper); **X-8 landed the same day** (a
+   per-compiler warning set with `-Werror` in-tree, clean across the
+   whole build matrix; `cmake/imprint-warnings.cmake` is its home).
+   Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
 ### Batch V — Visual Presentation (open remainder only)
@@ -165,15 +169,19 @@ priority; no item reopens a ratified ruling.
 
 **Build and test coverage gaps:**
 
-- **X-8. The build enables no compiler warnings.** The only compile
-  option in the tree is MSVC `/utf-8` (`CMakeLists.txt:76`): no
-  `-Wall -Wextra`, no `/W4`, no `-Wconversion`, no `-Werror`, no
-  `.clang-format`, no clang-tidy — and the sanitizer job is Tier-3 over
-  `test_imui`/`test_zbapi` only (`ci.yml:259-283`). `-Wconversion` alone
-  would have flagged the `long long`→`int` narrowing class the audit's
-  X-5 landed a fix for. Acceptance: a per-compiler warning set with
-  `-Werror`, `.clang-format` in-tree, and the first-pass cleanup either
-  here or as a recorded follow-up.
+- **X-19. Tree-wide `clang-format` reformat.** `.clang-format` landed
+  with X-8 (2026-10-19) as the style reference for new and edited code;
+  the measured reformat of the whole tree (clang-format 18.1.3: 137 of
+  240 first-party files drift, ~6.3k diff lines) was deliberately
+  deferred so it does not bury unrelated history. Do it as one mechanical
+  commit on a pinned clang-format version, then add a version-pinned
+  format gate so the drift cannot come back.
+- **X-20. `-Wconversion` / `-Wsign-conversion` triage.** Measured
+  2026-10-19 against the X-8 baseline: 308 findings, dominated by benign
+  sign/index conversions (`imui/include/widget.hpp` clamp `:703`,
+  `e->text_flags &= ~1` `:966`). Not adopted with X-8 — the two flags
+  would have to be clean first or the real findings drown. Triage by
+  fixing (or proving) the sites, then add both to the X-8 set.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 

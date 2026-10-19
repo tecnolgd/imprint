@@ -101,7 +101,8 @@ endif()
 if (NOT TTF_FONT STREQUAL "" AND NOT NDS_PLATFORM)
     if (Python3_Interpreter_FOUND)
         add_executable(ttf_subset ${PROJECT_SOURCE_DIR}/tools/ttf_subset.cpp)
-        target_include_directories(ttf_subset PRIVATE
+        # SYSTEM: the build tool includes vendored stb_truetype directly
+        target_include_directories(ttf_subset SYSTEM PRIVATE
             ${PROJECT_SOURCE_DIR}/third_party/stb)
         set(TTF_CODEPOINTS ${CMAKE_CURRENT_BINARY_DIR}/ttf_codepoints.txt)
         set(TTF_GLYPHS ${CMAKE_CURRENT_BINARY_DIR}/include/text/ttf_glyphs.hpp)
@@ -197,6 +198,11 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include/core
     ${CMAKE_CURRENT_SOURCE_DIR}/include/text
     ${CMAKE_CURRENT_SOURCE_DIR}/include/codec
+)
+
+# vendored stb headers are third-party sources: SYSTEM keeps them out of
+# the project warning set (-Werror applies to our code only)
+target_include_directories(${IMCORELIB} SYSTEM PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/stb
 )
 

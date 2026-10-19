@@ -26,6 +26,11 @@ elseif(NDS_PLATFORM)
     # the source tree and need no genex.
     set(build_inc ${LIBNDS}/include ${DEVKITPRO}/calico/include
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/nds>)
+    # the SDK header dirs ride build_inc (the exe needs <nds.h>) and are
+    # marked SYSTEM below: libnds / calico are third-party (anonymous
+    # structs, flexible array members, old-style casts) and must not feed
+    # the project warning set
+    set(nds_sdk_inc ${LIBNDS}/include ${DEVKITPRO}/calico/include)
     set(build_lib nds9 calico_ds9)
     set(NDS_LIBDIR ${LIBNDS}/lib ${DEVKITPRO}/calico/lib)
 elseif(APPLE)
@@ -124,6 +129,10 @@ target_include_directories(shell_backend INTERFACE
     $<INSTALL_INTERFACE:include/imprint/imshell/include>)
 if (build_inc)
     target_include_directories(shell_backend INTERFACE ${build_inc})
+endif()
+if (nds_sdk_inc)
+    set_property(TARGET shell_backend APPEND PROPERTY
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${nds_sdk_inc})
 endif()
 target_link_libraries(shell_backend INTERFACE ${IMAPPLIB} ${IMINPUTLIB})
 if (build_lib)

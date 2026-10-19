@@ -36,10 +36,10 @@ int test_term_input()
 
         ev = feed(p, "\r\t\x7f\x03");
         EXPECT(ev.size() == 4);
-        EXPECT(ev[0].key == (int)key_code::enter);
-        EXPECT(ev[1].key == (int)key_code::tab);
-        EXPECT(ev[2].key == (int)key_code::backspace);
-        EXPECT(ev[3].key == (int)key_code::escape);  // Ctrl-C
+        EXPECT(ev[0].key == static_cast<int>(key_code::enter));
+        EXPECT(ev[1].key == static_cast<int>(key_code::tab));
+        EXPECT(ev[2].key == static_cast<int>(key_code::backspace));
+        EXPECT(ev[3].key == static_cast<int>(key_code::escape));  // Ctrl-C
     }
 
     // arrows in CSI and SS3 forms; a sequence split across chunks
@@ -47,20 +47,20 @@ int test_term_input()
         zb::shell::term_input::parser p(320, 240);
         auto ev = feed(p, "\x1b[A\x1b[B\x1b[C\x1b[D");
         EXPECT(ev.size() == 4);
-        EXPECT(ev[0].key == (int)key_code::up);
-        EXPECT(ev[1].key == (int)key_code::down);
-        EXPECT(ev[2].key == (int)key_code::right);
-        EXPECT(ev[3].key == (int)key_code::left);
+        EXPECT(ev[0].key == static_cast<int>(key_code::up));
+        EXPECT(ev[1].key == static_cast<int>(key_code::down));
+        EXPECT(ev[2].key == static_cast<int>(key_code::right));
+        EXPECT(ev[3].key == static_cast<int>(key_code::left));
 
         ev = feed(p, "\x1bOB");
-        EXPECT(ev.size() == 1 && ev[0].key == (int)key_code::down);
+        EXPECT(ev.size() == 1 && ev[0].key == static_cast<int>(key_code::down));
 
         // streaming: the escape arrives before its parameters
         zb::shell::term_input::parser q(320, 240);
         EXPECT(feed(q, "\x1b").empty());
         EXPECT(feed(q, "[").empty());
         ev = feed(q, "A");
-        EXPECT(ev.size() == 1 && ev[0].key == (int)key_code::up);
+        EXPECT(ev.size() == 1 && ev[0].key == static_cast<int>(key_code::up));
     }
 
     // SGR mouse with the 10x20 fallback geometry

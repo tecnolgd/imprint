@@ -1090,22 +1090,8 @@ namespace zb::ui
         const GlyphProvider *const primary = primary_provider();
         const GlyphProvider *const fallback = bitmap_fallback_.get();
 
-        // pick the provider for a code unit; nullptr means "not covered"
-        const auto pick = [&](const char16_t ch) -> const GlyphProvider *
-        {
-            if (primary != nullptr && primary->covers(ch))
-            {
-                return primary;
-            }
-            if (fallback->covers(ch))
-            {
-                return fallback;
-            }
-            return nullptr;
-        };
-
-            const auto s = get_size();
-    const char16_t *const data = text_.data();
+        const auto s = get_size();
+        const char16_t *const data = text_.data();
     const int len = static_cast<int>(text_.size());
 
         // line metrics come from the primary provider, or the fallback;

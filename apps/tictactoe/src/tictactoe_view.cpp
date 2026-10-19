@@ -56,11 +56,11 @@ void TictactoeView::build_board(uint32_t max_client_width, uint32_t max_client_h
                                ? static_cast<int>(max_client_width)
                                : static_cast<int>(max_client_height);
     const int margin = short_edge / board_margin_den;
-    const int board_size = short_edge - 2 * margin;
+    const int board_px = short_edge - 2 * margin;  // the runtime square, not layout::board_size
     auto board = std::make_unique<Board>();
-    board->set_size(board_size, board_size);
-    board->set_position((static_cast<int>(max_client_width) - board_size) / 2,
-                        (static_cast<int>(max_client_height) - board_size) / 2);
+    board->set_size(board_px, board_px);
+    board->set_position((static_cast<int>(max_client_width) - board_px) / 2,
+                        (static_cast<int>(max_client_height) - board_px) / 2);
     board->set_background_color(core::Color::from(100, 190, 70));
     board->set_grid_color(core::colors::White);
     board->set_mark_color(core::colors::White);

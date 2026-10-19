@@ -47,10 +47,10 @@ namespace zb
         class Stream
         {
         public:
-            Stream(const Logging_Level level, const char *file, const int line, const char *func)
-                : level(level)
+            Stream(const Logging_Level msg_level, const char *file, const int line, const char *func)
+                : level(msg_level)
             {
-                if (!suppressed(level))
+                if (!suppressed(msg_level))
                 {
                     ss.emplace() << get_cur_datetime() << "[" << file << "(" << line << ")" << "::" << func << "]";
                 }

@@ -193,12 +193,12 @@ int FB::init()
     LD << "screen_height : " << screen_height;
     LD << "screen_line_len : " << screen_line_len;
 
-    buf = (char *)mmap(0,
-                       screen_mem_len,
-                       PROT_READ | PROT_WRITE,
-                       MAP_SHARED,
-                       ffb,
-                       0);
+    buf = static_cast<char *>(mmap(nullptr,
+                                   screen_mem_len,
+                                   PROT_READ | PROT_WRITE,
+                                   MAP_SHARED,
+                                   ffb,
+                                   0));
 
     if (MAP_FAILED == buf)
     {

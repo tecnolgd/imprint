@@ -2139,16 +2139,17 @@ int test_html()
         host.set_background_color(core::colors::White);
         build(host, doc);
         host.layout();
-        auto *disc = host.get_items()[0].child.get();
-        const auto dp = disc->get_position();
         core::Graphics g(80, 80, nullptr);
         host.draw(g);
+#if COLOR_DEPTH == 32
+        // the luminance probe reads the 32bpp channel layout only
+        auto *disc = host.get_items()[0].child.get();
+        const auto dp = disc->get_position();
         const auto lum = [&g](int x, int y)
         {
             const uint32_t p = test::pixel_at(g, x, y);
             return static_cast<int>((p >> 16) & 0xFF);
         };
-#if COLOR_DEPTH == 32
         const int mid = dp.y + 15;  // row 15 mirrors row 14
         for (int k = 1; k <= 3; ++k)
         {

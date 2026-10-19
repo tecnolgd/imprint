@@ -150,7 +150,7 @@ namespace
 		std::setvbuf(stdout, nullptr, _IONBF, 0);
 
 		zb::Logging::set_log_handle(
-			[](const zb::Logging_Level &level, const std::string &message)
+			[](const zb::Logging_Level &, const std::string &message)
 			{
 				printlog(message.c_str());
 			});

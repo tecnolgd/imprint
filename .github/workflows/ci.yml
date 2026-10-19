@@ -81,6 +81,29 @@ jobs:
 
   # ---------------- Tier 2: matrix variants ----------------
 
+  # X-8: the whole tree (libraries, tests, tools, apps) under the project
+  # warning set with -Werror, in its own build dir so a warning cannot hide
+  # behind an incremental build. Every other job compiles under the same
+  # set (IMPRINT_WERROR defaults ON in-tree); this job names the contract
+  # and fails first when a new compiler diagnostic enters the tree. The
+  # set itself is cmake/imprint-warnings.cmake; `warnings-survey` (kit)
+  # is the local, -Werror-off mirror used to triage a change to it.
+  linux-warnings:
+    runs-on: ubuntu-latest
+    container: gcc:13
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: apt-get update && apt-get install -y --no-install-recommends cmake make python3
+      - name: Configure and build (project warning set + -Werror)
+        # IMPRINT_WERROR spelled out: the job exists to enforce the
+        # contract, so it must not ride a default that another
+        # configuration could flip (the kit `warnings-test` does the same)
+        run: |
+          cmake -S . -B build_warn -DIMPRINT_WERROR=ON
+          cmake --build build_warn -j"$(nproc)"
+
   linux-16bpp:
     runs-on: ubuntu-latest
     container: gcc:13

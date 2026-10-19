@@ -7,10 +7,10 @@ int Game::get_rows() const
     return rows;
 }
 
-void Game::set_human(const player_type &human)
+void Game::set_human(const player_type &side)
 {
-    this->human = human;
-    this->computer = (human == player_type::x) ? player_type::o : player_type::x;
+    human = side;
+    computer = (side == player_type::x) ? player_type::o : player_type::x;
 }
 
 player_type Game::get_human() const

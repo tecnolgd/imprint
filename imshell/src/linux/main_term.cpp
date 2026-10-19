@@ -163,9 +163,9 @@ namespace
     }
 }
 
-int main(int argc, char *argv[])
+int main(int, char *[])
 {
-    zb::Logging::set_log_handle([](const zb::Logging_Level &level, const std::string &message)
+    zb::Logging::set_log_handle([](const zb::Logging_Level &, const std::string &message)
     {
         std::printf("%s", message.c_str());
     });

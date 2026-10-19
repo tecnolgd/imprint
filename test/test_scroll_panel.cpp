@@ -30,12 +30,6 @@ namespace
     // scrollbar_rect is private and stays private: its X-9 arithmetic is
     // pinned at the helper level in test_scale instead of through a probe
 
-    bool same_buffer(const core::Graphics &a, const core::Graphics &b, int w, int h)
-    {
-        return std::memcmp(a.data(), b.data(),
-                           static_cast<size_t>(w) * static_cast<size_t>(h) *
-                               sizeof(core::Color)) == 0;
-    }
 }
 
 int test_scroll_panel()

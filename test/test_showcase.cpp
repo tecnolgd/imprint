@@ -141,22 +141,6 @@ namespace
     // "875 K" -> 875
     int kelvin_of(const std::string &s) { return std::atoi(s.c_str()); }
 
-    // drive the frame loop until the footer reports the expected phase
-    // (bounded; the game must reach it within max_frames)
-    int drive_until(zb::app::showcase::Showcase &app, const char *status,
-                    const int max_frames)
-    {
-        for (int i = 0; i < max_frames; ++i)
-        {
-            app.paint();
-            if (text_of(app, "status") == status)
-            {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     // ---- the published sync() formulas (mirrored from the app) ----
 
     int coolant_of(const int r) { return std::max(28, 86 - (r * 35) / 100); }

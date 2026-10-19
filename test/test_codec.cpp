@@ -15,8 +15,9 @@
 
 namespace
 {
-    const char *PNG_TMP = "test_codec_tmp.png";
-    const char *JPG_TMP = "test_codec_tmp.jpg";
+    // used only by the USE_PNG / USE_JPEG suites further down
+    [[maybe_unused]] const char *PNG_TMP = "test_codec_tmp.png";
+    [[maybe_unused]] const char *JPG_TMP = "test_codec_tmp.jpg";
 
     using zb::ui::core::Color;
     using zb::ui::core::Graphics;
@@ -44,7 +45,7 @@ namespace
         bool info_received = false;
     };
 
-    auto make_loaded(ReadResult &out) {
+    [[maybe_unused]] auto make_loaded(ReadResult &out) {
         return [&out](image_info &im) {
             out.info = im;
             out.info_received = true;
@@ -53,7 +54,7 @@ namespace
     }
 
     // RGBA row collector (PNG)
-    auto make_row_rgba(ReadResult &out) {
+    [[maybe_unused]] auto make_row_rgba(ReadResult &out) {
         return [&out](unsigned char *buf) {
             for (uint32_t i = 0; i < out.info.image_width; i++)
             {
@@ -65,7 +66,7 @@ namespace
     }
 
     // RGB row collector (JPEG)
-    auto make_row_rgb(ReadResult &out) {
+    [[maybe_unused]] auto make_row_rgb(ReadResult &out) {
         return [&out](unsigned char *buf) {
             for (uint32_t i = 0; i < out.info.image_width; i++)
             {
@@ -155,7 +156,7 @@ int test_codec()
 #if COLOR_DEPTH == 32
         {
             const auto near_marker = [](const size_t i) {
-                const int x = (int)(i % 32), y = (int)(i / 32);
+                const int x = static_cast<int>(i % 32), y = static_cast<int>(i / 32);
                 return (x >= 0 && x <= 6 && y >= 2 && y <= 8) ||     // (3,5)
                        (x >= 24 && x <= 30 && y >= 9 && y <= 15);   // (27,12)
             };
