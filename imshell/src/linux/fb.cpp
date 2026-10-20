@@ -149,11 +149,25 @@ int FB::init()
     bytes_per_pixel = bits_per_pixel / 8;
     LD << "bits_per_pixel : " << bits_per_pixel;
     LD << "bytes_per_pixel : " << bytes_per_pixel;
-    // presentation seam (A-1): byte-equal panel -> the memcpy fast path;
-    // a known convertible layout -> per-row conversion; anything else
-    // refuses to present instead of corrupting the panel (the old
-    // warning-only path kept memcpy'ing mismatched bytes)
-    if (bytes_per_pixel == static_cast<int>(sizeof(zb::ui::core::Color)))
+    // presentation seam (A-1): a panel whose channel descriptors match the
+    // build's internal format -> the memcpy fast path; a known convertible
+    // layout -> per-row conversion; anything else refuses to present
+    // instead of corrupting the panel (the old warning-only path kept
+    // memcpy'ing mismatched bytes). X-10: the fast path used to select on
+    // the byte count alone, so a same-width panel with a different channel
+    // order was memcpy'd into the framebuffer (red and blue swapped, no
+    // diagnostic); the descriptors are compared now.
+    const zb::ui::core::native_layout native = zb::ui::core::native_panel_layout();
+    const auto matches_native = [&vinfo, &native](const struct fb_bitfield &field,
+                                                  const zb::ui::core::channel_bits &want)
+    {
+        return static_cast<int>(field.offset) == want.shift &&
+               static_cast<int>(field.length) == want.bits;
+    };
+    if (bytes_per_pixel == static_cast<int>(sizeof(zb::ui::core::Color)) &&
+        matches_native(vinfo.red, native.r) &&
+        matches_native(vinfo.green, native.g) &&
+        matches_native(vinfo.blue, native.b))
     {
         mode = present_mode::fast_copy;
     }
@@ -169,9 +183,13 @@ int FB::init()
     else
     {
         mode = present_mode::unsupported;
-        LW << "fb: panel is " << bits_per_pixel << "bpp but the build renders "
-           << sizeof(zb::ui::core::Color) * 8 << "bpp and no converter matches; "
-           << "presenting disabled";
+        LW << "fb: panel is " << bits_per_pixel << "bpp (r " << vinfo.red.offset << "/"
+           << vinfo.red.length << ", g " << vinfo.green.offset << "/" << vinfo.green.length
+           << ", b " << vinfo.blue.offset << "/" << vinfo.blue.length
+           << ") but the build renders " << sizeof(zb::ui::core::Color) * 8
+           << "bpp (r " << native.r.shift << "/" << native.r.bits << ", g " << native.g.shift
+           << "/" << native.g.bits << ", b " << native.b.shift << "/" << native.b.bits
+           << ") and no converter matches; presenting disabled";
     }
 
     if (ioctl(ffb, FBIOPUT_VSCREENINFO, &vinfo) < 0)

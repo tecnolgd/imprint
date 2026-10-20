@@ -190,10 +190,9 @@ namespace
             FillRect(hDC, &rc_paint, black);  // unreachable in practice; keep the old blanket fill
         }
 
-        // NOTE: this blit assumes 32bpp (biBitCount = 32, BI_RGB). A
-        // COLOR_DEPTH=16 build would produce an abgr1555 buffer while the
-        // 16bpp DIB expects 555, swapping red and blue -- 16bpp is meant
-        // for embedded displays only (see imcore/CMakeLists.txt).
+        // the 32bpp BI_RGB DIB matches the internal layout byte for byte;
+        // run() rejects a build whose Color is not 4 bytes, so the blit
+        // cannot meet a 16bpp buffer (X-10)
         BITMAPINFO bmi = {
             sizeof(BITMAPINFOHEADER),
             g_buffer_width,
@@ -235,6 +234,17 @@ namespace zb::shell
 {
     int run(zb::SharedPtr<zb::app::IApp> app, const run_options &options)
     {
+        // the DIB below is 32bpp BI_RGB with the internal channel order
+        // (b,g,r,a); a COLOR_DEPTH=16 build would blit an abgr1555 buffer
+        // into it and swap red and blue with no diagnostic. X-10: the
+        // other desktop shells throw here and this one used to carry a
+        // NOTE only -- same refusal, same init-path rule (code-contract
+        // §11.2).
+        if (sizeof(zb::ui::core::Color) != 4)
+        {
+            throw zb::ui::error("the Win32 shell presents the 32bpp internal layout only");
+        }
+
         // reuse-safe: a second run() in one process (the window class is
         // registered once) must not inherit the previous run's pending
         // presentation state
