@@ -287,7 +287,7 @@ size (code-contract §11.1).
 | Terminal (SIXEL) | `cmake -S . -B build/build_term -DIM_SHELL_BACKEND=SIXEL && cmake --build build/build_term` | demo target: the same UI in a sixel terminal (WezTerm/foot/iTerm2), input via SGR mouse + keys; `IM_TERM_SIZE=WxH` resizes |
 | Nintendo DS | `docker run --rm -v $PWD:/src -w /src devkitpro/devkitarm:20260610 sh -c 'cmake -S . -B build/build_nds -DCMAKE_TOOLCHAIN_FILE=cmake/nds.toolchain.cmake && cmake --build build/build_nds'` | produces `build/build_nds/bin/tictactoe.nds`; add `-DSTORY=showcase` for the ORION NX-07 ROM (it additionally needs the host-built `html_embed` and `bytes_embed`, passed as `-DHTML_EMBED_EXECUTABLE=` / `-DBYTES_EMBED_EXECUTABLE=`), or `-DSTORY=showcase_html` for the HTML showcase (same, plus the host-built `html_embed` as `-DHTML_EMBED_EXECUTABLE=`) |
 | WebAssembly | `demo/wasm/build.sh` (docker emscripten) | `build.sh <story>` produces one self-contained `.js` per story (wasm embedded) — `showcase` (ORION NX-07), `tictactoe`, `g2048`, `mines`, `life`, `seedmap`, `playground` (design-file editor host); includes a node smoke test (`demo/wasm/smoke.js <story>_mod.js`) |
-| Python | build the `binding` shared lib, then `SDL_VIDEODRIVER=dummy python3 demo/python/myapp.py --lib <libzbapi>` | ctypes + pygame host |
+| Python | build the `binding` shared lib, then `SDL_VIDEODRIVER=dummy python3 demo/python/myapp.py --lib <libzbapi>` | ctypes + pygame host; `python3 demo/python/test_framebuffer.py` checks the host's 32bpp/16bpp decode against the framework's pixel traits (no pygame, no display, no built library) |
 
 Tests: `<build>/bin/test_imui` — a local `EXPECT` macro (NDEBUG-safe,
 no test framework); run via `ctest -R test_imui` (or the binary) on

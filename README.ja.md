@@ -207,7 +207,7 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 | ターミナル（SIXEL） | `cmake -S . -B build/build_term -DIM_SHELL_BACKEND=SIXEL && cmake --build build/build_term` | デモターゲット：同じ UI が sixel ターミナルで動く（WezTerm/foot/iTerm2）。SGR マウス + キーボード入力。`IM_TERM_SIZE=WxH` でサイズ変更 |
 | ニンテンドーDS | `docker run --rm -v $PWD:/src -w /src devkitpro/devkitarm:20260610 sh -c 'cmake -S . -B build/build_nds -DCMAKE_TOOLCHAIN_FILE=cmake/nds.toolchain.cmake && cmake --build build/build_nds'` | `build/build_nds/bin/tictactoe.nds` を生成。`-DSTORY=showcase` で ORION NX-07 ROM をビルド（ホスト製の `html_embed` と `bytes_embed` を `-DHTML_EMBED_EXECUTABLE=` / `-DBYTES_EMBED_EXECUTABLE=` で渡す必要あり）、または `-DSTORY=showcase_html` で HTML ショーケース（同様に、ホスト製の `html_embed` を `-DHTML_EMBED_EXECUTABLE=` で追加） |
 | WebAssembly | `demo/wasm/build.sh`（docker emscripten） | `build.sh showcase` が ORION NX-07 ページを自己完結する単一 `.js` として生成（wasm 埋め込み済み）。node スモークテスト付き |
-| Python | `binding` 共有ライブラリをビルドしてから `SDL_VIDEODRIVER=dummy python3 demo/python/myapp.py --lib <libzbapi>` | ctypes + pygame ホスト |
+| Python | `binding` 共有ライブラリをビルドしてから `SDL_VIDEODRIVER=dummy python3 demo/python/myapp.py --lib <libzbapi>` | ctypes + pygame ホスト。`python3 demo/python/test_framebuffer.py` はホストの 32bpp/16bpp デコードをフレームワークの pixel traits と照合する（pygame・ディスプレイ・ビルド済みライブラリ不要） |
 
 テスト：`<build>/bin/test_imui`——ローカルの `EXPECT` マクロ（NDEBUG セーフ、テストフレームワークなし）。デスクトップは `ctest -R test_imui`（またはバイナリ直実行）、NDS ではスキップ。`binding/test/test_zbapi` は `assert()` に依存するため、`NDEBUG` なしの構成（Debug またはビルドタイプ未指定）でビルドしてください。`shell_loop` スイートだけは実際のホストイベントループを動かすため X ディスプレイが必要で、無い場合はスキップします。ヘッドレスでは `xvfb-run -a env IM_TEST_REQUIRE_DISPLAY=1 <build>/bin/test_imui shell_loop` で実行します（X11 の CI ジョブがこれを行います）。
 

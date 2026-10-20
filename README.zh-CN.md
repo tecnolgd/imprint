@@ -251,7 +251,7 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 | 终端（SIXEL） | `cmake -S . -B build/build_term -DIM_SHELL_BACKEND=SIXEL && cmake --build build/build_term` | demo 目标：同一个 UI 跑在 sixel 终端里（WezTerm/foot/iTerm2），SGR 鼠标 + 键盘输入；`IM_TERM_SIZE=WxH` 调整尺寸 |
 | 任天堂 DS | `docker run --rm -v $PWD:/src -w /src devkitpro/devkitarm:20260610 sh -c 'cmake -S . -B build/build_nds -DCMAKE_TOOLCHAIN_FILE=cmake/nds.toolchain.cmake && cmake --build build/build_nds'` | 产出 `build/build_nds/bin/tictactoe.nds`；加 `-DSTORY=showcase` 构建 ORION NX-07 ROM（还需传入宿主构建的 `html_embed` 与 `bytes_embed`：`-DHTML_EMBED_EXECUTABLE=` / `-DBYTES_EMBED_EXECUTABLE=`），或 `-DSTORY=showcase_html` 构建 HTML showcase（同上，另需宿主构建的 `html_embed`：`-DHTML_EMBED_EXECUTABLE=`） |
 | WebAssembly | `demo/wasm/build.sh`（docker emscripten） | `build.sh showcase` 产出 ORION NX-07 页面为单个自包含 `.js`（wasm 内嵌）；附带 node 冒烟测试 |
-| Python | 先构建 `binding` 动态库，再 `SDL_VIDEODRIVER=dummy python3 demo/python/myapp.py --lib <libzbapi>` | ctypes + pygame 宿主 |
+| Python | 先构建 `binding` 动态库，再 `SDL_VIDEODRIVER=dummy python3 demo/python/myapp.py --lib <libzbapi>` | ctypes + pygame 宿主；`python3 demo/python/test_framebuffer.py` 把宿主的 32bpp/16bpp 解码与框架 pixel traits 对照（不需要 pygame、显示器或已构建的库） |
 
 测试：`<build>/bin/test_imui`——本地 `EXPECT` 宏（NDEBUG 安全，无测试框架）；
 桌面用 `ctest -R test_imui`（或直接运行二进制），NDS 跳过。
