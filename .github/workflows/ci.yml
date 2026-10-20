@@ -339,6 +339,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install pygame
         run: pip3 install pygame
+      # X-11: the decode check needs no pygame, no display and no built
+      # library -- it compiles a 16bpp pixel-traits probe and compares the
+      # host decoder against the framework's own packing. The host used to
+      # decode abgr1555 as RGB565 (red/blue swapped) and nothing caught it.
+      - name: Framebuffer decode check (X-11)
+        run: python3 demo/python/test_framebuffer.py
       - name: Build the C-ABI host library
         run: |
           cmake -S . -B build_ci

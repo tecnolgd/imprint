@@ -2,8 +2,11 @@
 """Python host for the zbapi C ABI -- drives the framework with pygame.
 
 The host plays the shell role: it owns the frame loop, feeds input and
-presents the framebuffer. The framebuffer is 32-bit bgra (as compiled for
-the default COLOR_DEPTH=32 / RGB_MODEL=bgra32 config), 4 bytes per pixel.
+presents the framebuffer. The framebuffer format is whatever the library
+was compiled with: 32-bit bgra (COLOR_DEPTH=32, 4 bytes/px) or 16-bit
+abgr1555 (COLOR_DEPTH=16, 2 bytes/px). The host asks the library which one
+(zb_buffer_bpp / zb_buffer_format) instead of assuming -- the 16bpp decode
+follows the abgr1555 contract in zbapi.h.
 
 Usage:
     # interactive (ESC or window close to quit)
@@ -25,10 +28,14 @@ Options:
 import argparse
 import ctypes
 import os
-import struct
 import sys
 
 import pygame
+
+# the framebuffer codecs live in their own module so they can be tested
+# without pygame (demo/python/test_framebuffer.py); myapp.py's directory
+# is on sys.path when this runs as a script
+from framebuffer import abgr1555_to_rgba, bgra_to_rgba
 
 
 def default_lib():
@@ -108,33 +115,6 @@ def load_zbapi(path):
     return lib
 
 
-def bgra_to_rgba(data, length):
-    """Framebuffer is 32-bit bgra (B,G,R,A bytes); pygame wants rgba.
-    The alpha byte is NOT part of the buffer contract (it is padding) --
-    pinned to opaque so the per-pixel-alpha blit can never make pixels
-    transparent (borders drawn with colors::Black used to vanish)."""
-    buf = bytes(data[:length])
-    out = bytearray(buf)
-    out[0::4] = buf[2::4]
-    out[2::4] = buf[0::4]
-    out[3::4] = b"\xff" * (length // 4)
-    return bytes(out)
-
-
-def rgb565_to_rgba(data, length):
-    """16bpp framebuffer: RGB565 little-endian words (the shells convert
-    at the presentation edge; this demo converts in python)."""
-    n = length // 2
-    words = struct.unpack_from("<%dH" % n, bytes(data[:length]))
-    out = bytearray(n * 4)
-    for i, v in enumerate(words):
-        out[i * 4 + 0] = ((v >> 11) & 0x1F) * 255 // 31
-        out[i * 4 + 1] = ((v >> 5) & 0x3F) * 255 // 63
-        out[i * 4 + 2] = (v & 0x1F) * 255 // 31
-        out[i * 4 + 3] = 0xFF
-    return bytes(out)
-
-
 def frame_rgba(lib, app, w, h):
     """Reads the framebuffer after zb_paint and returns rgba bytes for
     pygame. The bytes-per-pixel come from the build itself
@@ -147,7 +127,7 @@ def frame_rgba(lib, app, w, h):
     if bpp == 4:
         return bgra_to_rgba(pixels, w.value * h.value * 4)
     if bpp == 2:
-        return rgb565_to_rgba(pixels, w.value * h.value * 2)
+        return abgr1555_to_rgba(pixels, w.value * h.value * 2)
     raise SystemExit("frame_rgba: unsupported framebuffer bpp %d" % bpp)
 
 
