@@ -22,7 +22,7 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-10…X-21 (the
+   order is inside the batch. What remains is X-12…X-21 (the
    hardening/bookkeeping tail, plus the two X-8 follow-ups — the
    tree-wide `clang-format` reformat and the `-Wconversion` triage).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
@@ -32,7 +32,11 @@ Dependency-driven: each tier unlocks what follows.
    **X-21 landed the same day** (the mingw-w64 cross probe that puts the
    Windows-only shell TUs under that set: `win-probe` locally, the
    `mingw-probe` CI job, plus the failure-only MSVC warning inventory in
-   `windows-desktop`).
+   `windows-desktop`). **X-10 and X-11 landed 2026-10-20**: the 16bpp
+   presenter refusal is now symmetric across the desktop shells and the
+   fb fast path compares channel descriptors instead of byte counts
+   (`core::native_panel_layout()`), and the Python host decodes abgr1555
+   with a check that takes its ground truth from the pixel traits.
    Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
@@ -189,17 +193,6 @@ priority; no item reopens a ratified ruling.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 
-- **X-10. 16bpp presenter enforcement is asymmetric**: X11
-  (`run_x11.cpp:28-31`) and mac (`run_mac.mm:356-359`) throw, Windows
-  carries a NOTE only (`run_win.cpp:190-197`) → abgr1555 blitted into a
-  555 DIB with no diagnostic; separately the fb 32bpp fast path
-  (`fb.cpp:156-159`) validates byte count but not channel masks, while
-  the 16bpp branch below it validates both.
-- **X-11. The Python host decodes 16bpp as RGB565** (`myapp.py:124-135`)
-  while the contract is abgr1555 (`zbapi.h:19`,
-  `pixel_traits.hpp:71-82`) → red and blue are swapped in that host, and
-  `python-host` is Tier-3 and never covers 16bpp. Decide: fix the host or
-  add the 16bpp leg to the CI job.
 - **X-12. Three untrusted-input caps**: CSS `var()` expansion is
   depth-capped at 8 with no output-length cap (`html.cpp:1189-1300`,
   O(k^8) from a ~2 KB sheet); path data has no command/point cap
