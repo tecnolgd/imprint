@@ -857,6 +857,21 @@ whitelist is the boundary):
   rejection; the caller owns alarming). `panel_pixel_bytes(format)`
   reports the format's bytes per pixel. New panel formats add a converter,
   not kernel macro-matrix combinations (`docs/ARCHITECTURE.md` §4.4).
+  **`native_panel_layout()` is the fast-path predicate (X-10)**: it
+  reports the channel descriptors — bit offset from the LSB of the pixel
+  word plus bit width — that the build's internal format actually places
+  its R/G/B channels at, so a presentation edge takes a byte-copy path
+  only when the panel's own descriptors equal them. A matching byte count
+  does **not** prove a matching layout: the fb shell used to memcpy a
+  same-width panel with a different channel order into the framebuffer.
+  The values are **measured** from the pixel word (one single-channel
+  `Color` per channel, then the bit range of the result) rather than
+  restated from the traits, so the 32bpp byte-offset layouts — whose
+  byte→bit mapping depends on the host's byte order — and the 16bpp
+  bit-shift layout both yield the effective placement without a
+  host-endianness assumption in the shell. Alpha is excluded from the
+  comparison: the 4th 32bpp byte is not part of the buffer contract
+  (`zbapi.h`) and a panel may declare no alpha at all.
   Green pack semantics: red/blue are 5-bit on both sides of the seam and
   recover exactly at every depth; green is 6-bit in the bgr565 word —
   truncated from the 8-bit channel at 32bpp, replicated from the 5-bit

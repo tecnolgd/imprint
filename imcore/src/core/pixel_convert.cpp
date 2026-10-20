@@ -23,6 +23,48 @@ namespace zb::ui::core
         return 0;
     }
 
+    namespace
+    {
+        /*
+         * Bit range a single-channel colour actually occupies in its own
+         * pixel word. Reading the placement back out of the word keeps
+         * this honest for both trait shapes: the 32bpp layouts declare
+         * byte offsets (their bit position follows the host byte order)
+         * and the 16bpp layout declares shifts directly.
+         */
+        channel_bits probe_channel(const Color &only_one_channel_set)
+        {
+            const auto word = static_cast<unsigned long long>(only_one_channel_set.pixel);
+            constexpr int width = static_cast<int>(sizeof(typename Color::pixel_t) * 8);
+            channel_bits bits{};
+            while (bits.shift < width && ((word >> bits.shift) & 1ULL) == 0)
+            {
+                ++bits.shift;
+            }
+            if (bits.shift >= width)
+            {
+                return channel_bits{};  // the channel is not stored at all
+            }
+            while (bits.shift + bits.bits < width &&
+                   ((word >> (bits.shift + bits.bits)) & 1ULL) != 0)
+            {
+                ++bits.bits;
+            }
+            return bits;
+        }
+    }  // namespace
+
+    native_layout native_panel_layout()
+    {
+        // one channel at a time, so each probe word isolates its own
+        // placement; full value per channel, alpha left unset
+        native_layout layout{};
+        layout.r = probe_channel(Color::from(0xFF, 0, 0, 0));
+        layout.g = probe_channel(Color::from(0, 0xFF, 0, 0));
+        layout.b = probe_channel(Color::from(0, 0, 0xFF, 0));
+        return layout;
+    }
+
     size_t convert_row(const panel_format f, const Color *src, const int count,
                        uint8_t *dst, const size_t cap)
     {

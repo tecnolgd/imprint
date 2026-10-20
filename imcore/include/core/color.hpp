@@ -8,7 +8,8 @@ namespace zb::ui::core
 
     // the build's pixel type: the COLOR_DEPTH x RGB_MODEL x ENDIAN
     // matrix selected as compile-time traits (A-19, ARCHITECTURE.md §4.4)
-    using Color = basic_color<IM_PIXEL_TRAITS(RGB_MODEL, ENDIAN)>;
+    using ColorTraits = IM_PIXEL_TRAITS(RGB_MODEL, ENDIAN);
+    using Color = basic_color<ColorTraits>;
 
     namespace colors
     {
