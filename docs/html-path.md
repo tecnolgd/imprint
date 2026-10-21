@@ -124,6 +124,7 @@ applies unchanged.
 | Attribute not in the whitelist | silently tolerated (`class=` drives selector matching) |
 | Selector beyond tag/`.class`/`#id`/descendant/comma (child/sibling/attribute/other-pseudo) | silently inert, body consumed (non-`::before`/`::after` pseudo parts log one LW per rule — they usually carry visible content intent); a trailing `::before`/`::after` instead strips to its base selector and produces a paint-only box (see the `::before` / `::after` whitelist row) |
 | Unknown `var(--name)` without fallback | declaration dropped silently (malformed-value tolerance) |
+| `var()` expansion exceeds 64 KiB | **LW warning (first occurrence per parse) + the whole declaration is dropped**; the budget is shared by the declaration's entire substitution tree, including nested fallbacks and intermediate values, so repeated references cannot multiply work |
 | Style declaration not in the whitelist | **LW warning + ignored** (the element keeps its default presentation) |
 | Malformed value (bad color, bad number, bad percent) | silently defaulted (the shared property table's tolerance) |
 | Stray/mismatched closing tag | closes open ancestors up to the match (unbalanced intermediates are finalized along the way); ignored when no open frame matches (HTML5 semantics), silent |
@@ -170,7 +171,7 @@ build; this rule governs the build-time gate only.
 | `checked` | checkbox / radio / toggle | boolean, by presence |
 | `group` | radio | radio group id (integer, any sign — equality-matched, never indexed) |
 | `viewBox` | svg / vectordial | four viewBox units (`minx miny w h`, space/comma separated, decimals round half away from zero); malformed, absent, or non-positive size = pixel units (coordinates map 1:1) |
-| `d` | path (inside svg) | path data, stroke-only (§SVG subset); `M m L l H h V v C c S s Q q T t Z z` with SVG number/separator grammar and implicit repeats; unsupported or malformed data drops the path with one warning |
+| `d` | path (inside svg) | path data, stroke-only (§SVG subset); `M m L l H h V v C c S s Q q T t Z z` with SVG number/separator grammar and implicit repeats; at most 1024 commands and 4096 flattened points per `d`; unsupported, malformed, or over-budget data drops the whole path with one warning |
 | `points` | polyline / polygon (inside svg) | vertex list, viewBox units (decimals accepted, space/comma separators); malformed or <2 points drops the element |
 | `x`/`y`/`width`/`height`, `cx`/`cy`/`r`, `rx`/`ry` | rect / circle / ellipse (inside svg) | static geometry, viewBox units (decimals accepted); non-positive `width`/`height`/`r`/`rx`/`ry` renders nothing (per SVG); rect `rx`/`ry` (corner rounding) is not in the subset — warned and ignored, corners stay square |
 
@@ -257,6 +258,10 @@ build; this rule governs the build-time gate only.
   declaration value (stylesheet and inline alike; one nesting level
   through fallbacks and chained variables). An unknown name without a
   fallback drops its declaration silently (malformed-value tolerance).
+  Substitution has a 64 KiB budget per declaration, charged against
+  every intermediate expansion as well as the final value; an
+  over-budget declaration is dropped whole, with one LW warning per
+  parse.
 
 ## SVG subset (`svg` / `vectordial`)
 
@@ -330,7 +335,11 @@ out of scope:
   triplets after `C` extra curves, etc.); `A`/`a` and anything
   unparseable drop the whole path with one LW warning (an arc-capable
   renderer is not pretended). Coordinates are viewBox units, decimals
-  accepted. A number's magnitude is capped at 1e9 viewBox units — the
+  accepted. A `d` is limited to 1024 commands and 4096 flattened points
+  in total, counting implicit repeats and the points produced by curve
+  flattening; exceeding either limit drops the whole path with one LW
+  warning and emits no partial geometry. A number's magnitude is capped
+  at 1e9 viewBox units — the
   same cap the attribute readers apply (`viewBox`, `cx`, `r`, …), and
   the reason it exists is that the number feeds a double → Q10 cast at
   draw time (X-6): past the cap the value is not geometry any more, so

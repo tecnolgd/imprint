@@ -270,6 +270,12 @@ satisfies. Changing any of these is an architecture change.
   no server, no display) and dummy-driven unit-tested with synthetic
   messages; each returns handled / swallowed / not-handled so the shell
   keeps only its blit and its non-input event cases.
+- **Terminal CSI accumulation is bounded (X-12).** The SIXEL shell's
+  pure streaming parser buffers at most 64 bytes of CSI parameter and
+  intermediate bytes. A longer sequence is discarded through its final
+  byte (`0x40..0x7e`) and then returns to ground; `reset()` also clears
+  an in-progress discard. This keeps hostile stdin from growing parser
+  state without changing the mapped mouse/key sequences.
 - **Key codes ride both edges (U-1).** Every key a translator maps
   carries the same platform-independent `key` code on `key_down` AND
   `key_up` — printable letters and digits included (lowercase ASCII
