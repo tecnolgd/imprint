@@ -109,21 +109,29 @@ int test_sixel()
     // X-13: the register budget is spent once the band holds 250 distinct
     // colors, and the diagnostic latches — one LW per frame, not one per
     // dropped pixel (a photo-like frame used to write a line per pixel).
-    // A 251-color band therefore logs exactly once and still emits a
+    // A band over the budget therefore logs exactly once and still emits a
     // complete, deterministic DCS sequence.
+    // Depth-aware fixture: 16bpp quantizes a channel to 5 bits, so a gray
+    // ramp holds only 32 distinct colors and would never overflow — the
+    // distinctness has to come from channel spread to be depth-neutral
+    // (the same trap as the palette-percentage expectations above).
     {
         constexpr int w = 260;  // > 250 distinct colors in one band
         constexpr int h = 6;
         std::vector<core::Color> buf(static_cast<std::size_t>(w) * h);
         for (int i = 0; i < w; ++i)
         {
-            // every column a distinct color: i maps to a unique 8-bit
-            // channel triple for i < 256, then wraps
-            const auto c = static_cast<uint8_t>(i);
+            // 260 distinct channel triples that stay distinct after the
+            // 16bpp 5-bit quantization too (r*3, g*5, b*9 mod 256: 256
+            // distinct triples at both depths, so the band overflows in
+            // every configuration)
+            const auto r = static_cast<uint8_t>((i * 3) & 0xFF);
+            const auto g = static_cast<uint8_t>((i * 5) & 0xFF);
+            const auto b = static_cast<uint8_t>((i * 9) & 0xFF);
             for (int y = 0; y < h; ++y)
             {
                 buf[static_cast<std::size_t>(y) * w + i] =
-                    core::Color::from(c, c, c, 255);
+                    core::Color::from(r, g, b, 255);
             }
         }
         log_probe probe;
