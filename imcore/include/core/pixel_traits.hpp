@@ -26,6 +26,8 @@
 
 #include <stdint.h>
 
+#include <cstring>
+
 namespace zb::ui::core
 {
     namespace pixel_traits_detail
@@ -92,20 +94,15 @@ namespace zb::ui::core
      * (`Color{}`) is fully transparent (pixel == 0).
      */
     template<typename Traits>
-    union basic_color
+    struct basic_color
     {
         using pixel_t = typename Traits::pixel_t;
         static constexpr int depth = Traits::depth;
         static constexpr bool per_channel_blend = Traits::per_channel_blend;
 
         pixel_t pixel = 0;
-        // endian-neutral byte view of the pixel word (32bpp channel
-        // placement). Sized to the pixel word, NOT hardcoded 4: the color
-        // object must be exactly depth/8 bytes (pre-A-19 contract; the NDS
-        // shell's dmaCopy counts depth/8-per-pixel bytes)
-        uint8_t bytes[sizeof(pixel_t)];  // 32bpp only: endian-neutral byte view
 
-        // Both trivial members are declared explicitly: the union declares
+        // Both trivial members are declared explicitly: the struct declares
         // copy assignment below, which would deprecate the implicit copy
         // constructor (-Wdeprecated-copy), and declaring that copy
         // constructor in turn suppresses the implicit default constructor
@@ -125,11 +122,36 @@ namespace zb::ui::core
             return r;
         }
 
+        /*
+         * The 32bpp byte view, without the union pun (X-17). Reading a
+         * union member other than the one last written is
+         * implementation-defined (the one load-bearing
+         * implementation-defined construct the tree had); memcpy into /
+         * out of the object representation is explicitly allowed and
+         * yields the same memory byte order on every platform, which is
+         * what the traits' *_byte offsets describe. The word stays the
+         * only member, so sizeof is unchanged (the NDS dmaCopy counts
+         * depth/8 bytes per pixel).
+         */
+        [[nodiscard]] uint8_t byte_at(const int i) const
+        {
+            uint8_t b[sizeof(pixel_t)];
+            std::memcpy(b, this, sizeof(b));
+            return b[i];
+        }
+        void set_byte_at(const int i, const uint8_t v)
+        {
+            uint8_t b[sizeof(pixel_t)];
+            std::memcpy(b, this, sizeof(b));
+            b[i] = v;
+            std::memcpy(this, b, sizeof(b));
+        }
+
         [[nodiscard]] uint8_t r() const
         {
             if constexpr (depth == 32)
             {
-                return bytes[Traits::r_byte];
+                return byte_at(Traits::r_byte);
             }
             else
             {
@@ -140,7 +162,7 @@ namespace zb::ui::core
         {
             if constexpr (depth == 32)
             {
-                bytes[Traits::r_byte] = v;
+                set_byte_at(Traits::r_byte, v);
             }
             else
             {
@@ -153,7 +175,7 @@ namespace zb::ui::core
         {
             if constexpr (depth == 32)
             {
-                return bytes[Traits::g_byte];
+                return byte_at(Traits::g_byte);
             }
             else
             {
@@ -164,7 +186,7 @@ namespace zb::ui::core
         {
             if constexpr (depth == 32)
             {
-                bytes[Traits::g_byte] = v;
+                set_byte_at(Traits::g_byte, v);
             }
             else
             {
@@ -177,7 +199,7 @@ namespace zb::ui::core
         {
             if constexpr (depth == 32)
             {
-                return bytes[Traits::b_byte];
+                return byte_at(Traits::b_byte);
             }
             else
             {
@@ -188,7 +210,7 @@ namespace zb::ui::core
         {
             if constexpr (depth == 32)
             {
-                bytes[Traits::b_byte] = v;
+                set_byte_at(Traits::b_byte, v);
             }
             else
             {
@@ -201,7 +223,7 @@ namespace zb::ui::core
         {
             if constexpr (depth == 32)
             {
-                return bytes[Traits::a_byte];
+                return byte_at(Traits::a_byte);
             }
             else
             {
@@ -212,7 +234,7 @@ namespace zb::ui::core
         {
             if constexpr (depth == 32)
             {
-                bytes[Traits::a_byte] = v;
+                set_byte_at(Traits::a_byte, v);
             }
             else
             {

@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)]()
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20NDS%20%7C%20WASM%20%7C%20Python-lightgrey.svg)]()
+[![CI](https://github.com/tyouhyou/imprint/actions/workflows/ci.yml/badge.svg)](https://github.com/tyouhyou/imprint/actions/workflows/ci.yml)
 
 **相同的输入，相同的像素——没有显示器，也能在 CI 里逐像素断言。**
 

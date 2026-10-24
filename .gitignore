@@ -67,6 +67,10 @@ Thumbs.db
 
 /reports/
 /design/
-/docker/
+# the dev container's rebuildable definition ships (a clone can reproduce
+# the environment); the staged melonDS AppImage and the generated root
+# override stay local
+/docker/context/
+/docker/*.AppImage
 /snapshot_test_out/
 

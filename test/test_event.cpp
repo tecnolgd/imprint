@@ -217,7 +217,9 @@ static void test_subscription_must_be_held()
     Event<> ev;
     int calls = 0;
 
-    ev.subscribe([&calls]() { ++calls; });  // temporary guard dies here
+    // the discard is the case under test: [[nodiscard]] (X-17) makes the
+    // accidental version a compile error, so the intentional one casts
+    (void)ev.subscribe([&calls]() { ++calls; });  // guard dies here
     EXPECT(!bool(ev));
     ev();
     EXPECT(calls == 0);

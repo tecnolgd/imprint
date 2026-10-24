@@ -127,8 +127,12 @@ namespace zb::event
             return next_id;
         }
 
-        // RAII registration: the subscription unsubscribes on destruction
-        Subscription<TArgs...> subscribe(const EventHandler &handler)
+        // RAII registration: the subscription unsubscribes on destruction.
+        // [[nodiscard]] by design (X-17): discarding the return value
+        // unsubscribes on the same statement, which is never what a
+        // caller means — the guard has to be held for the intended
+        // lifetime.
+        [[nodiscard]] Subscription<TArgs...> subscribe(const EventHandler &handler)
         {
             return Subscription<TArgs...>(*this, sub(handler));
         }
