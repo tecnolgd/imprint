@@ -22,7 +22,7 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-13…X-20 (the
+   order is inside the batch. What remains is X-16…X-20 (the
    hardening/bookkeeping tail, plus the two X-8 follow-ups — the
    tree-wide `clang-format` reformat and the `-Wconversion` triage).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
@@ -39,7 +39,19 @@ Dependency-driven: each tier unlocks what follows.
    with a check that takes its ground truth from the pixel traits.
    **X-12 landed 2026-10-24**: a per-declaration 64 KiB var() expansion
    budget plus cycle rejection, 1024-command / 4096-point path caps, and
-   a 64-byte CSI accumulation bound.
+   a 64-byte CSI accumulation bound. **X-13 landed the same day**: the
+   sixel register-budget diagnostic latches per frame instead of firing
+   once per dropped pixel, and the header/ARCHITECTURE §5 now state the
+   real drop behavior instead of the old nearest-color promise.
+   **X-14 landed the same day**: SOVERSION on both shared libraries, a
+   project version that no longer trails the released tags, an installed
+   LICENSE, and a pkg-config recipe — all asserted by the installed
+   smoke. **X-15 landed the same day**: the chrome-bar fill and the
+   painted→present region read move through two shared seams
+   (`for_each_bar`, `painted_region`), and the U-1 key-decoration rule
+   has one home (`decorate_printable_key`) that every C++ translator
+   calls instead of re-deriving it; the §3.1 "~100–200 lines of glue"
+   claim is now backed by the seams rather than aspirational.
    Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
@@ -196,24 +208,6 @@ priority; no item reopens a ratified ruling.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 
-- **X-13. SIXEL log flood and a doc/code mismatch.** `LW` fires inside
-  the per-pixel loop once the register budget is spent
-  (`sixel.cpp:92-104`) → one line per dropped pixel on a photo-like
-  frame; `imshell/include/shell/sixel.hpp:17-18` promises nearest-colour
-  mapping while the code drops the colour from the band. Needs a
-  warn-once latch plus a wording (or behavior) fix.
-- **X-14. Release/packaging hygiene**: no `SOVERSION` although imcore is
-  deliberately SHARED (A-4.2) → an in-place upgrade silently replaces a
-  library other binaries linked against; `project(VERSION 0.1.0)`
-  (`CMakeLists.txt:3`) vs released `v0.1`/`v0.1.1` →
-  `find_package(imprint 0.1.1)` fails; no pkg-config/vcpkg/Conan recipe;
-  LICENSE not installed.
-- **X-15. Shell duplication vs. the A-2 promise**: the chrome-bar fill is
-  written three times (`run_win.cpp:178-186`, `run_x11.cpp:223-231`,
-  `run_mac.mm:291-300`) and the painted→present handler about five times,
-  so ARCHITECTURE §3.1's "~100-200 lines of glue per new target" stays
-  aspirational; the U-1 key-decoration rule has six copies, three of them
-  untested (mac, `demo/wasm/main.js`, `demo/python/myapp.py`).
 - **X-16. Feature-gap orientation — pointers, not a restatement.** The
   declared non-goals are normative elsewhere (ARCHITECTURE §5 for the
   runtime limits, Batch G for the widget-armament race, Batch H for the
