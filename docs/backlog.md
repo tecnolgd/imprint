@@ -22,7 +22,7 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-12…X-21 (the
+   order is inside the batch. What remains is X-13…X-20 (the
    hardening/bookkeeping tail, plus the two X-8 follow-ups — the
    tree-wide `clang-format` reformat and the `-Wconversion` triage).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
@@ -37,6 +37,9 @@ Dependency-driven: each tier unlocks what follows.
    fb fast path compares channel descriptors instead of byte counts
    (`core::native_panel_layout()`), and the Python host decodes abgr1555
    with a check that takes its ground truth from the pixel traits.
+   **X-12 landed 2026-10-24**: a per-declaration 64 KiB var() expansion
+   budget plus cycle rejection, 1024-command / 4096-point path caps, and
+   a 64-byte CSI accumulation bound.
    Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
@@ -193,13 +196,6 @@ priority; no item reopens a ratified ruling.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 
-- **X-12. Three untrusted-input caps**: CSS `var()` expansion is
-  depth-capped at 8 with no output-length cap (`html.cpp:1189-1300`,
-  O(k^8) from a ~2 KB sheet); path data has no command/point cap
-  (`html.cpp:3410-3670`) and flattens up to 4096 points per curve
-  (`svg_canvas.cpp:85/128-162`) → ~2000× input amplification; terminal
-  CSI accumulation is uncapped (`term_input.cpp:235`). The existing depth
-  caps (`html.cpp:5012`, `ui_file.cpp:137`) are the model to extend.
 - **X-13. SIXEL log flood and a doc/code mismatch.** `LW` fires inside
   the per-pixel loop once the register budget is spent
   (`sixel.cpp:92-104`) → one line per dropped pixel on a photo-like
