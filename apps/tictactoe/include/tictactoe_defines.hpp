@@ -13,10 +13,10 @@ namespace zb::app::tictactoe
     // computer opponent strength, chosen at the start of each round
     enum class difficulty : int
     {
-        easy = 0,   // random legal moves
-        normal,     // win > block > center > corner > side
-        hard        // minimax: never loses
+        easy = 0,  // random legal moves
+        normal,    // win > block > center > corner > side
+        hard       // minimax: never loses
     };
 }
 
-#endif // !TICTACTOE_DEFINES_HPP
+#endif  // !TICTACTOE_DEFINES_HPP

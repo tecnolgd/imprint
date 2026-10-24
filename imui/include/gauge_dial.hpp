@@ -33,11 +33,41 @@ namespace zb::ui
         void set_sweep_deg(int d);
         [[nodiscard]] int get_sweep_deg() const { return sweep_deg; }
 
-        void set_arc_color(const core::Color &c) { if (arc_color && arc_color->pixel == c.pixel) return; arc_color = c; mark_dirty(); }
-        void set_track_color(const core::Color &c) { if (track_color && track_color->pixel == c.pixel) return; track_color = c; mark_dirty(); }
-        void set_needle_color(const core::Color &c) { if (needle_color && needle_color->pixel == c.pixel) return; needle_color = c; mark_dirty(); }
-        void set_tick_color(const core::Color &c) { if (tick_color && tick_color->pixel == c.pixel) return; tick_color = c; mark_dirty(); }
-        void set_face_color(const core::Color &c) { if (face_color && face_color->pixel == c.pixel) return; face_color = c; mark_dirty(); }
+        void set_arc_color(const core::Color &c)
+        {
+            if (arc_color && arc_color->pixel == c.pixel)
+                return;
+            arc_color = c;
+            mark_dirty();
+        }
+        void set_track_color(const core::Color &c)
+        {
+            if (track_color && track_color->pixel == c.pixel)
+                return;
+            track_color = c;
+            mark_dirty();
+        }
+        void set_needle_color(const core::Color &c)
+        {
+            if (needle_color && needle_color->pixel == c.pixel)
+                return;
+            needle_color = c;
+            mark_dirty();
+        }
+        void set_tick_color(const core::Color &c)
+        {
+            if (tick_color && tick_color->pixel == c.pixel)
+                return;
+            tick_color = c;
+            mark_dirty();
+        }
+        void set_face_color(const core::Color &c)
+        {
+            if (face_color && face_color->pixel == c.pixel)
+                return;
+            face_color = c;
+            mark_dirty();
+        }
 
         [[nodiscard]] core::imsize_t measure() const override { return {64, 64}; }
 
@@ -57,10 +87,10 @@ namespace zb::ui
         int start_deg = -225;
         int sweep_deg = 270;
         // unset = follow the active theme (contract 10.3)
-        std::optional<core::Color> arc_color;    // accent
-        std::optional<core::Color> track_color;  // border
-        std::optional<core::Color> needle_color; // accent
-        std::optional<core::Color> tick_color;   // border
-        std::optional<core::Color> face_color;   // background
+        std::optional<core::Color> arc_color;     // accent
+        std::optional<core::Color> track_color;   // border
+        std::optional<core::Color> needle_color;  // accent
+        std::optional<core::Color> tick_color;    // border
+        std::optional<core::Color> face_color;    // background
     };
 }

@@ -8,7 +8,7 @@ int test_gauge_dial()
     using namespace zb::ui;
 
     set_theme(light_theme());
-    const core::Color blue  = theme().accent;
+    const core::Color blue = theme().accent;
     const core::Color white = theme().background;
 
     GaugeDial g;
@@ -47,9 +47,9 @@ int test_gauge_dial()
 
     // circular hit: inside the face, outside the corners
     EXPECT(g.hit(32, 32));
-    EXPECT(g.hit(5 + 32, 32)); // in
-    EXPECT(!g.hit(1, 1));      // far corner out
-    EXPECT(!g.hit(63, 0));     // corner out
+    EXPECT(g.hit(5 + 32, 32));  // in
+    EXPECT(!g.hit(1, 1));       // far corner out
+    EXPECT(!g.hit(63, 0));      // corner out
     EXPECT(!g.hit(0, 63));
     g.set_visible(false);
     EXPECT(!g.hit(32, 32));  // the visible gate is preserved
@@ -62,14 +62,14 @@ int test_gauge_dial()
     std::vector<uint32_t> px(64 * 64);
     core::Graphics ga(64, 64, px.data());
     g.draw(ga);
-    EXPECT(test::pixel_at(ga, 41, 41) == blue.pixel);  // needle diagonal
-    EXPECT(test::pixel_at(ga, 32, 32) == blue.pixel);  // hub
-    EXPECT(test::pixel_at(ga, 32, 20) == white.pixel); // plain face
+    EXPECT(test::pixel_at(ga, 41, 41) == blue.pixel);   // needle diagonal
+    EXPECT(test::pixel_at(ga, 32, 32) == blue.pixel);   // hub
+    EXPECT(test::pixel_at(ga, 32, 20) == white.pixel);  // plain face
 
     // value 50 = needle straight up (at -90°)
     g.set_value(50);
     g.draw(ga);
-    EXPECT(test::pixel_at(ga, 32, 19) == blue.pixel); // needle vertical
+    EXPECT(test::pixel_at(ga, 32, 19) == blue.pixel);  // needle vertical
 
     // value 0 = no value arc, needle at the left edge
     g.set_value(0);

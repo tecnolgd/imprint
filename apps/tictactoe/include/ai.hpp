@@ -32,4 +32,4 @@ namespace zb::app::tictactoe
     ai_move choose_move(const Game &game, const player_type computer, const difficulty d);
 }
 
-#endif // TICTACTOE_AI_HPP
+#endif  // TICTACTOE_AI_HPP

@@ -329,21 +329,21 @@ namespace zb::ui
             // child (H-7c); a D-1 min constraint is absolute and counts
             // like a px basis.
             const int m = items[i].basis_px >= 0
-                              ? cap_max(child, is_row(direction), items[i].basis_px)
-                              : (items[i].flex_grow > 0 ||
-                                 main_percent(child, direction) > 0 ||
-                                 items[i].basis_pct > 0)
-                                    ? min_of(child, is_row(direction))
-                                    : main_demand(child, direction);
+                            ? cap_max(child, is_row(direction), items[i].basis_px)
+                        : (items[i].flex_grow > 0 ||
+                           main_percent(child, direction) > 0 ||
+                           items[i].basis_pct > 0)
+                            ? min_of(child, is_row(direction))
+                            : main_demand(child, direction);
             // in-flow margins count around the border box (H-3)
             main += m + main_margin_before(child, direction) +
                     main_margin_after(child, direction) + (first ? 0 : spacing);
             first = false;
             const int cd = cross_percent(child, direction) > 0
-                               ? min_of(child, !is_row(direction))
-                               : cross_demand(child, direction);
+                             ? min_of(child, !is_row(direction))
+                             : cross_demand(child, direction);
             cross = std::max(cross, cd + cross_margin_before(child, direction) +
-                                         cross_margin_after(child, direction));
+                                        cross_margin_after(child, direction));
         }
         const int pad_main = is_row(direction) ? pad_l + pad_r : pad_t + pad_b;
         const int pad_cross = is_row(direction) ? pad_t + pad_b : pad_l + pad_r;
@@ -450,10 +450,10 @@ namespace zb::ui
                 const int basis = basis_claim(items[i], direction, avail_main);
                 const int item_need =
                     (basis >= 0 ? basis
-                                : (items[i].flex_grow > 0 && pct == 0)
-                                      ? 0
-                                      : main_desired(*items[i].child, direction,
-                                                     avail_main)) +
+                     : (items[i].flex_grow > 0 && pct == 0)
+                         ? 0
+                         : main_desired(*items[i].child, direction,
+                                        avail_main)) +
                     main_margin_before(*items[i].child, direction) +
                     main_margin_after(*items[i].child, direction);
                 if (wrap && !cur.empty() && need + spacing + item_need > avail_main)
@@ -488,7 +488,8 @@ namespace zb::ui
         // a line item claims main-axis space either as a flex grow
         // participant or as a fixed demand; a percent child is neither:
         // its size is resolved below and its grow weight is ignored
-        const auto grows = [&](const size_t i) {
+        const auto grows = [&](const size_t i)
+        {
             return items[i].flex_grow > 0 && main_percent(*items[i].child, direction) == 0;
         };
 
@@ -609,7 +610,8 @@ namespace zb::ui
             // with no shrink weight anywhere the claims stand and the
             // line overflows exactly as before. Without basis or shrink
             // this is the old grow-only distribution verbatim.
-            const auto claim_of = [&](const size_t i) {
+            const auto claim_of = [&](const size_t i)
+            {
                 const int b = basis_claim(items[i], direction, avail_main);
                 if (b >= 0)
                 {
@@ -621,8 +623,8 @@ namespace zb::ui
                 }
                 const Widget &child = *items[i].child;
                 return main_percent(child, direction) > 0
-                           ? main_now(child, direction)
-                           : main_demand(child, direction);
+                         ? main_now(child, direction)
+                         : main_demand(child, direction);
             };
             // content claims are basis/percent/demand/zero (H-7c); the
             // in-flow margins count around each one and never shrink
@@ -661,8 +663,8 @@ namespace zb::ui
                     {
                         ++flex_seen;
                         const int share = (flex_seen == flex_count)
-                                              ? balance - distributed_size
-                                              : balance * items[i].flex_grow / total_weight;
+                                            ? balance - distributed_size
+                                            : balance * items[i].flex_grow / total_weight;
                         const int final = std::max(0, claim_of(i) + share);
                         changed |= (main_now(*items[i].child, direction) != final);
                         set_main_size(*items[i].child, direction, final);
@@ -773,9 +775,7 @@ namespace zb::ui
                 // from the settled size). A shrink-weighted item stays
                 // raw: the deficit path owns its size (a min raise here
                 // would re-enter the shrink loop every pass).
-                if (!main_explicit && main_percent(child, direction) == 0
-                    && items[i].flex_grow == 0
-                    && basis_claim(items[i], direction, avail_main) < 0)
+                if (!main_explicit && main_percent(child, direction) == 0 && items[i].flex_grow == 0 && basis_claim(items[i], direction, avail_main) < 0)
                 {
                     const int demand = main_demand(child, direction);
                     changed |= (main_now(child, direction) != demand);
@@ -837,20 +837,21 @@ namespace zb::ui
             // top, the CSS non-auto rule), every other mode only offsets
             // the placement below. Closed over settled demands, so the
             // H-9 loop sees no drift.
-            const auto eff_align = [&](const size_t i) {
+            const auto eff_align = [&](const size_t i)
+            {
                 switch (items[i].align_self)
                 {
-                    case self_align::start:
-                        return align::start;
-                    case self_align::center:
-                        return align::center;
-                    case self_align::end:
-                        return align::end;
-                    case self_align::stretch:
-                        return align::stretch;
-                    case self_align::auto_:
-                    default:
-                        return align_items;
+                case self_align::start:
+                    return align::start;
+                case self_align::center:
+                    return align::center;
+                case self_align::end:
+                    return align::end;
+                case self_align::stretch:
+                    return align::stretch;
+                case self_align::auto_:
+                default:
+                    return align_items;
                 }
             };
             for (const size_t i : line)
@@ -870,8 +871,8 @@ namespace zb::ui
                 // stretch fills the line extent minus the item's own
                 // cross margins (H-3); the content size floors at 0
                 int fill = std::max(0, line_cross -
-                                                 cross_margin_before(child, direction) -
-                                                 cross_margin_after(child, direction));
+                                           cross_margin_before(child, direction) -
+                                           cross_margin_after(child, direction));
                 // the container's content box bounds an auto-axis stretch
                 // child (H-9e): a child whose natural cross demand
                 // exceeds the container fills (and is clipped by) the
@@ -924,7 +925,8 @@ namespace zb::ui
                 // count every margin, so justification needs no shift
                 int pos = (is_row(direction) ? pad_l : pad_t) + lead +
                           before + k * spacing +
-                          main_margin_before(child, direction);                if (slack > 0)
+                          main_margin_before(child, direction);
+                if (slack > 0)
                 {
                     if (justify_content == justify::space_between && n > 1)
                     {
@@ -951,16 +953,16 @@ namespace zb::ui
                 int cross_off = 0;
                 switch (eff_align(i))
                 {
-                    case align::center:
-                        cross_off = (line_cross - c) / 2;
-                        break;
-                    case align::end:
-                        cross_off = line_cross - c;
-                        break;
-                    case align::start:
-                    case align::stretch:
-                    default:
-                        break;
+                case align::center:
+                    cross_off = (line_cross - c) / 2;
+                    break;
+                case align::end:
+                    cross_off = line_cross - c;
+                    break;
+                case align::start:
+                case align::stretch:
+                default:
+                    break;
                 }
                 set_main_position(child, direction, pos,
                                   cross_pos + cross_off +
@@ -1015,10 +1017,11 @@ namespace zb::ui
             orgx = aa.x - ta.x + apad;
             orgy = aa.y - ta.y + apad;
         }
-        auto off_px = [&](const int side, const int base) {
+        auto off_px = [&](const int side, const int base)
+        {
             return child.abs_off_pct(side)
-                       ? detail::pct(base, child.abs_off(side))
-                       : child.abs_off(side);
+                     ? detail::pct(base, child.abs_off(side))
+                     : child.abs_off(side);
         };
         const bool has_l = child.abs_off(0) != kUnset;
         const bool has_t = child.abs_off(1) != kUnset;

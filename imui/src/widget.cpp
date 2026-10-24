@@ -265,11 +265,15 @@ namespace zb::ui
                         const int hi_m = x - d + 1;
                         const int lo_m = x + d;
                         const int64_t p =
-                            pfx[hi_p < 0 ? 0 : hi_p > fw ? fw : hi_p] -
-                            pfx[lo_p < 0 ? 0 : lo_p > fw ? fw : lo_p];
+                            pfx[hi_p < 0 ? 0 : hi_p > fw ? fw
+                                                         : hi_p] -
+                            pfx[lo_p < 0 ? 0 : lo_p > fw ? fw
+                                                         : lo_p];
                         const int64_t m =
-                            d > 0 ? pfx[hi_m < 0 ? 0 : hi_m > fw ? fw : hi_m] -
-                                        pfx[lo_m < 0 ? 0 : lo_m > fw ? fw : lo_m]
+                            d > 0 ? pfx[hi_m < 0 ? 0 : hi_m > fw ? fw
+                                                                 : hi_m] -
+                                        pfx[lo_m < 0 ? 0 : lo_m > fw ? fw
+                                                                     : lo_m]
                                   : 0;
                         h += w * (p + m);
                     }
@@ -309,11 +313,15 @@ namespace zb::ui
                         const int hi_m = y - d + 1;
                         const int lo_m = y + d;
                         const int64_t p =
-                            colp[hi_p < 0 ? 0 : hi_p > fh ? fh : hi_p] -
-                            colp[lo_p < 0 ? 0 : lo_p > fh ? fh : lo_p];
+                            colp[hi_p < 0 ? 0 : hi_p > fh ? fh
+                                                          : hi_p] -
+                            colp[lo_p < 0 ? 0 : lo_p > fh ? fh
+                                                          : lo_p];
                         const int64_t m =
-                            d > 0 ? colp[hi_m < 0 ? 0 : hi_m > fh ? fh : hi_m] -
-                                        colp[lo_m < 0 ? 0 : lo_m > fh ? fh : lo_m]
+                            d > 0 ? colp[hi_m < 0 ? 0 : hi_m > fh ? fh
+                                                                  : hi_m] -
+                                        colp[lo_m < 0 ? 0 : lo_m > fh ? fh
+                                                                      : lo_m]
                                   : 0;
                         v += w * (p + m);
                     }
@@ -503,9 +511,15 @@ namespace zb::ui
         font_family_set() = false;
     }
 
-    bool has_font_family() { return font_family_set(); }
+    bool has_font_family()
+    {
+        return font_family_set();
+    }
 
-    const TtfFamily &font_family() { return font_family_state(); }
+    const TtfFamily &font_family()
+    {
+        return font_family_state();
+    }
 
     void Widget::set_font_size(const int px)
     {
@@ -545,7 +559,8 @@ namespace zb::ui
     }
 #endif
 
-    Widget::Widget() : bitmap_fallback_(fallback_singleton())
+    Widget::Widget()
+        : bitmap_fallback_(fallback_singleton())
     {
     }
 
@@ -618,7 +633,8 @@ namespace zb::ui
             return;
         }
         const auto s = get_size();
-        auto side = [&](const int i) {
+        auto side = [&](const int i)
+        {
             int v = ps->off[i];
             if ((ps->off_pct & (1U << i)) != 0U)
             {
@@ -767,7 +783,8 @@ namespace zb::ui
         const auto surf = area.size();
         // saturating int64 -> int: a saturated bound only ever widens the
         // clip (a superset of the surface still renders identically)
-        const auto frame_coord = [](const int64_t v) {
+        const auto frame_coord = [](const int64_t v)
+        {
             return static_cast<int>(std::clamp(
                 v, static_cast<int64_t>(INT32_MIN),
                 static_cast<int64_t>(INT32_MAX)));
@@ -793,7 +810,8 @@ namespace zb::ui
         // a dressed color below opaque paints blended; on 16bpp
         // (binary alpha) the enable is a visual no-op — alpha_blend
         // returns front for any set bit — so one rule covers both
-        auto needs_blend = [](const core::Color &c) { return c.a() < 255; };
+        auto needs_blend = [](const core::Color &c)
+        { return c.a() < 255; };
         bool blend = background.has_value() && needs_blend(*background);
         if (dress_.bg_kind != 0 &&
             (needs_blend(dress_.bg_from) || needs_blend(dress_.bg_to)))
@@ -921,8 +939,8 @@ namespace zb::ui
         // flags even an opaque border, so the frame fill would never
         // engage there
         const bool frame_opaque = core::Color::per_channel_blend
-                                      ? dress_.border_color.a() >= 0xFF
-                                      : dress_.border_color.a() != 0;
+                                    ? dress_.border_color.a() >= 0xFF
+                                    : dress_.border_color.a() != 0;
         const bool opaque_frame =
             radius > 0 && dress_.border_w > 0 && frame_opaque &&
             (background.has_value() || dress_.bg_kind != 0 || grad() != nullptr ||
@@ -1092,13 +1110,13 @@ namespace zb::ui
 
         const auto s = get_size();
         const char16_t *const data = text_.data();
-    const int len = static_cast<int>(text_.size());
+        const int len = static_cast<int>(text_.size());
 
         // line metrics come from the primary provider, or the fallback;
         // line_metrics does not scan the string (no per-glyph loads)
         const text_metrics m = primary != nullptr
-                                   ? primary->line_metrics()
-                                   : fallback->line_metrics();
+                                 ? primary->line_metrics()
+                                 : fallback->line_metrics();
 
         if (text_wrap() && s.width > 0)
         {
@@ -1148,8 +1166,8 @@ namespace zb::ui
             return;
         }
 
-    // total advance: split into covered runs; uncovered units add 0
-    const int total = text_advance();
+        // total advance: split into covered runs; uncovered units add 0
+        const int total = text_advance();
 
         int x = 0;
         switch (halign)
@@ -1219,8 +1237,8 @@ namespace zb::ui
         {
             const GlyphProvider *const p = pick(text[i]);
             return p != nullptr
-                       ? p->measure(text.data() + i, 1).width + letter
-                       : 0;
+                     ? p->measure(text.data() + i, 1).width + letter
+                     : 0;
         };
         const auto emit_line = [&](const int start, int end)
         {
@@ -1341,8 +1359,8 @@ namespace zb::ui
         const GlyphProvider *const primary = primary_provider();
         const GlyphProvider *const fallback = bitmap_fallback_.get();
         const text_metrics m = primary != nullptr
-                                   ? primary->line_metrics()
-                                   : fallback->line_metrics();
+                                 ? primary->line_metrics()
+                                 : fallback->line_metrics();
         const int pitch = line_height() > 0 ? line_height() : m.height;
         const int lines = static_cast<int>(spans.size());
         return lines > 1 ? (lines - 1) * pitch + m.height : m.height;
@@ -1391,8 +1409,8 @@ namespace zb::ui
         const GlyphProvider *const primary = primary_provider();
         const GlyphProvider *const fallback = bitmap_fallback_.get();
         const text_metrics m = primary != nullptr
-                                   ? primary->line_metrics()
-                                   : fallback->line_metrics();
+                                 ? primary->line_metrics()
+                                 : fallback->line_metrics();
         return m.ascent;
     }
 
@@ -1565,8 +1583,8 @@ namespace zb::ui
         // line metrics come from the primary provider, or the fallback;
         // line_metrics does not scan the string (no per-glyph loads)
         const text_metrics m = primary != nullptr
-                                   ? primary->line_metrics()
-                                   : fallback->line_metrics();
+                                 ? primary->line_metrics()
+                                 : fallback->line_metrics();
         return m.height;
     }
 

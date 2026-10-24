@@ -29,18 +29,18 @@ namespace zb::ui
      */
     struct ui_node
     {
-        std::string type;  // widget tag (see the tag table in ui_builder.cpp)
-        std::string id;    // reference handle (Widget::set_id)
+        std::string type;                                       // widget tag (see the tag table in ui_builder.cpp)
+        std::string id;                                         // reference handle (Widget::set_id)
         std::vector<std::pair<std::string, prop_value>> props;  // ordered
-        std::vector<ui_node> children;  // container tags only
-        std::vector<std::string> items;  // static string model (list_box)
-        int flex_grow = 0;               // container layout hint
-        int flex_shrink = 0;             // deficit share weight (H-7c)
-        int flex_basis_px = -1;          // explicit pixel basis (H-7c)
-        int flex_basis_pct = 0;          // percent basis 1..100 (H-7c)
-        int align_self = 0;              // per-item cross hint (H-7b:
-                                         // 0 = auto/inherit, else
-                                         // FlexPanel::align ordinal + 1)
+        std::vector<ui_node> children;                          // container tags only
+        std::vector<std::string> items;                         // static string model (list_box)
+        int flex_grow = 0;                                      // container layout hint
+        int flex_shrink = 0;                                    // deficit share weight (H-7c)
+        int flex_basis_px = -1;                                 // explicit pixel basis (H-7c)
+        int flex_basis_pct = 0;                                 // percent basis 1..100 (H-7c)
+        int align_self = 0;                                     // per-item cross hint (H-7b:
+                                                                // 0 = auto/inherit, else
+                                                                // FlexPanel::align ordinal + 1)
 
         // generic property entry (all convenience setters go through it:
         // the future designer deserializer fills props the same way)

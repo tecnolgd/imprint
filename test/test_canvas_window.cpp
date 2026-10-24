@@ -37,7 +37,8 @@ int test_canvas_window()
         auto b = std::make_unique<Button>();
         b->set_size(20, 20);
         int clicks = 0;
-        b->clicked += [&clicks]() { ++clicks; };
+        b->clicked += [&clicks]()
+        { ++clicks; };
         root.add_child(std::move(b));
 
         zb::input::input_event ev;
@@ -96,11 +97,13 @@ int test_canvas_window()
         b->set_size(20, 20);
         b->set_position(10, 10);
         int clicks = 0;
-        b->clicked += [&clicks]() { ++clicks; };
+        b->clicked += [&clicks]()
+        { ++clicks; };
         root.add_child(std::move(b));
 
         int painted_calls = 0;
-        w.painted += [&painted_calls](const void *) { ++painted_calls; };
+        w.painted += [&painted_calls](const void *)
+        { ++painted_calls; };
 
         // moves without a press do not repaint
         zb::input::input_event ev;
@@ -218,7 +221,8 @@ int test_canvas_window()
         auto btn = std::make_unique<Button>();
         btn->set_size(20, 20);
         int clicks = 0;
-        btn->clicked += [&clicks]() { ++clicks; };
+        btn->clicked += [&clicks]()
+        { ++clicks; };
 
         auto dlg = std::make_unique<Dialog>();
         dlg->set_size(40, 40);
@@ -228,7 +232,8 @@ int test_canvas_window()
         dlg->open();
         auto &ok = dlg->add_button("OK");
         int ok_clicks = 0;
-        ok.clicked += [&ok_clicks]() { ++ok_clicks; };
+        ok.clicked += [&ok_clicks]()
+        { ++ok_clicks; };
         auto *pdlg = dlg.get();
 
         root.add_child(std::move(btn));

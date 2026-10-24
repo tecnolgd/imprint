@@ -21,18 +21,30 @@ namespace
     {
         switch (v)
         {
-        case 2:    return core::Color::from(0xEE, 0xE4, 0xDA);
-        case 4:    return core::Color::from(0xED, 0xE0, 0xC8);
-        case 8:    return core::Color::from(0xF2, 0xB1, 0x79);
-        case 16:   return core::Color::from(0xF5, 0x95, 0x63);
-        case 32:   return core::Color::from(0xF6, 0x7C, 0x5F);
-        case 64:   return core::Color::from(0xF6, 0x5E, 0x3B);
-        case 128:  return core::Color::from(0xED, 0xCF, 0x72);
-        case 256:  return core::Color::from(0xED, 0xCC, 0x61);
-        case 512:  return core::Color::from(0xED, 0xC8, 0x50);
-        case 1024: return core::Color::from(0xED, 0xC5, 0x3F);
-        case 2048: return core::Color::from(0xED, 0xC2, 0x2E);
-        default:   return core::Color::from(0x3C, 0x3A, 0x32);
+        case 2:
+            return core::Color::from(0xEE, 0xE4, 0xDA);
+        case 4:
+            return core::Color::from(0xED, 0xE0, 0xC8);
+        case 8:
+            return core::Color::from(0xF2, 0xB1, 0x79);
+        case 16:
+            return core::Color::from(0xF5, 0x95, 0x63);
+        case 32:
+            return core::Color::from(0xF6, 0x7C, 0x5F);
+        case 64:
+            return core::Color::from(0xF6, 0x5E, 0x3B);
+        case 128:
+            return core::Color::from(0xED, 0xCF, 0x72);
+        case 256:
+            return core::Color::from(0xED, 0xCC, 0x61);
+        case 512:
+            return core::Color::from(0xED, 0xC8, 0x50);
+        case 1024:
+            return core::Color::from(0xED, 0xC5, 0x3F);
+        case 2048:
+            return core::Color::from(0xED, 0xC2, 0x2E);
+        default:
+            return core::Color::from(0x3C, 0x3A, 0x32);
         }
     }
 
@@ -182,7 +194,8 @@ void G2048::create_window(const uint32_t max_client_width,
     new_btn->set_text_color(core::Color::from(0xc9, 0xd3, 0xe0));
     new_btn->set_size(56 * u, 22 * u);
     new_btn->set_position(w - 66 * u, 7 * u);
-    new_btn->clicked += [this] { new_game(); };
+    new_btn->clicked += [this]
+    { new_game(); };
     root.add_child(std::move(new_btn));
 
     auto board_w = std::make_unique<Board2048>(cell_, gap_);
@@ -200,13 +213,16 @@ void G2048::create_window(const uint32_t max_client_width,
     dlg->set_button_size(64 * u, 24 * u);
     auto &again = dlg->add_button("AGAIN");
     again.set_font_size(7 * u);
-    sub_again_ = again.clicked.subscribe([this] { new_game(); close_end_dialog(); });
+    sub_again_ = again.clicked.subscribe([this]
+                                         { new_game(); close_end_dialog(); });
     auto &cont = dlg->add_button("CONTINUE");
     cont.set_font_size(7 * u);
-    sub_cont_ = cont.clicked.subscribe([this] { close_end_dialog(); });
+    sub_cont_ = cont.clicked.subscribe([this]
+                                       { close_end_dialog(); });
     auto &quit = dlg->add_button("QUIT");
     quit.set_font_size(7 * u);
-    sub_quit_ = quit.clicked.subscribe([this] { if (window_) window_->close(); });
+    sub_quit_ = quit.clicked.subscribe([this]
+                                       { if (window_) window_->close(); });
     // compute the frame/title/button geometry up front (the tictactoe
     // pattern): open() only flips visibility, it never runs layout(), so
     // a dialog laid out lazily would draw its frame at the default (0,0)
@@ -273,7 +289,7 @@ bool G2048::move(const int dr, const int dc)
         for (int j = 0; j < 4; ++j)
         {
             line[j] = grid_[dc != 0 ? i : (dr > 0 ? 3 - j : j)]
-                          [dr != 0 ? i : (dc > 0 ? 3 - j : j)];
+                           [dr != 0 ? i : (dc > 0 ? 3 - j : j)];
         }
         int out[4] = {};
         bool merged[4] = {};

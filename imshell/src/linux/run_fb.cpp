@@ -38,14 +38,15 @@ namespace zb::shell
         // §11.1: the shell holds its subscriptions for the loop's lifetime;
         // they detach at return so no handler outlives run()'s frame (a
         // library-mode host may keep the app alive past this point)
-        const auto closed_sub = app->on_closed([&app_closed]() { app_closed = true; });
+        const auto closed_sub = app->on_closed([&app_closed]()
+                                               { app_closed = true; });
 
         // idle-poll loop: paint (and present via the painted callback) only
         // when the app owns a frame. The FB backend has no input source at
         // all (no keyboard, no pointer); use the X11 backend for input (B2).
         // The "what do I blit" decision is the shared A-2 seam.
         const auto painted_sub = app->on_painted([&fb, &app, &window](const void *)
-        {
+                                                 {
             const zb::shell::present_rect r = zb::shell::painted_region(
                 *app, static_cast<int>(window->width()),
                 static_cast<int>(window->height()));
@@ -53,8 +54,7 @@ namespace zb::shell
             {
                 return;  // nothing was drawn, nothing to present
             }
-            fb.draw(static_cast<char *>(window->data()), window->width(), window->height(), r.x, r.y, r.w, r.h);
-        });
+            fb.draw(static_cast<char *>(window->data()), window->width(), window->height(), r.x, r.y, r.w, r.h); });
 
         while (!app_closed)
         {
@@ -62,7 +62,7 @@ namespace zb::shell
             {
                 app->paint();
             }
-            usleep(30000); // ~33 fps
+            usleep(30000);  // ~33 fps
         }
 
         return 0;

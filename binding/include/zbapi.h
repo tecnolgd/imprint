@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /*
@@ -32,70 +33,70 @@ extern "C" {
  * shape -- see docs/ARCHITECTURE.md 4.8) */
 #define ZB_API_VERSION 1
 
-/* opaque app handle */
-typedef struct zb_app zb_app_t;
+    /* opaque app handle */
+    typedef struct zb_app zb_app_t;
 
-/* ---- framebuffer formats (zb_buffer_format) ---- */
-enum
-{
-    ZB_FORMAT_BGRA8 = 1,    /* COLOR_DEPTH=32 desktop builds, 4 bytes/px */
-    ZB_FORMAT_ABGR1555 = 2  /* COLOR_DEPTH=16 embedded builds, 2 bytes/px */
-};
+    /* ---- framebuffer formats (zb_buffer_format) ---- */
+    enum
+    {
+        ZB_FORMAT_BGRA8 = 1,   /* COLOR_DEPTH=32 desktop builds, 4 bytes/px */
+        ZB_FORMAT_ABGR1555 = 2 /* COLOR_DEPTH=16 embedded builds, 2 bytes/px */
+    };
 
-/* called after every painted frame; see zb_set_painted_callback */
-typedef void (*zb_painted_cb)(void *userdata);
-/* level: 0=debug .. 4=fatal (the framework logging levels) */
-typedef void (*zb_log_cb)(int level, const char *message);
+    /* called after every painted frame; see zb_set_painted_callback */
+    typedef void (*zb_painted_cb)(void *userdata);
+    /* level: 0=debug .. 4=fatal (the framework logging levels) */
+    typedef void (*zb_log_cb)(int level, const char *message);
 
-/* ---- input types (must match zb::input::input_type) ---- */
-enum
-{
-    ZB_INPUT_NONE = 0,
-    ZB_INPUT_MOUSE_LEFT_DOWN = 1,
-    ZB_INPUT_MOUSE_LEFT_UP,
-    ZB_INPUT_MOUSE_LEFT_CLICK,
-    ZB_INPUT_MOUSE_RIGHT_DOWN,
-    ZB_INPUT_MOUSE_RIGHT_UP,
-    ZB_INPUT_MOUSE_RIGHT_CLICK,
-    ZB_INPUT_MOUSE_WHEEL,
-    ZB_INPUT_MOUSE_MOVE,
-    ZB_INPUT_TOUCH_DOWN = 9,
-    ZB_INPUT_TOUCH_UP,
-    ZB_INPUT_TOUCH_MOVE,
-    ZB_INPUT_KEY_DOWN = 12,
-    ZB_INPUT_KEY_UP,
-    /* pure relative motion (U-3): dx/dy via zb_input_delta */
-    ZB_INPUT_POINTER_DELTA
-};
+    /* ---- input types (must match zb::input::input_type) ---- */
+    enum
+    {
+        ZB_INPUT_NONE = 0,
+        ZB_INPUT_MOUSE_LEFT_DOWN = 1,
+        ZB_INPUT_MOUSE_LEFT_UP,
+        ZB_INPUT_MOUSE_LEFT_CLICK,
+        ZB_INPUT_MOUSE_RIGHT_DOWN,
+        ZB_INPUT_MOUSE_RIGHT_UP,
+        ZB_INPUT_MOUSE_RIGHT_CLICK,
+        ZB_INPUT_MOUSE_WHEEL,
+        ZB_INPUT_MOUSE_MOVE,
+        ZB_INPUT_TOUCH_DOWN = 9,
+        ZB_INPUT_TOUCH_UP,
+        ZB_INPUT_TOUCH_MOVE,
+        ZB_INPUT_KEY_DOWN = 12,
+        ZB_INPUT_KEY_UP,
+        /* pure relative motion (U-3): dx/dy via zb_input_delta */
+        ZB_INPUT_POINTER_DELTA
+    };
 
-/* ---- keyboard codes (must match zb::input::key_code) ---- */
-enum
-{
-    ZB_KEY_BACKSPACE = 8,
-    ZB_KEY_TAB = 9,
-    ZB_KEY_ENTER = 13,
-    ZB_KEY_ESCAPE = 27,
-    ZB_KEY_SPACE = 32,
-    ZB_KEY_DEL = 127,
-    ZB_KEY_UP = 256,
-    ZB_KEY_DOWN,
-    ZB_KEY_LEFT,
-    ZB_KEY_RIGHT
-};
+    /* ---- keyboard codes (must match zb::input::key_code) ---- */
+    enum
+    {
+        ZB_KEY_BACKSPACE = 8,
+        ZB_KEY_TAB = 9,
+        ZB_KEY_ENTER = 13,
+        ZB_KEY_ESCAPE = 27,
+        ZB_KEY_SPACE = 32,
+        ZB_KEY_DEL = 127,
+        ZB_KEY_UP = 256,
+        ZB_KEY_DOWN,
+        ZB_KEY_LEFT,
+        ZB_KEY_RIGHT
+    };
 
-/* key-state semantics (U-1): mapped printable keys carry their
+    /* key-state semantics (U-1): mapped printable keys carry their
  * lowercase/verbatim ASCII code in `key` on BOTH ZB_INPUT_KEY_DOWN and
  * ZB_INPUT_KEY_UP (letters 'a'=97..'z'=122, digits verbatim), so hosts can
  * pair the edges for key-state; `ch` carries the produced character on
  * key_down and is always 0 on key_up. ASCII codes are used verbatim. */
 
-/* creates the default app (see make_app) and its window */
-zb_app_t *zb_app_create(uint32_t width, uint32_t height);
+    /* creates the default app (see make_app) and its window */
+    zb_app_t *zb_app_create(uint32_t width, uint32_t height);
 
-/* destroys the app */
-void zb_app_destroy(zb_app_t *app);
+    /* destroys the app */
+    void zb_app_destroy(zb_app_t *app);
 
-/*
+    /*
  * Host contract notes:
  *   - the host IS the shell: it drives input/paint/buffer and nothing
  *     else; the buffer format is fixed at build time by COLOR_DEPTH
@@ -104,7 +105,7 @@ void zb_app_destroy(zb_app_t *app);
  *     calls zb_* from worker threads must marshal them itself)
  */
 
-/* feeds an input event; fields without meaning for the type are ignored:
+    /* feeds an input event; fields without meaning for the type are ignored:
  *   - touch_* / mouse_* (click, move): x, y
  *   - mouse_*:                         the button follows the type family
  *                                      (ZB_INPUT_MOUSE_LEFT_* -> left,
@@ -123,60 +124,60 @@ void zb_app_destroy(zb_app_t *app);
  *                                      lowercase/verbatim ASCII code on
  *                                      both edges, see U-1 above)
  */
-void zb_input(zb_app_t *app, int type, int x, int y, int key, int ch, int touch_id);
+    void zb_input(zb_app_t *app, int type, int x, int y, int key, int ch, int touch_id);
 
-/* feeds a pure relative-motion event (U-3): dx/dy carry the
+    /* feeds a pure relative-motion event (U-3): dx/dy carry the
  * host-provided displacement (pointer lock, tablet); absolute x/y are
  * untouched and the framework's dispatcher is inert to the event -- it
  * is a stable carrier for hosts that track their own relative state */
-void zb_input_delta(zb_app_t *app, int dx, int dy);
+    void zb_input_delta(zb_app_t *app, int dx, int dy);
 
-/* renders one frame; the host should drive this from its own loop */
-void zb_paint(zb_app_t *app);
+    /* renders one frame; the host should drive this from its own loop */
+    void zb_paint(zb_app_t *app);
 
-/* framebuffer: returns a pointer to the pixel data and stores the size
+    /* framebuffer: returns a pointer to the pixel data and stores the size
  * in pixels. May return NULL when the app has no window yet.
  *
  * Lifetime: the pointer is only valid until the next zb_paint call --
  * a later frame may reallocate the buffer (resize, wrapper mode). Hosts
  * must copy/blit the pixels synchronously, ideally inside the painted
  * callback; caching the pointer across frames is a use-after-free. */
-const uint8_t *zb_buffer(zb_app_t *app, uint32_t *out_width, uint32_t *out_height);
+    const uint8_t *zb_buffer(zb_app_t *app, uint32_t *out_width, uint32_t *out_height);
 
-/* bytes per pixel of the framebuffer: fixed at build time by COLOR_DEPTH
+    /* bytes per pixel of the framebuffer: fixed at build time by COLOR_DEPTH
  * (4 on desktop bgra builds, 2 on embedded 16bpp) */
-int zb_buffer_bpp(void);
+    int zb_buffer_bpp(void);
 
-/* pixel format of the framebuffer: one of the ZB_FORMAT_* values,
+    /* pixel format of the framebuffer: one of the ZB_FORMAT_* values,
  * fixed at build time */
-int zb_buffer_format(void);
+    int zb_buffer_format(void);
 
-/* ABI version the linked library was built with (ZB_API_VERSION of its
+    /* ABI version the linked library was built with (ZB_API_VERSION of its
  * zbapi.h); compare against this header's ZB_API_VERSION */
-int zb_version(void);
+    int zb_version(void);
 
-/* registers a callback called after every painted frame; the host can then
+    /* registers a callback called after every painted frame; the host can then
  * present the framebuffer (via zb_buffer). userdata is passed through. */
-void zb_set_painted_callback(zb_app_t *app, zb_painted_cb cb, void *userdata);
+    void zb_set_painted_callback(zb_app_t *app, zb_painted_cb cb, void *userdata);
 
-/* called when the app requested its own shutdown (window close, e.g. the
+    /* called when the app requested its own shutdown (window close, e.g. the
  * tictactoe QUIT button). The host should stop driving input/paint and
  * release the app. The framework does not exit any process by itself --
  * shells own their main loops. userdata is passed through. */
-typedef void (*zb_closed_cb)(void *userdata);
-void zb_set_closed_callback(zb_app_t *app, zb_closed_cb cb, void *userdata);
+    typedef void (*zb_closed_cb)(void *userdata);
+    void zb_set_closed_callback(zb_app_t *app, zb_closed_cb cb, void *userdata);
 
-/* optional log hook receiving framework log messages */
-void zb_set_log_callback(zb_log_cb cb);
+    /* optional log hook receiving framework log messages */
+    void zb_set_log_callback(zb_log_cb cb);
 
-/* ---------- declarative apps (P3, 2026-09-26; ARCHITECTURE 4.8) ------- */
+    /* ---------- declarative apps (P3, 2026-09-26; ARCHITECTURE 4.8) ------- */
 
-/* action callback: fires when a widget's primary action triggers (click /
+    /* action callback: fires when a widget's primary action triggers (click /
  * change / submit — the tag table decides, code-contract 4). Fires inside
  * the driving zb_* call; must not destroy the app reentrantly. */
-typedef void (*zb_action_cb)(const char *widget_id, void *userdata);
+    typedef void (*zb_action_cb)(const char *widget_id, void *userdata);
 
-/*
+    /*
  * Creates the app from a design file text instead of the linked-in story
  * app: parse_ui_text, or parse_html when is_html != 0 (ARCHITECTURE 4.10;
  * static structure + ids only — behavior is wired on this side).
@@ -185,10 +186,10 @@ typedef void (*zb_action_cb)(const char *widget_id, void *userdata);
  * (is_html), else the 800x600 default. Returns NULL on parse or creation
  * failure (logged). The widget text is UTF-8.
  */
-zb_app_t *zb_app_create_from_ui(const char *ui_text, int is_html,
-                                uint32_t width, uint32_t height);
+    zb_app_t *zb_app_create_from_ui(const char *ui_text, int is_html,
+                                    uint32_t width, uint32_t height);
 
-/*
+    /*
  * Binds cb(widget_id, userdata) to the widget's action (see zb_action_cb).
  * cb == NULL unregisters. The binding consults the registration at fire
  * time, so the registration order relative to the widget tree is
@@ -196,21 +197,21 @@ zb_app_t *zb_app_create_from_ui(const char *ui_text, int is_html,
  * zb_app_create_from_ui must be called first. Only declarative apps
  * dispatch actions.
  */
-void zb_set_event_callback(zb_app_t *app, const char *widget_id,
-                           zb_action_cb cb, void *userdata);
+    void zb_set_event_callback(zb_app_t *app, const char *widget_id,
+                               zb_action_cb cb, void *userdata);
 
-/*
+    /*
  * Reads the widget's text as UTF-8 into out (at most cap bytes including
  * the terminator, always NUL-terminated when cap > 0). Returns the number
  * of bytes written excluding the terminator, or -1 when the app is not a
  * declarative app or the widget is missing.
  */
-int zb_widget_text(zb_app_t *app, const char *widget_id, char *out, int cap);
+    int zb_widget_text(zb_app_t *app, const char *widget_id, char *out, int cap);
 
-/* sets the widget's text (UTF-8); the next zb_paint presents it. Only
+    /* sets the widget's text (UTF-8); the next zb_paint presents it. Only
  * declarative apps resolve widget ids. */
-void zb_widget_set_text(zb_app_t *app, const char *widget_id,
-                        const char *utf8_text);
+    void zb_widget_set_text(zb_app_t *app, const char *widget_id,
+                            const char *utf8_text);
 
 #ifdef __cplusplus
 }

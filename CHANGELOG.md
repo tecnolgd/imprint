@@ -17,6 +17,9 @@ commits) lives in `git log`.
   library a linked binary still uses. `cmake --install` also ships
   `LICENSE` under `share/imprint/` and a pkg-config recipe
   (`lib/pkgconfig/imprint.pc`) for non-CMake consumers of the C ABI.
+- **A format gate.** `tools/format-check.sh` checks every first-party
+  file against `.clang-format` with a pinned clang-format (18.1.3),
+  reformats in place with `--write`, and runs as a CI step.
 - **Shared shell seams.** `shell/device_overlay.hpp` gains
   `for_each_bar()` (the chrome-bar iteration every desktop shell
   hand-rolled) and `shell/presenter.hpp` gains `painted_region()` (the
@@ -50,6 +53,12 @@ commits) lives in `git log`.
 - **Python host key codes.** `demo/python/myapp.py` filled only the
   character channel, so its keys carried no platform-independent key
   code; it now applies the U-1 rule the C++ translators use.
+- **SVG rasterizer cost.** Every rasterizer walk is now intersected with
+  the draw area at the entry, so a design file declaring a huge stroke
+  width or radius costs surface-area work instead of its own: one
+  `stroke-width:999999999px` line on a 2^20 px canvas used to add ~330 s
+  to the HTML suite. `SvgCanvas::walk_pixel_count()` exposes the
+  deterministic cost the battery asserts on.
 
 ### Documentation
 - `docs/ARCHITECTURE.md` §5 states the widget/container gaps (no grid,

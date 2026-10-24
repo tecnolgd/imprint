@@ -63,13 +63,13 @@ namespace
             window_ = zb::make_shared<CanvasWindow>();
             window_->create(w, h, buffer);
             frames_ = 0;
-            painted_sub_ = window_->painted.subscribe([this](const void *) {
+            painted_sub_ = window_->painted.subscribe([this](const void *)
+                                                      {
                 ++frames_;
                 if (close_on_first_frame_)
                 {
                     window_->close();
-                }
-            });
+                } });
         }
 
         zb::SharedPtr<IWindow> window() noexcept override { return window_; }
@@ -283,11 +283,11 @@ int test_shell_loop()
     {
         // the window exists, so the subscription is real (an IApp with no
         // window returns an empty one -- the no-window path run 1 covers)
-        auto sub = app->on_painted([&](const void *) {
+        auto sub = app->on_painted([&](const void *)
+                                   {
             ++frames_run2;
             probe->set_close_on_first_frame(false);
-            window->close();
-        });
+            window->close(); });
         rc = run_loop(app, options);
     }
     EXPECT(rc == 0);

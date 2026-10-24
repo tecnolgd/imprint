@@ -33,11 +33,25 @@ namespace zb::ui
         void set_checked(const bool c);
         [[nodiscard]] bool is_pressed() const { return pressed_; }
 
-        void set_box_color(const core::Color &c) { box_color = c; mark_dirty(); }
-        void set_check_color(const core::Color &c) { check_color = c; mark_dirty(); }
+        void set_box_color(const core::Color &c)
+        {
+            box_color = c;
+            mark_dirty();
+        }
+        void set_check_color(const core::Color &c)
+        {
+            check_color = c;
+            mark_dirty();
+        }
         // box_size/text_gap feed measure(): they invalidate the layout too
         void set_box_size(const int s);
-        void set_text_gap(const int g) { text_gap = g; sync_text_offset(); mark_dirty(); mark_layout_dirty(); }
+        void set_text_gap(const int g)
+        {
+            text_gap = g;
+            sync_text_offset();
+            mark_dirty();
+            mark_layout_dirty();
+        }
 
         // fired on user toggle, with the new state
         zb::event::Event<bool> changed;

@@ -106,7 +106,8 @@ namespace zb::shell
         {
             return present_rect{};
         }
-        const auto ceil_div = [](const long long a, const long long b) {
+        const auto ceil_div = [](const long long a, const long long b)
+        {
             return static_cast<int>((a + b - 1) / b);
         };
         present_rect d;
@@ -161,17 +162,17 @@ namespace zb::shell
     {
         switch (t)
         {
-            case zb::input::input_type::mouse_left_down:
-            case zb::input::input_type::mouse_left_up:
-            case zb::input::input_type::mouse_left_click:
-            case zb::input::input_type::mouse_right_down:
-            case zb::input::input_type::mouse_right_up:
-            case zb::input::input_type::mouse_right_click:
-            case zb::input::input_type::mouse_wheel:
-            case zb::input::input_type::mouse_move:
-                return true;
-            default:
-                return false;
+        case zb::input::input_type::mouse_left_down:
+        case zb::input::input_type::mouse_left_up:
+        case zb::input::input_type::mouse_left_click:
+        case zb::input::input_type::mouse_right_down:
+        case zb::input::input_type::mouse_right_up:
+        case zb::input::input_type::mouse_right_click:
+        case zb::input::input_type::mouse_wheel:
+        case zb::input::input_type::mouse_move:
+            return true;
+        default:
+            return false;
         }
     }
 }

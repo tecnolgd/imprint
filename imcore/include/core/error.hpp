@@ -13,7 +13,8 @@ namespace zb::ui
     class error : public std::exception
     {
     public:
-        explicit error(const std::string &message) noexcept : msg(message) {}
+        explicit error(const std::string &message) noexcept
+            : msg(message) {}
 
         const char *what() const noexcept override { return msg.c_str(); }
 

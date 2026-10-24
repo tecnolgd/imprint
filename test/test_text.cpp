@@ -93,7 +93,8 @@ int test_text()
     // a UTF-8 encoded surrogate (0xED 0xA0 0x80 = U+D800) is rejected;
     // only the lead byte is consumed
     {
-        const char *p = "\xED\xA0\x80" "A";
+        const char *p = "\xED\xA0\x80"
+                        "A";
         EXPECT(decode_utf8_next(p) == 0xFFFD);
         EXPECT(*p == '\xA0');
     }
@@ -211,7 +212,7 @@ int test_text()
         auto g = core::Graphics::make_ptr(12, 10);
         g->fill(core::colors::Black);
         BitmapProvider p;
-        p.write(*g, u"A", 1, 0, 7, core::colors::White);  // baseline at y=7
+        p.write(*g, u"A", 1, 0, 7, core::colors::White);                // baseline at y=7
         EXPECT(test::pixel_at(*g, 1, 0) == core::colors::White.pixel);  // 'A' top row
         EXPECT(test::pixel_at(*g, 0, 6) == core::colors::White.pixel);  // 'A' bottom row left leg
         EXPECT(test::pixel_at(*g, 4, 6) == core::colors::White.pixel);  // 'A' bottom row right leg
@@ -229,7 +230,7 @@ int test_text()
         EXPECT(test::pixel_at(*g, 0, 0) != core::colors::White.pixel);  // CJK: nothing
 #if defined(IMCORE_HAS_SUBSET)
         EXPECT(p.measure(u"é", 1).width == 6);
-        p.write(*g, u"é", 1, 0, 7, core::colors::White);  // baseline at y=7
+        p.write(*g, u"é", 1, 0, 7, core::colors::White);                // baseline at y=7
         EXPECT(test::pixel_at(*g, 2, 0) == core::colors::White.pixel);  // accent dot
         EXPECT(test::pixel_at(*g, 0, 6) == core::colors::White.pixel);  // 'e' bottom row
         // demo batch (htmldemo dials): the literals below keep these

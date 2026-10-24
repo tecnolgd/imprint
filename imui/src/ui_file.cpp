@@ -16,8 +16,7 @@ namespace zb::ui
 
         bool ident_char(const char c)
         {
-            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
-                   || (c >= '0' && c <= '9');
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9');
         }
         void skip_sp(const char **q, const char *end)
         {
@@ -209,7 +208,8 @@ namespace zb::ui
 
         // reads the next physical line that is not blank or a comment;
         // returns its [start, end) span and advances p/line_no
-        auto next_content_line = [&]() -> std::pair<const char *, const char *> {
+        auto next_content_line = [&]() -> std::pair<const char *, const char *>
+        {
             for (;;)
             {
                 if (*p == '\0')
@@ -449,21 +449,21 @@ namespace zb::ui
                         if (const auto *s = std::get_if<std::string>(&value))
                         {
                             rec.node.items.push_back(*s);
-                        // further quoted strings on the same key
-                        skip_sp(&q, line_end);
-                        while (q < line_end && *q == '"')
-                        {
-                            if (!read_string(&q, line_end, str_value))
-                            {
-                                // an unterminated string does not advance
-                                // q: stop or this loop never ends
-                                LW << "ui_file: line " << first_line
-                                   << ": unterminated items string dropped";
-                                break;
-                            }
-                            rec.node.items.push_back(std::move(str_value));
+                            // further quoted strings on the same key
                             skip_sp(&q, line_end);
-                        }
+                            while (q < line_end && *q == '"')
+                            {
+                                if (!read_string(&q, line_end, str_value))
+                                {
+                                    // an unterminated string does not advance
+                                    // q: stop or this loop never ends
+                                    LW << "ui_file: line " << first_line
+                                       << ": unterminated items string dropped";
+                                    break;
+                                }
+                                rec.node.items.push_back(std::move(str_value));
+                                skip_sp(&q, line_end);
+                            }
                         }
                         else
                         {
@@ -471,9 +471,9 @@ namespace zb::ui
                                << ": items must be quoted strings";
                         }
                     }
-                     else if(key == "halign" || key == "valign")
+                    else if (key == "halign" || key == "valign")
                     {
-                        if(const auto *s  = std::get_if<std::string>(&value))
+                        if (const auto *s = std::get_if<std::string>(&value))
                         {
                             rec.node.props.emplace_back(key, *s);
                         }

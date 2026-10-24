@@ -10,12 +10,11 @@
 int main(int, char *[])
 {
     zb::Logging::set_log_handle([](const zb::Logging_Level &, const std::string &message)
-    {
-        std::printf("%s", message.c_str());
-    });
+                                { std::printf("%s", message.c_str()); });
 
     LD << "run on FB";
     // X-5: every escape becomes a diagnostic + exit 1 (main_guard.hpp)
     return zb::shell::guarded_main(
-        [] { return zb::shell::run(zb::app::make_app()); });
+        []
+        { return zb::shell::run(zb::app::make_app()); });
 }

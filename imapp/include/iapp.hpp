@@ -26,7 +26,6 @@ namespace zb::app
     class IApp
     {
     private:
-
     public:
         virtual ~IApp() = default;
 
@@ -98,4 +97,4 @@ namespace zb::app
     };
 }
 
-#endif // IAPP_HPP
+#endif  // IAPP_HPP

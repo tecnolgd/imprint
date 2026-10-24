@@ -27,7 +27,7 @@ int Image::write_jpeg(
 {
     auto cur_row = 0;
     auto gsize = g.size();
-    auto row_bit_stride = gsize.width * 3; // 24bit jpeg only
+    auto row_bit_stride = gsize.width * 3;  // 24bit jpeg only
     image_info img_inf{
         static_cast<uint32_t>(gsize.width),
         static_cast<uint32_t>(gsize.height),
@@ -198,7 +198,7 @@ int Image::read_jpeg_file(
 
     auto img_width_u = static_cast<uint32_t>(img_width);
     auto img_height_u = static_cast<uint32_t>(img_height);
-    auto row_stride = img_width_u * 3; // stb yields RGB with req_comp=3
+    auto row_stride = img_width_u * 3;  // stb yields RGB with req_comp=3
     image_info iminf{
         img_width_u,
         img_height_u,
@@ -227,4 +227,4 @@ int Image::read_jpeg_file(
     return 0;
 }
 
-#endif // defined(use_jpeg)
+#endif  // defined(use_jpeg)

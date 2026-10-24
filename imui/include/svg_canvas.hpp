@@ -62,16 +62,16 @@ namespace zb::ui
         {
             std::vector<std::pair<double, double>> pts;  // viewBox units
             bool closed = false;
-            core::Color color{};                 // alpha carries opacity
-            double width = 1.0;                  // viewBox units (0 clips to 1)
-            bool round_caps = false;             // stroke-linecap="round"
+            core::Color color{};      // alpha carries opacity
+            double width = 1.0;       // viewBox units (0 clips to 1)
+            bool round_caps = false;  // stroke-linecap="round"
             // a Path strokes by default; the DrawPath front-end clears
             // this for fill-only paths
             bool has_stroke = true;
             // optional fill under the stroke (the static geometry
             // subset: polyline/polygon); SVG paint order = fill first
             bool has_fill = false;
-            core::Color fill{};                  // alpha carries opacity
+            core::Color fill{};  // alpha carries opacity
         };
         /*
          * One closed static figure (rect / circle / ellipse). Stored as
@@ -84,14 +84,18 @@ namespace zb::ui
          */
         struct Shape
         {
-            enum class Kind { rect, ellipse };
+            enum class Kind
+            {
+                rect,
+                ellipse
+            };
             Kind kind = Kind::rect;
             double cx = 0, cy = 0, rx = 0, ry = 0;  // viewBox units
             bool has_fill = false;
-            core::Color fill{};                  // alpha carries opacity
+            core::Color fill{};  // alpha carries opacity
             bool has_stroke = false;
-            core::Color stroke{};                // alpha carries opacity
-            double stroke_width = 1.0;           // viewBox units (0 clips to 1)
+            core::Color stroke{};       // alpha carries opacity
+            double stroke_width = 1.0;  // viewBox units (0 clips to 1)
         };
         struct Text
         {
@@ -124,7 +128,14 @@ namespace zb::ui
          */
         struct PathCmd
         {
-            enum class Op { move, line, cubic, quad, close };
+            enum class Op
+            {
+                move,
+                line,
+                cubic,
+                quad,
+                close
+            };
             Op op = Op::move;
             // move/line: (x,y); cubic: controls (x1,y1) (x2,y2) -> (x,y);
             // quad: control (x1,y1) -> (x,y); close: unused
@@ -134,11 +145,11 @@ namespace zb::ui
         {
             std::vector<PathCmd> cmds;
             bool has_fill = false;
-            core::Color fill{};                  // alpha carries opacity
+            core::Color fill{};  // alpha carries opacity
             bool has_stroke = false;
-            core::Color stroke{};                // alpha carries opacity
-            double width = 1.0;                  // viewBox units (0 clips to 1)
-            bool round_caps = false;             // stroke-linecap="round"
+            core::Color stroke{};     // alpha carries opacity
+            double width = 1.0;       // viewBox units (0 clips to 1)
+            bool round_caps = false;  // stroke-linecap="round"
         };
         void add_draw_path(const DrawPath &p);
         void clear_vectors();

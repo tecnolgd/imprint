@@ -50,7 +50,7 @@ namespace zb::app::life
             plasma,
             stars
         };
-        friend class Life;   // the app switches modes and drives the state
+        friend class Life;  // the app switches modes and drives the state
 
         void set_mode(int m);
 
@@ -130,7 +130,7 @@ namespace zb::app::life
         static constexpr uint32_t kWidth = 320;
         static constexpr uint32_t kHeight = 240;
         static constexpr unsigned kFramesPerStep = 8;
-        static constexpr int kHeaderH = 40;   // button row + spacing (x u)
+        static constexpr int kHeaderH = 40;  // button row + spacing (x u)
 
         // canvas geometry, decided once in create_window
         int scale_ = LifeCanvas::kScale;
@@ -140,8 +140,8 @@ namespace zb::app::life
         zb::SharedPtr<zb::app::CanvasWindow> window_;
         LifeCanvas *canvas_ = nullptr;
         zb::ui::Label *gen_ = nullptr;
-        zb::ui::Button *mode_btns_[3] = {};   // PLASMA / STARS / LIFE
-        int mode_ = 1;                        // default plasma
+        zb::ui::Button *mode_btns_[3] = {};  // PLASMA / STARS / LIFE
+        int mode_ = 1;                       // default plasma
         unsigned frames_ = 0;
         unsigned generation_ = 0;
 
@@ -152,4 +152,4 @@ namespace zb::app::life
     };
 }  // namespace zb::app::life
 
-#endif // !LIFE_HPP
+#endif  // !LIFE_HPP

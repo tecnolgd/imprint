@@ -27,7 +27,7 @@ namespace
 
     zb::SharedPtr<IApp> g_app;
     HWND g_hwnd = nullptr;
-    const void *g_framebuffer = nullptr; // framebuffer blitted on WM_PAINT
+    const void *g_framebuffer = nullptr;  // framebuffer blitted on WM_PAINT
     LONG g_buffer_width = 0;
     LONG g_buffer_height = 0;
     // painted events coalesce before WM_PAINT runs (it is the
@@ -178,10 +178,9 @@ namespace
                 pres, rc_client.right - rc_client.left,
                 rc_client.bottom - rc_client.top);
             zb::shell::for_each_bar(bars, [hDC, black](const zb::shell::present_rect &b)
-            {
+                                    {
                 const RECT bar_rc{b.x, b.y, b.x + b.w, b.y + b.h};
-                FillRect(hDC, &bar_rc, black);
-            });
+                FillRect(hDC, &bar_rc, black); });
         }
         else
         {
@@ -224,7 +223,7 @@ namespace
             g_framebuffer, &bmi,
             DIB_RGB_COLORS, SRCCOPY);
     }
-} // namespace
+}  // namespace
 
 extern "C" LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
@@ -297,7 +296,8 @@ namespace zb::shell
         const auto painted_sub = g_app->on_painted(handle_painted);
 
         // the app requests to quit by closing its window (e.g. a QUIT button)
-        const auto closed_sub = g_app->on_closed([]() { PostQuitMessage(0); });
+        const auto closed_sub = g_app->on_closed([]()
+                                                 { PostQuitMessage(0); });
 
         auto window = g_app->window();
         g_buffer_width = window->width();
@@ -396,38 +396,38 @@ extern "C" LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 {
     switch (msg)
     {
-        case WM_ERASEBKGND:
-        {
-            // prevent flickering
-            return 1;
-        }
-        case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            const HDC hDC = BeginPaint(hwnd, &ps);
-            paint_app(hwnd, hDC, ps.rcPaint);
-            EndPaint(hwnd, &ps);
-            return 0;
-        }
-        case WM_SIZE:
-        {
-            // I-2a: the window is user-resizable, the buffer is not --
-            // the new client area only changes the presented rect. The
-            // whole client is invalidated: the next WM_PAINT re-fills
-            // the letterbox and re-stretches the buffer
-            g_presentation = current_presentation(hwnd);
-            InvalidateRect(hwnd, nullptr, FALSE);
-            return 0;
-        }
-        case WM_DESTROY:
-        {
-            PostQuitMessage(0);
-            return 0;
-        }
-        default:
-        {
-            break;
-        }
+    case WM_ERASEBKGND:
+    {
+        // prevent flickering
+        return 1;
+    }
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        const HDC hDC = BeginPaint(hwnd, &ps);
+        paint_app(hwnd, hDC, ps.rcPaint);
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+    case WM_SIZE:
+    {
+        // I-2a: the window is user-resizable, the buffer is not --
+        // the new client area only changes the presented rect. The
+        // whole client is invalidated: the next WM_PAINT re-fills
+        // the letterbox and re-stretches the buffer
+        g_presentation = current_presentation(hwnd);
+        InvalidateRect(hwnd, nullptr, FALSE);
+        return 0;
+    }
+    case WM_DESTROY:
+    {
+        PostQuitMessage(0);
+        return 0;
+    }
+    default:
+    {
+        break;
+    }
     }
 
     // A-2 InputSource: the message -> input_event mapping (key codes,
@@ -445,29 +445,29 @@ extern "C" LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         input_event ev;
         switch (zb::shell::win_input::translate(msg, wParam, lParam, wheel_client, ev))
         {
-            case zb::shell::win_input::result::handled:
-            {
-                // I-2a: window-client pixels -> buffer pixels; a pointer
-                // event on the letterbox is not app input and is dropped
-                int bx = 0;
-                int by = 0;
-                if (!pointer_in_buffer(ev, bx, by))
-                {
-                    return 0;
-                }
-                ev.x = bx;
-                ev.y = by;
-                zb::shell::feed_input(*g_app, ev);
-                return 0;
-            }
-            case zb::shell::win_input::result::swallowed:
+        case zb::shell::win_input::result::handled:
+        {
+            // I-2a: window-client pixels -> buffer pixels; a pointer
+            // event on the letterbox is not app input and is dropped
+            int bx = 0;
+            int by = 0;
+            if (!pointer_in_buffer(ev, bx, by))
             {
                 return 0;
             }
-            case zb::shell::win_input::result::not_handled:
-            {
-                break;
-            }
+            ev.x = bx;
+            ev.y = by;
+            zb::shell::feed_input(*g_app, ev);
+            return 0;
+        }
+        case zb::shell::win_input::result::swallowed:
+        {
+            return 0;
+        }
+        case zb::shell::win_input::result::not_handled:
+        {
+            break;
+        }
         }
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);

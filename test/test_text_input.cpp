@@ -48,7 +48,8 @@ int test_text_input()
         InputDispatcher d;
         int changes = 0;
         std::string last;
-        input->changed += [&](const std::string &t) { ++changes; last = t; };
+        input->changed += [&](const std::string &t)
+        { ++changes; last = t; };
 
         d.dispatch(root, press_at(15, 20));  // focus + place caret
         d.dispatch(root, char_ev('a'));
@@ -111,7 +112,8 @@ int test_text_input()
         root.add_child(std::move(in));
 
         int changes = 0;
-        input->changed += [&](const std::string &) { ++changes; };
+        input->changed += [&](const std::string &)
+        { ++changes; };
         input->set_text("hi");
         EXPECT(changes == 0);
         EXPECT(input->get_text() == u"hi");
@@ -129,7 +131,8 @@ int test_text_input()
 
         InputDispatcher d;
         std::string submitted;
-        input->submitted += [&](const std::string &t) { submitted = t; };
+        input->submitted += [&](const std::string &t)
+        { submitted = t; };
 
         d.dispatch(root, press_at(15, 20));
         d.dispatch(root, char_ev('o'));

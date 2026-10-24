@@ -74,7 +74,11 @@ namespace zb::app::seedmap
         zb::SharedPtr<IWindow> window() noexcept override { return window_; }
 
         void input(const zb::input::input_event &ev) noexcept override;
-        void paint() noexcept override { if (window_) window_->paint(); }
+        void paint() noexcept override
+        {
+            if (window_)
+                window_->paint();
+        }
 
         bool is_dirty() const noexcept override
         {
@@ -109,7 +113,7 @@ namespace zb::app::seedmap
     private:
         static constexpr uint32_t kWidth = 320;
         static constexpr uint32_t kHeight = 240;
-        static constexpr int kHeaderH = 40;   // seed row + spacing (x u)
+        static constexpr int kHeaderH = 40;  // seed row + spacing (x u)
 
         // canvas geometry, decided once in create_window
         int scale_ = MapCanvas::kScale;
@@ -134,4 +138,4 @@ namespace zb::app::seedmap
     };
 }  // namespace zb::app::seedmap
 
-#endif // !SEEDMAP_HPP
+#endif  // !SEEDMAP_HPP

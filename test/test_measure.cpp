@@ -139,8 +139,8 @@ int test_measure()
         panel.layout();
 
         EXPECT(bptr->get_position().x == 0);
-        EXPECT(cptr->get_position().x == 52);   // 50 + 2 spacing
-        EXPECT(sptr->get_position().x == 78);   // + 24 + 2
+        EXPECT(cptr->get_position().x == 52);  // 50 + 2 spacing
+        EXPECT(sptr->get_position().x == 78);  // + 24 + 2
         EXPECT(bptr->get_position().y == 0);
         EXPECT(cptr->get_position().y == 0);
 
@@ -157,8 +157,8 @@ int test_measure()
         EXPECT(cptr->is_checked() == false);
         cptr->set_text("XXXX");  // 14 + 4 + 24 = 42
         panel.layout();
-        EXPECT(cptr->get_position().x == 52);   // unchanged slot start
-        EXPECT(sptr->get_position().x == 96);   // 52 + 42 + 2
+        EXPECT(cptr->get_position().x == 52);  // unchanged slot start
+        EXPECT(sptr->get_position().x == 96);  // 52 + 42 + 2
     }
 
     // flex column stacks auto-sized children along y
@@ -194,22 +194,22 @@ int test_measure()
         w.set_glyph_provider(provider);
         w.set_text("AB");
 
-        EXPECT(w.adv() == 12);          // cold: measured once
+        EXPECT(w.adv() == 12);  // cold: measured once
         EXPECT(provider->measures == 1);
-        EXPECT(w.adv() == 12);          // warm: cache hit
+        EXPECT(w.adv() == 12);  // warm: cache hit
         EXPECT(provider->measures == 1);
         EXPECT(w.get_text().size() == 2);  // state unchanged by measuring
 
-        w.set_text("ABCD");             // invalidation: re-measured
+        w.set_text("ABCD");  // invalidation: re-measured
         EXPECT(w.adv() == 24);
         EXPECT(provider->measures == 2);
 
-        w.set_text("ABCD");             // same text, setter still resets
+        w.set_text("ABCD");  // same text, setter still resets
         EXPECT(w.adv() == 24);
         EXPECT(provider->measures == 3);
 
         auto other = zb::make_shared<CountingProvider>();
-        w.set_glyph_provider(other);    // provider change: invalidated
+        w.set_glyph_provider(other);  // provider change: invalidated
         EXPECT(other->measures == 0);
         EXPECT(w.adv() == 24);
         EXPECT(other->measures == 1);

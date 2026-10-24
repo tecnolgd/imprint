@@ -53,8 +53,8 @@ void TictactoeView::build_board(uint32_t max_client_width, uint32_t max_client_h
     // small margin), so it fits small screens (NDS: 256x192) as well as
     // desktop windows
     const int short_edge = (max_client_width < max_client_height)
-                               ? static_cast<int>(max_client_width)
-                               : static_cast<int>(max_client_height);
+                             ? static_cast<int>(max_client_width)
+                             : static_cast<int>(max_client_height);
     const int margin = short_edge / board_margin_den;
     const int board_px = short_edge - 2 * margin;  // the runtime square, not layout::board_size
     auto board = std::make_unique<Board>();
@@ -65,12 +65,11 @@ void TictactoeView::build_board(uint32_t max_client_width, uint32_t max_client_h
     board->set_grid_color(core::colors::White);
     board->set_mark_color(core::colors::White);
     sub_cell_clicked_ = board->cell_clicked.subscribe([this](const int row, const int col)
-    {
+                                                      {
         if (cell_clicked)
         {
             cell_clicked(row, col);
-        }
-    });
+        } });
     auto *pboard = board.get();
     window_->root().add_child(std::move(board));
     board_ = pboard;
@@ -88,28 +87,25 @@ void TictactoeView::build_difficulty_dialog(uint32_t max_client_width, uint32_t 
     dlg->set_button_size(diff_button_w, diff_button_h);
     auto &easy = dlg->add_button("EASY");
     sub_easy_ = easy.clicked.subscribe([this]()
-    {
+                                       {
         if (difficulty_chosen)
         {
             difficulty_chosen(difficulty::easy);
-        }
-    });
+        } });
     auto &normal = dlg->add_button("NORMAL");
     sub_normal_ = normal.clicked.subscribe([this]()
-    {
+                                           {
         if (difficulty_chosen)
         {
             difficulty_chosen(difficulty::normal);
-        }
-    });
+        } });
     auto &hard = dlg->add_button("HARD");
     sub_hard_ = hard.clicked.subscribe([this]()
-    {
+                                       {
         if (difficulty_chosen)
         {
             difficulty_chosen(difficulty::hard);
-        }
-    });
+        } });
     btn_easy_ = &easy;
     btn_normal_ = &normal;
     btn_hard_ = &hard;
@@ -132,20 +128,18 @@ void TictactoeView::build_side_dialog(uint32_t max_client_width, uint32_t max_cl
     dlg->set_button_size(side_button_w, side_button_h);
     auto &first = dlg->add_button("X FIRST");
     sub_first_ = first.clicked.subscribe([this]()
-    {
+                                         {
         if (side_chosen)
         {
             side_chosen(player_type::x);
-        }
-    });
+        } });
     auto &second = dlg->add_button("O SECOND");
     sub_second_ = second.clicked.subscribe([this]()
-    {
+                                           {
         if (side_chosen)
         {
             side_chosen(player_type::o);
-        }
-    });
+        } });
     btn_first_ = &first;
     btn_second_ = &second;
 
@@ -167,20 +161,18 @@ void TictactoeView::build_result_dialog(uint32_t max_client_width, uint32_t max_
     dlg->set_button_size(result_button_w, result_button_h);
     auto &again = dlg->add_button("AGAIN");
     sub_again_ = again.clicked.subscribe([this]()
-    {
+                                         {
         if (again_requested)
         {
             again_requested();
-        }
-    });
+        } });
     auto &quit = dlg->add_button("QUIT");
     sub_quit_ = quit.clicked.subscribe([this]()
-    {
+                                       {
         if (quit_requested)
         {
             quit_requested();
-        }
-    });
+        } });
     btn_again_ = &again;
     btn_quit_ = &quit;
 

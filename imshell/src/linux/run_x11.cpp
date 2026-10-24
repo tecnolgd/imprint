@@ -43,7 +43,8 @@ namespace zb::shell
         struct display_owner
         {
             Display *display;
-            explicit display_owner(Display *d) : display(d) {}
+            explicit display_owner(Display *d)
+                : display(d) {}
             ~display_owner()
             {
                 if (display != nullptr)
@@ -112,8 +113,8 @@ namespace zb::shell
 
         XSelectInput(display, window,
                      ExposureMask | StructureNotifyMask | KeyPressMask |
-                     KeyReleaseMask | ButtonPressMask | ButtonReleaseMask |
-                     PointerMotionMask);
+                         KeyReleaseMask | ButtonPressMask | ButtonReleaseMask |
+                         PointerMotionMask);
         XMapWindow(display, window);
 
         GC gc = XCreateGC(display, window, 0, nullptr);
@@ -222,11 +223,9 @@ namespace zb::shell
                 zb::shell::chrome_around(pres, win_w, win_h);
             zb::shell::for_each_bar(
                 bars, [display, window, gc](const zb::shell::present_rect &b)
-                {
-                    XFillRectangle(display, window, gc, b.x, b.y,
-                                   static_cast<unsigned int>(b.w),
-                                   static_cast<unsigned int>(b.h));
-                });
+                { XFillRectangle(display, window, gc, b.x, b.y,
+                                 static_cast<unsigned int>(b.w),
+                                 static_cast<unsigned int>(b.h)); });
             present_region(0, 0, buf_w, buf_h);
         };
 
@@ -238,22 +237,21 @@ namespace zb::shell
         // they detach at return so no handler outlives run()'s frame (a
         // library-mode host may keep the app alive past this point)
         const auto painted_sub = app->on_painted([&](const void *)
-        {
+                                                 {
             const zb::shell::present_rect r =
                 zb::shell::painted_region(*app, buf_w, buf_h);
             if (r.w <= 0)
             {
                 return;  // nothing was drawn, nothing to present
             }
-            present_region(r.x, r.y, r.w, r.h);
-        });
-
+            present_region(r.x, r.y, r.w, r.h); });
 
         auto hasExposed = false;
 
         // the app requests to quit by closing its window (e.g. a QUIT button)
         bool app_closed = false;
-        const auto closed_sub = app->on_closed([&app_closed]() { app_closed = true; });
+        const auto closed_sub = app->on_closed([&app_closed]()
+                                               { app_closed = true; });
 
         XEvent event{};
         while (!app_closed)

@@ -11,5 +11,6 @@ extern "C" int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
     // X-5: every escape becomes a diagnostic + exit 1 (main_guard.hpp)
     return zb::shell::guarded_main(
-        [] { return zb::shell::run(zb::app::make_app()); });
+        []
+        { return zb::shell::run(zb::app::make_app()); });
 }

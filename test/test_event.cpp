@@ -14,7 +14,8 @@ static void test_basic_subscribe_invoke_unsub()
 {
     Event<> ev;
     int calls = 0;
-    const uint32_t id = ev += [&calls]() { ++calls; };
+    const uint32_t id = ev += [&calls]()
+    { ++calls; };
     EXPECT(id != ev.INVALID_EVENT_ID);
     EXPECT(bool(ev));
 
@@ -38,7 +39,8 @@ static void test_subscribe_within_invoke_is_deferred()
         ++early_calls;
         // subscribing from a handler must not fire the new handler
         // during this same invoke (id-based sub: fire-and-forget)
-        ev += [&late_calls](const int) { ++late_calls; };
+        ev += [&late_calls](const int)
+        { ++late_calls; };
     };
 
     ev(1);
@@ -54,10 +56,12 @@ static void test_unsub_within_invoke_is_deferred_but_effective()
 {
     Event<> ev;
     int calls = 0;
-    const uint32_t doomed = ev += [&calls]() { ++calls; };
+    const uint32_t doomed = ev += [&calls]()
+    { ++calls; };
 
     // the second handler unsubscribes the first during the invoke
-    ev += [&]() { ev.unsub(doomed); };
+    ev += [&]()
+    { ev.unsub(doomed); };
 
     ev();  // doomed already ran (it was registered first)
     EXPECT(calls == 1);
@@ -72,9 +76,12 @@ static void test_unsub_all_during_invoke()
 {
     Event<> ev;
     int calls = 0;
-    const uint32_t a = ev += [&calls]() { ++calls; };
-    const uint32_t b = ev += [&calls]() { ++calls; };
-    const uint32_t c = ev += [&calls]() { ++calls; };
+    const uint32_t a = ev += [&calls]()
+    { ++calls; };
+    const uint32_t b = ev += [&calls]()
+    { ++calls; };
+    const uint32_t c = ev += [&calls]()
+    { ++calls; };
     (void)a;
     (void)b;
     (void)c;
@@ -107,7 +114,8 @@ static void test_reentrant_invoke()
         inner();
         ++outer_calls;
     };
-    inner += [&]() { ++inner_calls; };
+    inner += [&]()
+    { ++inner_calls; };
 
     outer();
     EXPECT(outer_calls == 2);
@@ -120,12 +128,14 @@ static void test_unsub_during_reentrant_invoke_compacts_once()
     // must survive until the outermost invoke finishes
     Event<> ev;
     int calls = 0;
-    const uint32_t doomed = ev += [&calls]() { ++calls; };
+    const uint32_t doomed = ev += [&calls]()
+    { ++calls; };
     Event<> inner;
 
     ev += [&]()
     {
-        inner += [&]() { ev.unsub(doomed); };
+        inner += [&]()
+        { ev.unsub(doomed); };
         inner();
     };
 
@@ -142,7 +152,8 @@ static void test_subscription_raii()
     int calls = 0;
 
     {
-        Subscription<> s = ev.subscribe([&calls]() { ++calls; });
+        Subscription<> s = ev.subscribe([&calls]()
+                                        { ++calls; });
         EXPECT(bool(s));
         ev();
         EXPECT(calls == 1);
@@ -157,7 +168,8 @@ static void test_subscription_move()
     Event<> ev;
     int calls = 0;
 
-    Subscription<> a = ev.subscribe([&calls]() { ++calls; });
+    Subscription<> a = ev.subscribe([&calls]()
+                                    { ++calls; });
     Subscription<> b = std::move(a);
     EXPECT(!bool(a));
     EXPECT(bool(b));
@@ -180,7 +192,8 @@ static void test_subscription_event_destroyed_first()
     Subscription<> *s = nullptr;
     {
         Event<> ev;
-        s = new Subscription<>(ev.subscribe([&calls]() { ++calls; }));
+        s = new Subscription<>(ev.subscribe([&calls]()
+                                            { ++calls; }));
         ev();
         EXPECT(calls == 1);
         // ev dies first; s is detached and becomes a no-op
@@ -193,14 +206,14 @@ static void test_subscription_unsub_during_invoke_via_raii()
 {
     Event<> ev;
     int calls = 0;
-    Subscription<> *victim = new Subscription<>(ev.subscribe([&calls]() { ++calls; }));
+    Subscription<> *victim = new Subscription<>(ev.subscribe([&calls]()
+                                                             { ++calls; }));
     Subscription<> keeper = ev.subscribe([&]()
-    {
+                                         {
         // destroying the RAII guard from inside an invoke tombstones
         // the victim without invalidating the running iteration
         delete victim;
-        victim = nullptr;
-    });
+        victim = nullptr; });
 
     ev();
     EXPECT(calls == 1);
@@ -219,7 +232,8 @@ static void test_subscription_must_be_held()
 
     // the discard is the case under test: [[nodiscard]] (X-17) makes the
     // accidental version a compile error, so the intentional one casts
-    (void)ev.subscribe([&calls]() { ++calls; });  // guard dies here
+    (void)ev.subscribe([&calls]()
+                       { ++calls; });  // guard dies here
     EXPECT(!bool(ev));
     ev();
     EXPECT(calls == 0);
@@ -232,7 +246,8 @@ static void test_handler_exception_keeps_event_consistent()
     // compacts, so the table keeps its outside-invoke semantics
     Event<> ev;
     int fires = 0;
-    const uint32_t a = ev += [&fires]() { ++fires; };
+    const uint32_t a = ev += [&fires]()
+    { ++fires; };
     bool boom = true;
     const uint32_t b = ev += [&boom]()
     {
@@ -242,7 +257,8 @@ static void test_handler_exception_keeps_event_consistent()
             throw 1;
         }
     };
-    const uint32_t c = ev += [&fires]() { ++fires; };
+    const uint32_t c = ev += [&fires]()
+    { ++fires; };
 
     try
     {

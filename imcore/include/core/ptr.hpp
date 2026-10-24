@@ -29,9 +29,11 @@ namespace zb
     {
     public:
         SharedPtr() = default;
-        explicit SharedPtr(T *p) : ptr_(p), count_(make_count(p)) {}
+        explicit SharedPtr(T *p)
+            : ptr_(p), count_(make_count(p)) {}
 
-        SharedPtr(const SharedPtr &o) : ptr_(o.ptr_), count_(o.count_) { addref(); }
+        SharedPtr(const SharedPtr &o)
+            : ptr_(o.ptr_), count_(o.count_) { addref(); }
         SharedPtr &operator=(const SharedPtr &o)
         {
             if (this != &o)
@@ -44,7 +46,8 @@ namespace zb
             return *this;
         }
 
-        SharedPtr(SharedPtr &&o) noexcept : ptr_(o.ptr_), count_(o.count_)
+        SharedPtr(SharedPtr &&o) noexcept
+            : ptr_(o.ptr_), count_(o.count_)
         {
             o.ptr_ = nullptr;
             o.count_ = nullptr;
@@ -65,7 +68,8 @@ namespace zb
         // converting constructors (upcasts, e.g. Tictactoe -> IApp), mirroring
         // std::shared_ptr's templated ctor/assignment
         template <class U>
-        SharedPtr(const SharedPtr<U> &o) : ptr_(o.ptr_), count_(o.count_)
+        SharedPtr(const SharedPtr<U> &o)
+            : ptr_(o.ptr_), count_(o.count_)
         {
             addref();
         }
@@ -82,7 +86,8 @@ namespace zb
             return *this;
         }
         template <class U>
-        SharedPtr(SharedPtr<U> &&o) noexcept : ptr_(o.ptr_), count_(o.count_)
+        SharedPtr(SharedPtr<U> &&o) noexcept
+            : ptr_(o.ptr_), count_(o.count_)
         {
             o.ptr_ = nullptr;
             o.count_ = nullptr;

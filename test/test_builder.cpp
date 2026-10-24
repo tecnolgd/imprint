@@ -47,15 +47,19 @@ int test_builder()
     // node DOM: tags, ordered props, ids, children, flex hints
     {
         auto doc = column({
-            label("Level").named("lvl"),
-            slider(50, 200).step(10).named("sld"),
-            checkbox("Turbo").checked(true).named("turbo"),
-            list_box({"A", "B", "C"}, 2).named("lst"),
-            row({
-                radio("X", 1).named("rx"),
-                radio("Y", 1).checked(true).named("ry"),
-            }).named("bar").flex(2),
-        }).spacing(4).padding(2);
+                              label("Level").named("lvl"),
+                              slider(50, 200).step(10).named("sld"),
+                              checkbox("Turbo").checked(true).named("turbo"),
+                              list_box({"A", "B", "C"}, 2).named("lst"),
+                              row({
+                                      radio("X", 1).named("rx"),
+                                      radio("Y", 1).checked(true).named("ry"),
+                                  })
+                                  .named("bar")
+                                  .flex(2),
+                          })
+                       .spacing(4)
+                       .padding(2);
 
         EXPECT(doc.type == "column");
         EXPECT(doc.children.size() == 5);
@@ -95,12 +99,13 @@ int test_builder()
     // materialize into a flex host: tree shape, ids, property landing
     {
         auto doc = column({
-            label("Level").named("lvl"),
-            slider(50, 200).named("sld"),
-            checkbox("Turbo").checked(true).named("turbo"),
-            list_box({"A", "B", "C"}, 2).named("lst"),
-            row({radio("X", 1).named("rx"), radio("Y", 1).checked(true).named("ry")}),
-        }).spacing(0);
+                              label("Level").named("lvl"),
+                              slider(50, 200).named("sld"),
+                              checkbox("Turbo").checked(true).named("turbo"),
+                              list_box({"A", "B", "C"}, 2).named("lst"),
+                              row({radio("X", 1).named("rx"), radio("Y", 1).checked(true).named("ry")}),
+                          })
+                       .spacing(0);
         FlexPanel host;
         host.set_size(300, 240);
         build(host, doc);
@@ -155,9 +160,11 @@ int test_builder()
     // flex layout: spacing/padding/auto sizes land on the widgets
     {
         auto doc = column({
-            label("L").named("l"),
-            slider(0, 100).named("s"),
-        }).spacing(2).padding(1);
+                              label("L").named("l"),
+                              slider(0, 100).named("s"),
+                          })
+                       .spacing(2)
+                       .padding(1);
         FlexPanel host;
         host.set_size(120, 80);
         build(host, doc);
@@ -193,9 +200,10 @@ int test_builder()
     // end to end: materialized controls are live (inputs, events)
     {
         auto doc = column({
-            checkbox("On").named("cb"),
-            slider(0, 100).step(10).named("sld"),
-        }).spacing(0);
+                              checkbox("On").named("cb"),
+                              slider(0, 100).step(10).named("sld"),
+                          })
+                       .spacing(0);
         FlexPanel host;
         host.set_size(200, 60);
         build(host, doc);
@@ -206,7 +214,8 @@ int test_builder()
         EXPECT(cb != nullptr && sld != nullptr);
 
         int toggles = 0;
-        cb->changed += [&](bool) { ++toggles; };
+        cb->changed += [&](bool)
+        { ++toggles; };
         EXPECT(cb->is_checked() == false);
 
         zb::ui::InputDispatcher d;
@@ -247,15 +256,16 @@ int test_builder()
         d.dispatch(host, char_down('!'));
         EXPECT(ti->get_text() == u"hello!");
     }
-    
-     // alignment attributes materialization
+
+    // alignment attributes materialization
     {
-        const std::pair<const char*, Widget::h_align> h_cases[] = {
+        const std::pair<const char *, Widget::h_align> h_cases[] = {
             {"left", Widget::h_align::left},
             {"center", Widget::h_align::center},
             {"right", Widget::h_align::right},
         };
-        for (const auto& c : h_cases) {
+        for (const auto &c : h_cases)
+        {
             auto doc = column({
                 label("Test").named("l").prop("halign", std::string(c.first)),
             });
@@ -266,12 +276,13 @@ int test_builder()
             EXPECT(host.find_by_id("l")->get_h_align() == c.second);
         }
 
-        const std::pair<const char*, Widget::v_align> v_cases[] = {
+        const std::pair<const char *, Widget::v_align> v_cases[] = {
             {"top", Widget::v_align::top},
             {"center", Widget::v_align::center},
             {"bottom", Widget::v_align::bottom},
         };
-        for (const auto& c : v_cases) {
+        for (const auto &c : v_cases)
+        {
             auto doc = column({
                 label("Test").named("l").prop("valign", std::string(c.first)),
             });
@@ -282,358 +293,347 @@ int test_builder()
             EXPECT(host.find_by_id("l")->get_v_align() == c.second);
         }
 
-    // V-5 step 3: the composition widgets ride the tag table like every
-    // other tag -- fluent builder and .ui parser both land on them
-    {
-        auto doc = column({
-            toggle(true).named("sw"),
-            gauge(0, 200).named("gd").value(120),
-            knob(0, 100).named("kn").value(40).step(5),
-            trend().named("tr"),
-        });
-        FlexPanel host;
-        host.set_size(300, 240);
-        build(host, doc);
-        host.layout();
-
-        auto *sw = static_cast<ToggleSwitch *>(host.find_by_id("sw"));
-        auto *gd = static_cast<GaugeDial *>(host.find_by_id("gd"));
-        auto *kn = static_cast<Knob *>(host.find_by_id("kn"));
-        auto *tr = static_cast<TrendLine *>(host.find_by_id("tr"));
-        EXPECT(sw != nullptr && sw->is_checked());
-        EXPECT(gd != nullptr && gd->get_min() == 0 && gd->get_max() == 200 &&
-               gd->get_value() == 120);
-        EXPECT(kn != nullptr && kn->get_min() == 0 && kn->get_max() == 100 &&
-               kn->get_value() == 40 && kn->get_step() == 5);
-        EXPECT(tr != nullptr && tr->get_count() == 0);
-        // the widgets are live after materialize (measures, not the
-        // protected focus query)
-        EXPECT(sw->measure().width == 40 && gd->measure().height == 64);
-    }
-
-    // the same tags parse identically from a design file (the parser
-    // and the fluent builders share the tag table, contract 4.10)
-    {
-        bool ok = false;
-        zb::ui::ui_node tree = parse_ui_text(
-            "column spacing=4\n"
-            "  toggle id=\"sw\" checked=true\n"
-            "  gauge id=\"gd\" min=0 max=200 value=120\n"
-            "  knob id=\"kn\" min=0 max=100 value=40 step=5\n",
-            &ok);
-        EXPECT(ok);
-        FlexPanel host;
-        host.set_size(300, 240);
-        build(host, tree);
-        host.layout();
-        auto *sw = static_cast<ToggleSwitch *>(host.find_by_id("sw"));
-        auto *gd = static_cast<GaugeDial *>(host.find_by_id("gd"));
-        auto *kn = static_cast<Knob *>(host.find_by_id("kn"));
-        EXPECT(sw != nullptr && sw->is_checked());
-        EXPECT(gd != nullptr && gd->get_value() == 120);
-        EXPECT(kn != nullptr && kn->get_value() == 40 && kn->get_step() == 5);
-    }
-
-    // a one-axis size declaration keeps the other axis's own measure
-    // (regression: width= only used to force the height to an explicit
-    // 0 -- buttons and sliders collapsed flat and became unclickable)
-    {
-        bool ok = false;
-        zb::ui::ui_node tree = parse_ui_text(
-            "column spacing=4\n"
-            "  button id=\"bw\" text=\"SELF-CHECK\" width=68\n"
-            "  slider id=\"sh\" height=20\n",
-            &ok);
-        EXPECT(ok);
-        FlexPanel host;
-        host.set_size(300, 240);
-        build(host, tree);
-        host.layout();
-        auto *bw = static_cast<Button *>(host.find_by_id("bw"));
-        auto *sh = static_cast<Slider *>(host.find_by_id("sh"));
-        EXPECT(bw != nullptr && sh != nullptr);
-        EXPECT(bw->get_size().width == 68);
-        EXPECT(bw->get_size().height > 0);      // auto text height, not 0
-        EXPECT(bw->is_width_explicit() && !bw->is_height_explicit());
-        EXPECT(sh->get_size().height == 20);
-        EXPECT(sh->get_size().width > 0);       // auto track width, not 0
-        EXPECT(!sh->is_width_explicit() && sh->is_height_explicit());
-    }
-
-    // host root node is documentation only... panel() children flow
-    // color props (batch H step 2): background and color land on the
-    // widget and actually paint; malformed/transparent values are no-ops
-    {
-        auto doc = column({
-            label("Af").size(24, 24).named("mark").background("#ff0000").color("#00ff00"),
-            label("Af").size(24, 24).named("plain"),
-        });
-        Panel host;
-        host.set_size(80, 60);
-        build(host, doc);
-        host.layout();
-
-        auto *mark = static_cast<Label *>(host.find_by_id("mark"));
-        auto *plain = static_cast<Label *>(host.find_by_id("plain"));
-        EXPECT(mark != nullptr && plain != nullptr);
-
-        core::Graphics g(80, 60, nullptr);
-        host.draw(g);
-
-        const auto mp = mark->get_position();
-        const auto ms = mark->get_size();
-        // the label's far corner is background, not glyph: #ff0000
-        EXPECT(test::pixel_at(g, mp.x + ms.width - 1, mp.y + ms.height - 1) ==
-               core::Color::from(255, 0, 0).pixel);
-        // the parent's default area under the plain label stays clear
-        const auto pp = plain->get_position();
-        EXPECT(!plain->has_background());
-
-        // text color override: the tinted label paints its glyphs green,
-        // the plain label black (text is vertically centered, so scan the
-        // whole box rather than assuming a fixed row)
-        int green = 0;
-        int black = 0;
-        for (int y = 0; y < ms.height; ++y)
+        // V-5 step 3: the composition widgets ride the tag table like every
+        // other tag -- fluent builder and .ui parser both land on them
         {
-            for (int x = 0; x < ms.width; ++x)
+            auto doc = column({
+                toggle(true).named("sw"),
+                gauge(0, 200).named("gd").value(120),
+                knob(0, 100).named("kn").value(40).step(5),
+                trend().named("tr"),
+            });
+            FlexPanel host;
+            host.set_size(300, 240);
+            build(host, doc);
+            host.layout();
+
+            auto *sw = static_cast<ToggleSwitch *>(host.find_by_id("sw"));
+            auto *gd = static_cast<GaugeDial *>(host.find_by_id("gd"));
+            auto *kn = static_cast<Knob *>(host.find_by_id("kn"));
+            auto *tr = static_cast<TrendLine *>(host.find_by_id("tr"));
+            EXPECT(sw != nullptr && sw->is_checked());
+            EXPECT(gd != nullptr && gd->get_min() == 0 && gd->get_max() == 200 &&
+                   gd->get_value() == 120);
+            EXPECT(kn != nullptr && kn->get_min() == 0 && kn->get_max() == 100 &&
+                   kn->get_value() == 40 && kn->get_step() == 5);
+            EXPECT(tr != nullptr && tr->get_count() == 0);
+            // the widgets are live after materialize (measures, not the
+            // protected focus query)
+            EXPECT(sw->measure().width == 40 && gd->measure().height == 64);
+        }
+
+        // the same tags parse identically from a design file (the parser
+        // and the fluent builders share the tag table, contract 4.10)
+        {
+            bool ok = false;
+            zb::ui::ui_node tree = parse_ui_text(
+                "column spacing=4\n"
+                "  toggle id=\"sw\" checked=true\n"
+                "  gauge id=\"gd\" min=0 max=200 value=120\n"
+                "  knob id=\"kn\" min=0 max=100 value=40 step=5\n",
+                &ok);
+            EXPECT(ok);
+            FlexPanel host;
+            host.set_size(300, 240);
+            build(host, tree);
+            host.layout();
+            auto *sw = static_cast<ToggleSwitch *>(host.find_by_id("sw"));
+            auto *gd = static_cast<GaugeDial *>(host.find_by_id("gd"));
+            auto *kn = static_cast<Knob *>(host.find_by_id("kn"));
+            EXPECT(sw != nullptr && sw->is_checked());
+            EXPECT(gd != nullptr && gd->get_value() == 120);
+            EXPECT(kn != nullptr && kn->get_value() == 40 && kn->get_step() == 5);
+        }
+
+        // a one-axis size declaration keeps the other axis's own measure
+        // (regression: width= only used to force the height to an explicit
+        // 0 -- buttons and sliders collapsed flat and became unclickable)
+        {
+            bool ok = false;
+            zb::ui::ui_node tree = parse_ui_text(
+                "column spacing=4\n"
+                "  button id=\"bw\" text=\"SELF-CHECK\" width=68\n"
+                "  slider id=\"sh\" height=20\n",
+                &ok);
+            EXPECT(ok);
+            FlexPanel host;
+            host.set_size(300, 240);
+            build(host, tree);
+            host.layout();
+            auto *bw = static_cast<Button *>(host.find_by_id("bw"));
+            auto *sh = static_cast<Slider *>(host.find_by_id("sh"));
+            EXPECT(bw != nullptr && sh != nullptr);
+            EXPECT(bw->get_size().width == 68);
+            EXPECT(bw->get_size().height > 0);  // auto text height, not 0
+            EXPECT(bw->is_width_explicit() && !bw->is_height_explicit());
+            EXPECT(sh->get_size().height == 20);
+            EXPECT(sh->get_size().width > 0);  // auto track width, not 0
+            EXPECT(!sh->is_width_explicit() && sh->is_height_explicit());
+        }
+
+        // host root node is documentation only... panel() children flow
+        // color props (batch H step 2): background and color land on the
+        // widget and actually paint; malformed/transparent values are no-ops
+        {
+            auto doc = column({
+                label("Af").size(24, 24).named("mark").background("#ff0000").color("#00ff00"),
+                label("Af").size(24, 24).named("plain"),
+            });
+            Panel host;
+            host.set_size(80, 60);
+            build(host, doc);
+            host.layout();
+
+            auto *mark = static_cast<Label *>(host.find_by_id("mark"));
+            auto *plain = static_cast<Label *>(host.find_by_id("plain"));
+            EXPECT(mark != nullptr && plain != nullptr);
+
+            core::Graphics g(80, 60, nullptr);
+            host.draw(g);
+
+            const auto mp = mark->get_position();
+            const auto ms = mark->get_size();
+            // the label's far corner is background, not glyph: #ff0000
+            EXPECT(test::pixel_at(g, mp.x + ms.width - 1, mp.y + ms.height - 1) ==
+                   core::Color::from(255, 0, 0).pixel);
+            // the parent's default area under the plain label stays clear
+            const auto pp = plain->get_position();
+            EXPECT(!plain->has_background());
+
+            // text color override: the tinted label paints its glyphs green,
+            // the plain label black (text is vertically centered, so scan the
+            // whole box rather than assuming a fixed row)
+            int green = 0;
+            int black = 0;
+            for (int y = 0; y < ms.height; ++y)
             {
-                if (test::pixel_at(g, mp.x + x, mp.y + y) ==
-                    core::Color::from(0, 255, 0).pixel)
+                for (int x = 0; x < ms.width; ++x)
                 {
-                    ++green;
-                }
-                if (test::pixel_at(g, pp.x + x, pp.y + y) ==
-                    core::Color::from(0, 0, 0).pixel)
-                {
-                    ++black;
+                    if (test::pixel_at(g, mp.x + x, mp.y + y) ==
+                        core::Color::from(0, 255, 0).pixel)
+                    {
+                        ++green;
+                    }
+                    if (test::pixel_at(g, pp.x + x, pp.y + y) ==
+                        core::Color::from(0, 0, 0).pixel)
+                    {
+                        ++black;
+                    }
                 }
             }
+            EXPECT(green > 0);  // the override really painted
+            EXPECT(black > 0);  // the plain label stayed theme text
         }
-        EXPECT(green > 0);  // the override really painted
-        EXPECT(black > 0);  // the plain label stayed theme text
-    }
 
-    // transparent / malformed color values are silent no-ops
-    {
-        auto doc = column({
-            label("x").size(20, 20).named("a").background("transparent").color("transparent"),
-            label("x").size(20, 20).named("b").background("#12345").color("neon"),
-        });
-        Panel host;
-        host.set_size(60, 50);
-        build(host, doc);
-        host.layout();
-        EXPECT(!host.find_by_id("a")->has_background());
-        EXPECT(!host.find_by_id("b")->has_background());
-    }
+        // transparent / malformed color values are silent no-ops
+        {
+            auto doc = column({
+                label("x").size(20, 20).named("a").background("transparent").color("transparent"),
+                label("x").size(20, 20).named("b").background("#12345").color("neon"),
+            });
+            Panel host;
+            host.set_size(60, 50);
+            build(host, doc);
+            host.layout();
+            EXPECT(!host.find_by_id("a")->has_background());
+            EXPECT(!host.find_by_id("b")->has_background());
+        }
 
-    // rgb()/rgba() colors: components resolve, alpha blends over the page
-    {
-        auto doc = column({
-            label("").size(20, 10).named("half").background("rgba(255,0,0,0.5)"),
-            label("").size(20, 10).named("full").background("rgb(0,0,255)"),
-            label("").size(20, 10).named("bad").background("rgba(1,2,3)"),
-        });
-        Panel host;
-        host.set_size(20, 30);
-        build(host, doc);
-        host.layout();
-        core::Graphics g(20, 30, nullptr);
-        g.fill(core::colors::Black);
-        host.draw(g);
-        auto *half = host.find_by_id("half");
-        auto *full = host.find_by_id("full");
-        auto *bad = host.find_by_id("bad");
-        EXPECT(half != nullptr && full != nullptr && bad != nullptr);
+        // rgb()/rgba() colors: components resolve, alpha blends over the page
+        {
+            auto doc = column({
+                label("").size(20, 10).named("half").background("rgba(255,0,0,0.5)"),
+                label("").size(20, 10).named("full").background("rgb(0,0,255)"),
+                label("").size(20, 10).named("bad").background("rgba(1,2,3)"),
+            });
+            Panel host;
+            host.set_size(20, 30);
+            build(host, doc);
+            host.layout();
+            core::Graphics g(20, 30, nullptr);
+            g.fill(core::colors::Black);
+            host.draw(g);
+            auto *half = host.find_by_id("half");
+            auto *full = host.find_by_id("full");
+            auto *bad = host.find_by_id("bad");
+            EXPECT(half != nullptr && full != nullptr && bad != nullptr);
 #if COLOR_DEPTH == 32
-        EXPECT(test::pixel_at(g, half->get_position().x + 10,
-                              half->get_position().y + 5) ==
-               core::Color::from(127, 0, 0).pixel);
+            EXPECT(test::pixel_at(g, half->get_position().x + 10,
+                                  half->get_position().y + 5) ==
+                   core::Color::from(127, 0, 0).pixel);
 #else
-        // binary alpha: any set bit paints the front opaque
-        EXPECT(test::pixel_at(g, half->get_position().x + 10,
-                              half->get_position().y + 5) ==
-               core::Color::from(255, 0, 0).pixel);
+            // binary alpha: any set bit paints the front opaque
+            EXPECT(test::pixel_at(g, half->get_position().x + 10,
+                                  half->get_position().y + 5) ==
+                   core::Color::from(255, 0, 0).pixel);
 #endif
-        EXPECT(test::pixel_at(g, full->get_position().x + 10,
-                              full->get_position().y + 5) ==
-               core::Color::from(0, 0, 255).pixel);
-        EXPECT(!bad->has_background());
-    }
+            EXPECT(test::pixel_at(g, full->get_position().x + 10,
+                                  full->get_position().y + 5) ==
+                   core::Color::from(0, 0, 255).pixel);
+            EXPECT(!bad->has_background());
+        }
 
-    // P-1 paint dressing props land and really paint: linear, radial,
-    // border, rounded solid
-    {
-        auto doc = column({
-            label("").size(20, 10).named("lin")
-                .prop("bg_lin_from", std::string{"#000000"})
-                .prop("bg_lin_to", std::string{"#ffffff"})
-                .prop("bg_lin_h", true),
-            label("").size(20, 10).named("rad")
-                .prop("bg_rad_cx", 50LL).prop("bg_rad_cy", 50LL)
-                .prop("bg_rad_from", std::string{"#ffffff"})
-                .prop("bg_rad_from_p", 0LL)
-                .prop("bg_rad_to", std::string{"#000000"})
-                .prop("bg_rad_to_p", 100LL),
-            label("").size(20, 10).named("bd")
-                .background("#000000")
-                .prop("border_w", 1LL)
-                .prop("border_color", std::string{"#ffffff"}),
-            label("").size(12, 12).named("dot")
-                .background("#ff0000")
-                .prop("radius_half", true),
-        });
-        Panel host;
-        host.set_size(20, 44);
-        build(host, doc);
-        host.layout();
-        core::Graphics g(20, 44, nullptr);
-        g.fill(core::colors::Black);
-        host.draw(g);
-        auto *lin = host.find_by_id("lin");
-        auto *rad = host.find_by_id("rad");
-        auto *bd = host.find_by_id("bd");
-        auto *dot = host.find_by_id("dot");
-        EXPECT(lin != nullptr && rad != nullptr && bd != nullptr && dot != nullptr);
-        const auto lp = lin->get_position();
-        EXPECT(test::pixel_at(g, lp.x, lp.y + 5) == core::colors::Black.pixel);
-        EXPECT(test::pixel_at(g, lp.x + 19, lp.y + 5) == core::colors::White.pixel);
-        EXPECT(test::pixel_at(g, lp.x + 10, lp.y + 5) ==
-               core::Color::from(134, 134, 134).pixel);
-        const auto rp = rad->get_position();
-        EXPECT(test::pixel_at(g, rp.x + 10, rp.y + 5) == core::colors::White.pixel);
-        EXPECT(test::pixel_at(g, rp.x, rp.y) == core::colors::Black.pixel);
-        const auto bp = bd->get_position();
-        EXPECT(test::pixel_at(g, bp.x, bp.y) == core::colors::White.pixel);
-        EXPECT(test::pixel_at(g, bp.x + 10, bp.y + 5) == core::colors::Black.pixel);
-        const auto dp = dot->get_position();
-        EXPECT(test::pixel_at(g, dp.x, dp.y) == core::colors::Black.pixel);  // cut
-        EXPECT(test::pixel_at(g, dp.x + 6, dp.y + 6) ==
-               core::Color::from(255, 0, 0).pixel);
-    }
+        // P-1 paint dressing props land and really paint: linear, radial,
+        // border, rounded solid
+        {
+            auto doc = column({
+                label("").size(20, 10).named("lin").prop("bg_lin_from", std::string{"#000000"}).prop("bg_lin_to", std::string{"#ffffff"}).prop("bg_lin_h", true),
+                label("").size(20, 10).named("rad").prop("bg_rad_cx", 50LL).prop("bg_rad_cy", 50LL).prop("bg_rad_from", std::string{"#ffffff"}).prop("bg_rad_from_p", 0LL).prop("bg_rad_to", std::string{"#000000"}).prop("bg_rad_to_p", 100LL),
+                label("").size(20, 10).named("bd").background("#000000").prop("border_w", 1LL).prop("border_color", std::string{"#ffffff"}),
+                label("").size(12, 12).named("dot").background("#ff0000").prop("radius_half", true),
+            });
+            Panel host;
+            host.set_size(20, 44);
+            build(host, doc);
+            host.layout();
+            core::Graphics g(20, 44, nullptr);
+            g.fill(core::colors::Black);
+            host.draw(g);
+            auto *lin = host.find_by_id("lin");
+            auto *rad = host.find_by_id("rad");
+            auto *bd = host.find_by_id("bd");
+            auto *dot = host.find_by_id("dot");
+            EXPECT(lin != nullptr && rad != nullptr && bd != nullptr && dot != nullptr);
+            const auto lp = lin->get_position();
+            EXPECT(test::pixel_at(g, lp.x, lp.y + 5) == core::colors::Black.pixel);
+            EXPECT(test::pixel_at(g, lp.x + 19, lp.y + 5) == core::colors::White.pixel);
+            EXPECT(test::pixel_at(g, lp.x + 10, lp.y + 5) ==
+                   core::Color::from(134, 134, 134).pixel);
+            const auto rp = rad->get_position();
+            EXPECT(test::pixel_at(g, rp.x + 10, rp.y + 5) == core::colors::White.pixel);
+            EXPECT(test::pixel_at(g, rp.x, rp.y) == core::colors::Black.pixel);
+            const auto bp = bd->get_position();
+            EXPECT(test::pixel_at(g, bp.x, bp.y) == core::colors::White.pixel);
+            EXPECT(test::pixel_at(g, bp.x + 10, bp.y + 5) == core::colors::Black.pixel);
+            const auto dp = dot->get_position();
+            EXPECT(test::pixel_at(g, dp.x, dp.y) == core::colors::Black.pixel);  // cut
+            EXPECT(test::pixel_at(g, dp.x + 6, dp.y + 6) ==
+                   core::Color::from(255, 0, 0).pixel);
+        }
 
-    // build() host transfer is presence-gated: an omitted root prop
-    // never resets pre-configured host state (the old unconditional
-    // spacing/padding transfer clobbered hosts configured before build),
-    // while a declared prop still transfers
-    {
-        FlexPanel host;
-        host.set_size(60, 60);
-        host.set_padding(8);
-        host.set_spacing(5);
-        ui_node doc = parse_html(
-            "<div><div style=\"width:20px;height:20px;background:#000000\">"
-            "<label>a</label></div></div>\n",
-            nullptr);
-        build(host, doc);
-        host.layout();
-        const auto cp = host.get_items()[0].child->get_position();
-        EXPECT(cp.x == 8 && cp.y == 8);
+        // build() host transfer is presence-gated: an omitted root prop
+        // never resets pre-configured host state (the old unconditional
+        // spacing/padding transfer clobbered hosts configured before build),
+        // while a declared prop still transfers
+        {
+            FlexPanel host;
+            host.set_size(60, 60);
+            host.set_padding(8);
+            host.set_spacing(5);
+            ui_node doc = parse_html(
+                "<div><div style=\"width:20px;height:20px;background:#000000\">"
+                "<label>a</label></div></div>\n",
+                nullptr);
+            build(host, doc);
+            host.layout();
+            const auto cp = host.get_items()[0].child->get_position();
+            EXPECT(cp.x == 8 && cp.y == 8);
 
-        // a root that DECLARES padding transfers it (over the preset)
-        FlexPanel host2;
-        host2.set_size(60, 60);
-        host2.set_padding(8);
-        ui_node doc2 = parse_html(
-            "<div style=\"padding:3px\">"
-            "<div style=\"width:20px;height:20px;background:#000000\">"
-            "<label>b</label></div></div>\n",
-            nullptr);
-        build(host2, doc2);
-        host2.layout();
-        const auto cp2 = host2.get_items()[0].child->get_position();
-        EXPECT(cp2.x == 3 && cp2.y == 3);
+            // a root that DECLARES padding transfers it (over the preset)
+            FlexPanel host2;
+            host2.set_size(60, 60);
+            host2.set_padding(8);
+            ui_node doc2 = parse_html(
+                "<div style=\"padding:3px\">"
+                "<div style=\"width:20px;height:20px;background:#000000\">"
+                "<label>b</label></div></div>\n",
+                nullptr);
+            build(host2, doc2);
+            host2.layout();
+            const auto cp2 = host2.get_items()[0].child->get_position();
+            EXPECT(cp2.x == 3 && cp2.y == 3);
 
-        // a column root grounds direction by its tag and transfers
-        // declared props only: omitted padding keeps the host's 8
-        FlexPanel host3;
-        host3.set_size(60, 60);
-        host3.set_padding(8);
-        auto doc3 = column({label("c").named("cl")});
-        build(host3, doc3);
-        host3.layout();
-        const auto cp3 = host3.get_items()[0].child->get_position();
-        EXPECT(cp3.x == 8 && cp3.y == 8);
+            // a column root grounds direction by its tag and transfers
+            // declared props only: omitted padding keeps the host's 8
+            FlexPanel host3;
+            host3.set_size(60, 60);
+            host3.set_padding(8);
+            auto doc3 = column({label("c").named("cl")});
+            build(host3, doc3);
+            host3.layout();
+            const auto cp3 = host3.get_items()[0].child->get_position();
+            EXPECT(cp3.x == 8 && cp3.y == 8);
 
-        // Panel hosts take the same presence rule
-        Panel phost;
-        phost.set_size(60, 60);
-        phost.set_padding(7);
-        ui_node doc4 = parse_html(
-            "<div><div style=\"width:20px;height:20px;background:#000000\">"
-            "<label>d</label></div></div>\n",
-            nullptr);
-        build(phost, doc4);
-        phost.layout();
-        const auto cp4 = phost.get_children()[0]->get_position();
-        EXPECT(cp4.x == 7 && cp4.y == 7);
-    }
+            // Panel hosts take the same presence rule
+            Panel phost;
+            phost.set_size(60, 60);
+            phost.set_padding(7);
+            ui_node doc4 = parse_html(
+                "<div><div style=\"width:20px;height:20px;background:#000000\">"
+                "<label>d</label></div></div>\n",
+                nullptr);
+            build(phost, doc4);
+            phost.layout();
+            const auto cp4 = phost.get_children()[0]->get_position();
+            EXPECT(cp4.x == 7 && cp4.y == 7);
+        }
 
-    // action binding rides materialization (code-contract §4, IM-BLD-001):
-    // each id binds the widget its own node created; a duplicate id binds
-    // BOTH widgets instead of routing through find_by_id (which would
-    // cast the first match to a possibly wrong type)
-    {
-        auto doc = column({
-            button("one").named("a").size(60, 20),
-            button("two").named("a").size(60, 20),
-        });
-        FlexPanel host;
-        host.set_size(100, 100);
-        std::vector<std::string> hits;
-        const int bound = build(host, doc,
-                                [&](const std::string &id) { hits.push_back(id); });
-        EXPECT(bound == 2);
-        host.layout();
+        // action binding rides materialization (code-contract §4, IM-BLD-001):
+        // each id binds the widget its own node created; a duplicate id binds
+        // BOTH widgets instead of routing through find_by_id (which would
+        // cast the first match to a possibly wrong type)
+        {
+            auto doc = column({
+                button("one").named("a").size(60, 20),
+                button("two").named("a").size(60, 20),
+            });
+            FlexPanel host;
+            host.set_size(100, 100);
+            std::vector<std::string> hits;
+            const int bound = build(host, doc,
+                                    [&](const std::string &id)
+                                    { hits.push_back(id); });
+            EXPECT(bound == 2);
+            host.layout();
 
-        InputDispatcher d;
-        d.dispatch(host, press_at(30, 10));
-        d.dispatch(host, release_at(30, 10));
-        d.dispatch(host, press_at(30, 30));
-        d.dispatch(host, release_at(30, 30));
-        EXPECT(hits.size() == 2);
-        EXPECT(hits[0] == "a" && hits[1] == "a");
-    }
-    {
-        // the wrong-type repro shape: a label and a button share one id.
-        // The label must stay untouched (no Button cast onto it), the
-        // button still gets its sink
-        auto doc = column({
-            label("x").named("a").size(60, 20),
-            button("y").named("a").size(60, 20),
-        });
-        FlexPanel host;
-        host.set_size(100, 100);
-        int fired = 0;
-        const int bound = build(host, doc, [&](const std::string &) { ++fired; });
-        EXPECT(bound == 1);
-        host.layout();
-        InputDispatcher d;
-        d.dispatch(host, press_at(30, 10));
-        d.dispatch(host, release_at(30, 10));
-        EXPECT(fired == 0);  // the label area: no action behind id "a"
-        d.dispatch(host, press_at(30, 30));
-        d.dispatch(host, release_at(30, 30));
-        EXPECT(fired == 1);  // the button: bound by its own node
-    }
+            InputDispatcher d;
+            d.dispatch(host, press_at(30, 10));
+            d.dispatch(host, release_at(30, 10));
+            d.dispatch(host, press_at(30, 30));
+            d.dispatch(host, release_at(30, 30));
+            EXPECT(hits.size() == 2);
+            EXPECT(hits[0] == "a" && hits[1] == "a");
+        }
+        {
+            // the wrong-type repro shape: a label and a button share one id.
+            // The label must stay untouched (no Button cast onto it), the
+            // button still gets its sink
+            auto doc = column({
+                label("x").named("a").size(60, 20),
+                button("y").named("a").size(60, 20),
+            });
+            FlexPanel host;
+            host.set_size(100, 100);
+            int fired = 0;
+            const int bound = build(host, doc, [&](const std::string &)
+                                    { ++fired; });
+            EXPECT(bound == 1);
+            host.layout();
+            InputDispatcher d;
+            d.dispatch(host, press_at(30, 10));
+            d.dispatch(host, release_at(30, 10));
+            EXPECT(fired == 0);  // the label area: no action behind id "a"
+            d.dispatch(host, press_at(30, 30));
+            d.dispatch(host, release_at(30, 30));
+            EXPECT(fired == 1);  // the button: bound by its own node
+        }
 
-    // materializes_widget mirrors materialize() (IM-BLD-002): a known tag
-    // under an unknown NON-root tag yields nothing, while an unknown ROOT
-    // tag's children still materialize into the host (the root tag is
-    // documentation)
-    {
-        ui_node table;
-        table.type = "table";
-        table.children.push_back(button("ok").named("ok"));
+        // materializes_widget mirrors materialize() (IM-BLD-002): a known tag
+        // under an unknown NON-root tag yields nothing, while an unknown ROOT
+        // tag's children still materialize into the host (the root tag is
+        // documentation)
+        {
+            ui_node table;
+            table.type = "table";
+            table.children.push_back(button("ok").named("ok"));
 
-        auto nested = column({ui_node(table)});
-        EXPECT(!materializes_widget(nested));
+            auto nested = column({ui_node(table)});
+            EXPECT(!materializes_widget(nested));
 
-        // the same tree rooted AT the unknown tag: materializes
-        EXPECT(materializes_widget(table));
-    }
+            // the same tree rooted AT the unknown tag: materializes
+            EXPECT(materializes_widget(table));
+        }
 
-    return test::report("builder");
+        return test::report("builder");
     }
 }

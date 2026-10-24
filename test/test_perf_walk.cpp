@@ -80,7 +80,7 @@ int test_perf_walk()
 
         // the keyboard hot path: collect focusable widgets + advance
         // (InputDispatcher::focus_next, the Tab/arrow entry)
-            const double focus = us_per_call(
+        const double focus = us_per_call(
             [&]
             {
                 InputDispatcher d;
@@ -89,7 +89,8 @@ int test_perf_walk()
             rounds_walk);
 
         const double draw = us_per_call(
-            [&] { r.root->draw(*r.surface); },
+            [&]
+            { r.root->draw(*r.surface); },
             rounds_draw);
 
         std::printf("perf: %4d | %12.1f | %18.1f | %13.1f\n",

@@ -9,11 +9,16 @@ using namespace zb::app::tictactoe;
 void TictactoeController::attach(TictactoeView &view)
 {
     view_ = &view;
-    view.difficulty_chosen = [this](const difficulty d) { choose_difficulty(d); };
-    view.side_chosen = [this](const player_type p) { begin_round(p); };
-    view.cell_clicked = [this](const int row, const int col) { on_cell_clicked(row, col); };
-    view.again_requested = [this]() { show_round_setup(); };
-    view.quit_requested = [this]() { quit_game(); };
+    view.difficulty_chosen = [this](const difficulty d)
+    { choose_difficulty(d); };
+    view.side_chosen = [this](const player_type p)
+    { begin_round(p); };
+    view.cell_clicked = [this](const int row, const int col)
+    { on_cell_clicked(row, col); };
+    view.again_requested = [this]()
+    { show_round_setup(); };
+    view.quit_requested = [this]()
+    { quit_game(); };
 }
 
 void TictactoeController::start()
@@ -38,7 +43,8 @@ void TictactoeController::choose_difficulty(const difficulty d)
 {
     difficulty_ = d;
     LD << "difficulty: "
-       << (d == difficulty::easy ? "easy" : d == difficulty::normal ? "normal" : "hard");
+       << (d == difficulty::easy ? "easy" : d == difficulty::normal ? "normal"
+                                                                    : "hard");
     show_side_dialog();
 }
 
@@ -113,8 +119,8 @@ void TictactoeController::finish_after_move()
     }
 
     result_msg_ = (winner == game_->get_human()) ? "YOU WIN"
-                  : (winner == player_type::none) ? "DRAW"
-                                                  : "COMPUTER WINS";
+                : (winner == player_type::none)  ? "DRAW"
+                                                 : "COMPUTER WINS";
     LD << "game over: " << result_msg_;
     view_->open_result_dialog(result_msg_);
 }

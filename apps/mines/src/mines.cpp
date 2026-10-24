@@ -27,15 +27,24 @@ namespace
     {
         switch (n)
         {
-        case 1: return core::Color::from(0x20, 0x50, 0xC0);
-        case 2: return core::Color::from(0x1B, 0x7A, 0x2E);
-        case 3: return core::Color::from(0xC0, 0x30, 0x28);
-        case 4: return core::Color::from(0x2A, 0x2A, 0x8A);
-        case 5: return core::Color::from(0x7A, 0x20, 0x20);
-        case 6: return core::Color::from(0x18, 0x6E, 0x6E);
-        case 7: return core::Color::from(0x30, 0x30, 0x30);
-        case 8: return core::Color::from(0x60, 0x60, 0x60);
-        default: return core::colors::Black;
+        case 1:
+            return core::Color::from(0x20, 0x50, 0xC0);
+        case 2:
+            return core::Color::from(0x1B, 0x7A, 0x2E);
+        case 3:
+            return core::Color::from(0xC0, 0x30, 0x28);
+        case 4:
+            return core::Color::from(0x2A, 0x2A, 0x8A);
+        case 5:
+            return core::Color::from(0x7A, 0x20, 0x20);
+        case 6:
+            return core::Color::from(0x18, 0x6E, 0x6E);
+        case 7:
+            return core::Color::from(0x30, 0x30, 0x30);
+        case 8:
+            return core::Color::from(0x60, 0x60, 0x60);
+        default:
+            return core::colors::Black;
         }
     }
 }
@@ -72,13 +81,21 @@ void MinesBoard::set_cell(const int row, const int col, const int cell)
     state_[row][col] = cell;
     Label &t = *tiles_[row][col];
     char buf[4] = "";
-    int fg = -1;   // -1: no text
+    int fg = -1;  // -1: no text
     switch (cell)
     {
-    case -2:  buf[0] = 'F'; break;                    // flag
-    case -3:  buf[0] = '*'; break;                    // mine
-    case -4:  buf[0] = 'X'; break;                    // wrong flag
-    case -5:  buf[0] = '*'; break;                    // boom
+    case -2:
+        buf[0] = 'F';
+        break;  // flag
+    case -3:
+        buf[0] = '*';
+        break;  // mine
+    case -4:
+        buf[0] = 'X';
+        break;  // wrong flag
+    case -5:
+        buf[0] = '*';
+        break;  // boom
     default:
         if (cell > 0)
         {
@@ -157,10 +174,10 @@ void Mines::create_window(const uint32_t max_client_width,
     // tier (kWidth x kHeight) must come out as the 9x9 / 14px field; both
     // derivations scale the design-minimum ratios (integer math, no
     // floats), taking the smaller of the width and height ratios.
-    const int sw = w * 192; // width ratio = w / 256 == w * 192 / 480
-    const int sh = h * 256; // height ratio = h / 192 == h * 256 / 480
-    const int num = sw <= sh ? w : h;          // numerator of min ratio
-    const int den = sw <= sh ? 256 : 192;      // denominator of min ratio
+    const int sw = w * 192;                // width ratio = w / 256 == w * 192 / 480
+    const int sh = h * 256;                // height ratio = h / 192 == h * 256 / 480
+    const int num = sw <= sh ? w : h;      // numerator of min ratio
+    const int den = sw <= sh ? 256 : 192;  // denominator of min ratio
     cell_ = clamp_i((kCell * num + den / 2) / den, kCell, kMaxCellPx);
     int cells = clamp_i((kMinCells * num + den / 2) / den, kMinCells, kMaxCells);
     // the square field must also fit the vertical budget under the header
@@ -196,7 +213,8 @@ void Mines::create_window(const uint32_t max_client_width,
     reset_btn->set_size(52 * u, 22 * u);
     reset_btn->set_position(w - 62 * u, 5 * u);
     reset_btn->set_font_size(7 * u);
-    reset_btn->clicked += [this] { new_game(); };
+    reset_btn->clicked += [this]
+    { new_game(); };
     root.add_child(std::move(reset_btn));
 
     auto board = std::make_unique<MinesBoard>(cols_, rows_, cell_, gap_);
@@ -214,10 +232,12 @@ void Mines::create_window(const uint32_t max_client_width,
     dlg->set_button_size(64 * u, 24 * u);
     auto &again = dlg->add_button("AGAIN");
     again.set_font_size(7 * u);
-    sub_again_ = again.clicked.subscribe([this] { new_game(); close_end_dialog(); });
+    sub_again_ = again.clicked.subscribe([this]
+                                         { new_game(); close_end_dialog(); });
     auto &quit = dlg->add_button("QUIT");
     quit.set_font_size(7 * u);
-    sub_quit_ = quit.clicked.subscribe([this] { if (window_) window_->close(); });
+    sub_quit_ = quit.clicked.subscribe([this]
+                                       { if (window_) window_->close(); });
     // Dialog::open() only flips visibility: the frame geometry is only
     // computed by layout(), so build-time layout is required (the
     // tictactoe/g2048 dialog shape)

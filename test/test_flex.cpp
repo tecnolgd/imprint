@@ -207,8 +207,8 @@ int test_flex()
         FlexPanel p;
         p.set_direction(FlexPanel::flex_direction::row);
         p.set_size(60, 100);
-        p.add_child(make_child(40, 10));        // line 1, 20 left over
-        p.add_child(make_child(40, 10));        // line 2, 20 left over
+        p.add_child(make_child(40, 10));  // line 1, 20 left over
+        p.add_child(make_child(40, 10));  // line 2, 20 left over
         p.add_child(make_child(20, 10), 1);
         p.set_wrap(true);
         p.layout();
@@ -583,7 +583,7 @@ int test_flex()
     {
         FlexPanel p;
         p.set_size(50, 100);
-        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, 30); // basis_px = 30
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, 30);  // basis_px = 30
         p.add_child(make_child(10, 10), 1);
         p.layout();
         const auto &c = p.get_items();
@@ -595,7 +595,7 @@ int test_flex()
     {
         FlexPanel p;
         p.set_size(50, 100);
-        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, -1, 50); // basis_pct = 50
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, -1, 50);  // basis_pct = 50
         p.add_child(make_child(10, 10), 1);
         p.layout();
         const auto &c = p.get_items();
@@ -607,9 +607,9 @@ int test_flex()
     {
         FlexPanel p;
         p.set_size(50, 100);
-        auto c1 = make_child(80, 10);  // explicit size 80
-        c1->set_height_percent(100);   // percent also 100
-        p.add_child(std::move(c1), 0, FlexPanel::self_align::auto_, 0, 30); // basis_px = 30
+        auto c1 = make_child(80, 10);                                        // explicit size 80
+        c1->set_height_percent(100);                                         // percent also 100
+        p.add_child(std::move(c1), 0, FlexPanel::self_align::auto_, 0, 30);  // basis_px = 30
         p.add_child(make_child(10, 10), 1);
         p.layout();
         const auto &c = p.get_items();
@@ -621,8 +621,8 @@ int test_flex()
     {
         FlexPanel p;
         p.set_size(50, 100);
-        p.add_child(make_child(10, 60), 0, FlexPanel::self_align::auto_, 1); // claim 60, shrink 1
-        p.add_child(make_child(10, 60), 0, FlexPanel::self_align::auto_, 2); // claim 60, shrink 2
+        p.add_child(make_child(10, 60), 0, FlexPanel::self_align::auto_, 1);  // claim 60, shrink 1
+        p.add_child(make_child(10, 60), 0, FlexPanel::self_align::auto_, 2);  // claim 60, shrink 2
         p.layout();
         const auto &c = p.get_items();
         // total claim = 120, deficit = 20
@@ -630,7 +630,7 @@ int test_flex()
         // cuts: 20*60/180=6, remainder 20-6=14 to the last participant
         // final: 60-6=54, 60-14=46
         EXPECT(c[0].child->get_size().height == 54);
-        EXPECT(c[1].child->get_size().height == 46); // 100 - 54
+        EXPECT(c[1].child->get_size().height == 46);  // 100 - 54
     }
 
     // H-7c flex-shrink: no shrink weight = historical overflow
@@ -711,8 +711,8 @@ int test_flex()
     {
         FlexPanel p;
         p.set_size(50, 100);
-        p.add_child(make_child(10, 40), 0, FlexPanel::self_align::auto_, 1); // claim 40, shrink 1
-        p.add_child(make_child(10, 0), 1); // grower, no basis -> claim 0
+        p.add_child(make_child(10, 40), 0, FlexPanel::self_align::auto_, 1);  // claim 40, shrink 1
+        p.add_child(make_child(10, 0), 1);                                    // grower, no basis -> claim 0
         p.layout();
         const auto &c = p.get_items();
         // total claim = 40, deficit = -60 (surplus 60)
@@ -727,12 +727,12 @@ int test_flex()
         p.set_direction(FlexPanel::flex_direction::row);
         p.set_padding(5);
         p.set_spacing(5);
-        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, 30); // basis_px = 30
-        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, -1, 50); // basis_pct = 50
-        p.add_child(make_child(10, 10), 1); // flex grow
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, 30);      // basis_px = 30
+        p.add_child(make_child(10, 10), 0, FlexPanel::self_align::auto_, 0, -1, 50);  // basis_pct = 50
+        p.add_child(make_child(10, 10), 1);                                           // flex grow
         // measure: 30 (px basis) + 0 (% basis) + 5 (spacing) + 5 (spacing) + 10 (padding*2) = 50
         // Wait, let's verify: main axis is row (width), so measure().width
-        EXPECT(p.measure().width == 50); // 30 + 0 + 5 + 5 + 10 = 50
+        EXPECT(p.measure().width == 50);  // 30 + 0 + 5 + 5 + 10 = 50
     }
 
     // H-1: a wrapping child under stretch is assigned the container's
@@ -740,7 +740,8 @@ int test_flex()
     // width -- so a paragraph wraps at the box; convergence across the
     // stepped relayouts reads the wrapped height on the next round
     {
-        auto mkpara = []() {
+        auto mkpara = []()
+        {
             auto l = std::make_unique<ProbeLabel>();
             l->set_text("one two three four five six seven eight nine ten");
             l->set_text_wrap(true);
@@ -766,7 +767,7 @@ int test_flex()
         EXPECT(para->wrap_spans(para->get_size().width).size() > 1);
         EXPECT(c[1].child->get_position().x == 10);
 
-        ProbeLabel *dmd = mkpara().release();        // identical, but no wrap
+        ProbeLabel *dmd = mkpara().release();  // identical, but no wrap
         dmd->set_text_wrap(false);
         ProbeLabel &demand = *dmd;
         FlexPanel q;
@@ -876,7 +877,8 @@ int test_flex()
                 return {mw, mh};
             }
         };
-        const auto box = [](const int w, const int h) {
+        const auto box = [](const int w, const int h)
+        {
             auto c = std::make_unique<MeasureBox>();
             c->mw = w;
             c->mh = h;

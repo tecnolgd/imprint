@@ -17,8 +17,8 @@ namespace zb::ui
     {
         uint32_t image_width;
         uint32_t image_height;
-        uint32_t row_stride;       // bytes number of one row
-        uint32_t color_components; // color channel number
+        uint32_t row_stride;        // bytes number of one row
+        uint32_t color_components;  // color channel number
     } image_info;
 
     /*

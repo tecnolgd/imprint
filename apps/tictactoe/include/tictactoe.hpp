@@ -51,4 +51,4 @@ namespace zb::app::tictactoe
     };
 }
 
-#endif // TICTACTOE_HPP
+#endif  // TICTACTOE_HPP

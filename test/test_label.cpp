@@ -72,8 +72,10 @@ int test_label()
     // background image: blitted at the widget origin, clipped to the area
     {
         const core::Color img_pixels[] = {
-            core::Color::from(255, 0, 0), core::Color::from(255, 0, 0),
-            core::Color::from(255, 0, 0), core::Color::from(255, 0, 0),
+            core::Color::from(255, 0, 0),
+            core::Color::from(255, 0, 0),
+            core::Color::from(255, 0, 0),
+            core::Color::from(255, 0, 0),
         };
         const core::image_t img{img_pixels, 2, 2, 0};
 
@@ -93,8 +95,10 @@ int test_label()
     // image wins over the background color
     {
         const core::Color img_pixels[] = {
-            core::Color::from(0, 0, 255), core::Color::from(0, 0, 255),
-            core::Color::from(0, 0, 255), core::Color::from(0, 0, 255),
+            core::Color::from(0, 0, 255),
+            core::Color::from(0, 0, 255),
+            core::Color::from(0, 0, 255),
+            core::Color::from(0, 0, 255),
         };
         const core::image_t img{img_pixels, 2, 2, 0};
 

@@ -36,15 +36,17 @@ private:
     zb::ui::core::panel_format panel = zb::ui::core::panel_format::native;
 
     // zero-initialized: every init() failure path leaves them sane
-    int screen_width = 0;   // screen width
-    int screen_height = 0;  // screen height
+    int screen_width = 0;     // screen width
+    int screen_height = 0;    // screen height
     int screen_line_len = 0;  // screen width in bytes
     int bits_per_pixel = 0;
     int bytes_per_pixel = 0;
     size_t screen_mem_len = 0;
-    struct fb_var_screeninfo bk_vinfo {};
+    struct fb_var_screeninfo bk_vinfo
+    {
+    };
     int ffb = -1;
     char *buf = nullptr;
 };
 
-#endif // IMSHELL_LINUX_FB_HPP
+#endif  // IMSHELL_LINUX_FB_HPP

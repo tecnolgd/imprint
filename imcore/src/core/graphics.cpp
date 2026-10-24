@@ -119,9 +119,9 @@ namespace
             // model500 knob rim's speckle; the browser's background-clip
             // paints the face anti-aliased to the border-box edge)
             s.fl = Graphics::rounded_overlap255(left, top, right, bottom, r,
-                                               s.lx - 1, row);
+                                                s.lx - 1, row);
             s.fr = Graphics::rounded_overlap255(left, top, right, bottom, r,
-                                               s.rx + 1, row);
+                                                s.rx + 1, row);
         }
         return s;
     }
@@ -194,7 +194,8 @@ namespace
     struct ArcSinLut
     {
         int16_t q[91];
-        constexpr ArcSinLut() : q{}
+        constexpr ArcSinLut()
+            : q{}
         {
             for (int i = 0; i <= 90; ++i)
             {
@@ -211,13 +212,20 @@ namespace
         const int r = d % 90;
         switch (quad)
         {
-        case 0: return kArcSinLut.q[r];
-        case 1: return kArcSinLut.q[90 - r];
-        case 2: return -kArcSinLut.q[r];
-        default: return -kArcSinLut.q[90 - r];
+        case 0:
+            return kArcSinLut.q[r];
+        case 1:
+            return kArcSinLut.q[90 - r];
+        case 2:
+            return -kArcSinLut.q[r];
+        default:
+            return -kArcSinLut.q[90 - r];
         }
     }
-    inline int arc_cos_q(const int deg) { return arc_sin_q(norm_deg(90 - deg)); }
+    inline int arc_cos_q(const int deg)
+    {
+        return arc_sin_q(norm_deg(90 - deg));
+    }
 #endif
 
     /*
@@ -369,8 +377,8 @@ int Graphics::rounded_overlap255(const int left, const int top, const int right,
             const int X = px * 256 + sx * SUBQ + SUBQ / 2;
             const int qx = std::abs(X - cx256) - ex256;
             if (qx <= 0 || qy <= 0
-                ? std::max(qx, qy) <= rr256
-                : 1LL * qx * qx + 1LL * qy * qy <= 1LL * rr256 * rr256)
+                    ? std::max(qx, qy) <= rr256
+                    : 1LL * qx * qx + 1LL * qy * qy <= 1LL * rr256 * rr256)
             {
                 ++inside;
             }
@@ -380,13 +388,7 @@ int Graphics::rounded_overlap255(const int left, const int top, const int right,
 }
 
 Graphics::Graphics(uint32_t width, uint32_t height, void *data)
-    : pixels{nullptr}
-    , is_wrapper_mode{false}
-    , alpha_enabled{false}
-    , draw_area_offset_enabled{false}
-    , draw_area_offset{0, 0}
-    , imsize{static_cast<int>(width), static_cast<int>(height)}
-    , draw_area{0, 0, static_cast<int>(width) - 1, static_cast<int>(height) - 1}
+    : pixels{nullptr}, is_wrapper_mode{false}, alpha_enabled{false}, draw_area_offset_enabled{false}, draw_area_offset{0, 0}, imsize{static_cast<int>(width), static_cast<int>(height)}, draw_area{0, 0, static_cast<int>(width) - 1, static_cast<int>(height) - 1}
 {
     // init-path validation (contract §1): the pixel index math is
     // int-based, so the pixel count must fit in one; the product is
@@ -488,9 +490,9 @@ Graphics::ClipGuard Graphics::clip_safe(int x, int y, int32_t width, int32_t hei
     // above is already int-bounded, so only the stored origin narrows
     draw_area_offset = {
         static_cast<int>(std::clamp(ax, static_cast<int64_t>(INT32_MIN),
-                                   static_cast<int64_t>(INT32_MAX))),
+                                    static_cast<int64_t>(INT32_MAX))),
         static_cast<int>(std::clamp(ay, static_cast<int64_t>(INT32_MIN),
-                                   static_cast<int64_t>(INT32_MAX)))};
+                                    static_cast<int64_t>(INT32_MAX)))};
     return ClipGuard(*this, saved_area, saved_offset_enabled, saved_offset, true);
 }
 
@@ -590,12 +592,12 @@ bool Graphics::blit_rect_intersect(const int64_t sx, const int64_t sy,
 }
 
 void Graphics::draw_image(
-    const Color *img,          // bitmap buffer pointer
-    int img_width,      // bitmap widht
-    int img_height,     // bitmap height
-    int img_row_stride, // pixel amount in one row
-    int start_x,        // x coordinate in the graphic where starting to draw bitmap
-    int start_y         // y coordinate in the graphic where starting to draw bitmap
+    const Color *img,    // bitmap buffer pointer
+    int img_width,       // bitmap widht
+    int img_height,      // bitmap height
+    int img_row_stride,  // pixel amount in one row
+    int start_x,         // x coordinate in the graphic where starting to draw bitmap
+    int start_y          // y coordinate in the graphic where starting to draw bitmap
 )
 {
     // malformed view (rows would overlap, or no pixels): refuse to draw
@@ -1029,7 +1031,7 @@ void Graphics::fill_span_blend(int x1, int x2, int y, const Color &colr)
     const uint32_t alpha = colr.a();
     if (alpha == 0)
     {
-        return; // alpha_blend returns the backdrop untouched
+        return;  // alpha_blend returns the backdrop untouched
     }
     const uint32_t inv_alpha = 0xFF - alpha;
     const uint32_t fr = colr.r(), fg = colr.g(), fb = colr.b();
@@ -1667,8 +1669,8 @@ void Graphics::draw_round_rect_aa(int x1, int y1, int x2, int y2, int radius,
             // across a column (the knob rim's speckle gaps and column
             // jitter), while the box-filtered indicator conserves the
             // ring's mass through the curve.
-            constexpr int SUB = 8;              // 8x8 subsamples per pixel
-            constexpr int SUBQ = 256 / SUB;     // sub-cell in the 256 grid
+            constexpr int SUB = 8;           // 8x8 subsamples per pixel
+            constexpr int SUBQ = 256 / SUB;  // sub-cell in the 256 grid
             const int w256 = (right - left + 1) * 128;
             const int h256 = (bottom - top + 1) * 128;
             const int rr256 = r * 256;
@@ -1752,10 +1754,10 @@ void Graphics::draw_round_rect_aa(int x1, int y1, int x2, int y2, int radius,
         draw_line_aa(left, top + r + 1, left, bottom - r - 1, colr);
         draw_line_aa(right, top + r + 1, right, bottom - r - 1, colr);
     }
-    draw_arc_aa(left + r, top + r, r, 180, 90, colr);      // TL: west -> north
-    draw_arc_aa(right - r, top + r, r, 270, 90, colr);     // TR: north -> east
-    draw_arc_aa(right - r, bottom - r, r, 0, 90, colr);    // BR: east -> south
-    draw_arc_aa(left + r, bottom - r, r, 90, 90, colr);    // BL: south -> west
+    draw_arc_aa(left + r, top + r, r, 180, 90, colr);    // TL: west -> north
+    draw_arc_aa(right - r, top + r, r, 270, 90, colr);   // TR: north -> east
+    draw_arc_aa(right - r, bottom - r, r, 0, 90, colr);  // BR: east -> south
+    draw_arc_aa(left + r, bottom - r, r, 90, 90, colr);  // BL: south -> west
 }
 
 void Graphics::fill_round_rect_aa(int x1, int y1, int x2, int y2, int radius,
@@ -2031,7 +2033,8 @@ void Graphics::fill_gradient(int x1, int y1, int x2, int y2, const Color &from, 
 
     // fractional chord edge (the fill_round_rect_aa formula): the two
     // pixels just outside the span blend by coverage
-    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr) {
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr)
+    {
         if (fl > 0)
         {
             plot_aa(lx - 1, row, fl, lc);
@@ -2045,7 +2048,8 @@ void Graphics::fill_gradient(int x1, int y1, int x2, int y2, const Color &from, 
     if (horizontal)
     {
         const int steps = right - left;
-        auto col_color = [&](const int col) {
+        auto col_color = [&](const int col)
+        {
             return steps == 0 ? from : lerp_color(from, to, col - left, steps);
         };
         if (r == 0)
@@ -2126,7 +2130,8 @@ void Graphics::fill_radial(int x1, int y1, int x2, int y2, const int cx, const i
     const int rad = static_cast<int>(isqrt_floor(rad2));
     const int span = to_p - from_p;
 
-    auto shade = [&](const int x, const int y) {
+    auto shade = [&](const int x, const int y)
+    {
         if (rad <= 0)
         {
             return from;
@@ -2163,7 +2168,7 @@ void Graphics::fill_radial(int x1, int y1, int x2, int y2, const int cx, const i
 }
 
 void Graphics::fill_conic(int x1, int y1, int x2, int y2, int from_deg, const int *stop_deg,
-                           const Color *stop_col, int nstops, int radius)
+                          const Color *stop_col, int nstops, int radius)
 {
     const int left = x1 < x2 ? x1 : x2;
     const int right = x1 < x2 ? x2 : x1;
@@ -2196,7 +2201,8 @@ void Graphics::fill_conic(int x1, int y1, int x2, int y2, int from_deg, const in
         from += 360;
     }
 
-    auto shade = [&](const int x, const int y) {
+    auto shade = [&](const int x, const int y)
+    {
         int t = conic_theta(2 * x + 1 - c2x, 2 * y + 1 - c2y) - from;
         t %= 360;
         if (t < 0)
@@ -2244,7 +2250,7 @@ void Graphics::fill_conic(int x1, int y1, int x2, int y2, int from_deg, const in
 }
 
 void Graphics::fill_gradient3(int x1, int y1, int x2, int y2, const Color &from, const Color &mid, int mid_p,
-                               const Color &to, const bool horizontal, const int radius)
+                              const Color &to, const bool horizontal, const int radius)
 {
     if (render_mode_ == render_mode::wireframe)
     {
@@ -2261,7 +2267,8 @@ void Graphics::fill_gradient3(int x1, int y1, int x2, int y2, const Color &from,
 
     // two straight segments meeting exactly at mid (integer grid:
     // the mid column/row reads mid on both sides)
-    auto ramp = [&](const int t, const int steps) {
+    auto ramp = [&](const int t, const int steps)
+    {
         if (steps <= 0)
         {
             return from;
@@ -2282,7 +2289,8 @@ void Graphics::fill_gradient3(int x1, int y1, int x2, int y2, const Color &from,
         return lerp_color(mid, to, t - t_mid, steps - t_mid);
     };
 
-    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr) {
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr)
+    {
         if (fl > 0)
         {
             plot_aa(lx - 1, row, fl, lc);
@@ -2296,7 +2304,8 @@ void Graphics::fill_gradient3(int x1, int y1, int x2, int y2, const Color &from,
     if (horizontal)
     {
         const int steps = right - left;
-        auto col_color = [&](const int col) { return ramp(col - left, steps); };
+        auto col_color = [&](const int col)
+        { return ramp(col - left, steps); };
         if (r == 0)
         {
             for (int col = left; col <= right; ++col)
@@ -2338,14 +2347,12 @@ void Graphics::fill_gradient3(int x1, int y1, int x2, int y2, const Color &from,
 }
 
 void Graphics::fill_linear_stops(int x1, int y1, int x2, int y2, const int *stop_pos,
-                                   const Color *stop_col, int nstops, const bool horizontal,
-                                   const int radius)
+                                 const Color *stop_col, int nstops, const bool horizontal,
+                                 const int radius)
 {
     if (render_mode_ == render_mode::wireframe)
     {
-        draw_rect(x1, y1, x2, y2, (nstops > 0 && stop_col != nullptr)
-                                      ? stop_col[0]
-                                      : Color{});  // S-1: bones only
+        draw_rect(x1, y1, x2, y2, (nstops > 0 && stop_col != nullptr) ? stop_col[0] : Color{});  // S-1: bones only
         return;
     }
     if (stop_pos == nullptr || stop_col == nullptr || nstops < 2)
@@ -2363,7 +2370,8 @@ void Graphics::fill_linear_stops(int x1, int y1, int x2, int y2, const int *stop
     // N-stop ramp over percent positions (non-decreasing by contract):
     // the last stop at or below t owns the pixel, zero-length spans
     // read flat (the conic segment rule)
-    auto ramp = [&](const int t, const int steps) {
+    auto ramp = [&](const int t, const int steps)
+    {
         if (steps <= 0)
         {
             return stop_col[0];
@@ -2391,7 +2399,8 @@ void Graphics::fill_linear_stops(int x1, int y1, int x2, int y2, const int *stop
 
     // fractional chord edge (the fill_round_rect_aa formula): the two
     // pixels just outside the span blend by coverage
-    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr) {
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr)
+    {
         if (fl > 0)
         {
             plot_aa(lx - 1, row, fl, lc);
@@ -2447,8 +2456,9 @@ void Graphics::fill_linear_stops(int x1, int y1, int x2, int y2, const int *stop
 }
 
 void Graphics::fill_repeating(int x1, int y1, int x2, int y2, const bool horizontal, const int period,
-                               const int *stop_pos, const Color *stop_col, int nstops, const int radius)
-{    if (stop_pos == nullptr || stop_col == nullptr || nstops < 2)
+                              const int *stop_pos, const Color *stop_col, int nstops, const int radius)
+{
+    if (stop_pos == nullptr || stop_col == nullptr || nstops < 2)
     {
         return;
     }
@@ -2472,7 +2482,8 @@ void Graphics::fill_repeating(int x1, int y1, int x2, int y2, const bool horizon
 
     int r = inscribed_radius(right - left + 1, bottom - top + 1, radius);
 
-    auto stripe = [&](const int t) {
+    auto stripe = [&](const int t)
+    {
         int m = t % period;
         if (m < 0)
         {
@@ -2544,7 +2555,8 @@ void Graphics::fill_repeating(int x1, int y1, int x2, int y2, const bool horizon
         }
         return;
     }
-    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr) {
+    auto fringe = [&](const int lx, const int rx, const int row, const Color &lc, const Color &rc, const int fl, const int fr)
+    {
         if (fl > 0)
         {
             plot_aa(lx - 1, row, fl, lc);
@@ -2750,7 +2762,8 @@ void Graphics::draw_arc_aa(int cx, int cy, int radius, int start_deg, int sweep_
             // phi = theta - 90 (east: 90 -> 0; south: 180 -> 90).
             // (The mirrored form here used to swap north/south,
             // dropping the tangent pixel at the top of round rects.)
-            const auto inside = [&](const int dx, const int dy) {
+            const auto inside = [&](const int dx, const int dy)
+            {
                 const int phi = norm_deg(conic_theta(dx, dy) - 90);
                 if (dir > 0)
                 {
@@ -2759,14 +2772,16 @@ void Graphics::draw_arc_aa(int cx, int cy, int radius, int start_deg, int sweep_
                 return norm_deg(from - phi) <= sweep;
             };
             const auto put = [&](const int dx, const int dy,
-                                 const int cov) {
+                                 const int cov)
+            {
                 if (inside(dx, dy))
                 {
                     plot_aa(cx + dx, cy + dy, cov, colr);
                 }
             };
             const auto mirror = [&](const int x, const int y,
-                                    const int cov) {
+                                    const int cov)
+            {
                 if (cov <= 0)
                 {
                     return;
@@ -2796,7 +2811,8 @@ void Graphics::draw_arc_aa(int cx, int cy, int radius, int start_deg, int sweep_
                 const int64_t rem = t - 1LL * major * major;
                 const int frac8 =
                     static_cast<int>(rem * 255 / (2LL * major + 1));
-                const auto octants = [&](const int edge, const int cov) {
+                const auto octants = [&](const int edge, const int cov)
+                {
                     if (minor <= edge)
                     {
                         mirror(minor, edge, cov);
@@ -3028,4 +3044,4 @@ void Graphics::fill_ellipse(int cx, int cy, int rx, int ry, const Color &colr)
         draw_line(cx - dx, cy + y, cx + dx, cy + y, colr);
     }
 #endif
-}
+}

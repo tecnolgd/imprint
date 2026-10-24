@@ -13,238 +13,240 @@ using namespace zb::app;
 
 namespace
 {
-	// sends a key event; A confirms (enter), B is space. Both edges
-	// travel (U-1): the shell reports key_down from keysDown() and
-	// key_up from keysUp() so a host can pair them (the dispatcher
-	// itself ignores key_up today)
-	void send_key(const zb::SharedPtr<IApp> &app, const input_type t,
-				  const key_code k)
-	{
-		input_event ev;
-		ev.type = t;
-		ev.key = static_cast<int>(k);
-		app->input(ev);
-	}
+    // sends a key event; A confirms (enter), B is space. Both edges
+    // travel (U-1): the shell reports key_down from keysDown() and
+    // key_up from keysUp() so a host can pair them (the dispatcher
+    // itself ignores key_up today)
+    void send_key(const zb::SharedPtr<IApp> &app, const input_type t,
+                  const key_code k)
+    {
+        input_event ev;
+        ev.type = t;
+        ev.key = static_cast<int>(k);
+        app->input(ev);
+    }
 
-	void send_key(const zb::SharedPtr<IApp> &app, const key_code k)
-	{
-		send_key(app, input_type::key_down, k);
-	}
+    void send_key(const zb::SharedPtr<IApp> &app, const key_code k)
+    {
+        send_key(app, input_type::key_down, k);
+    }
 
-	/*
+    /*
 	 * Maps the touch screen to touch_down/touch_up/touch_move events.
 	 * touch_move is only sent while the position changes (the dispatcher
 	 * uses it to cancel a press that left its widget).
 	 * The NDS panel has a single touch point: touch_id is always 0.
 	 * Returns true when an event was produced.
 	 */
-	bool handle_touch(const zb::SharedPtr<IApp> &app, bool &touch_pressed, int &last_x, int &last_y)
-	{
-		const bool down = (keysHeld() & KEY_TOUCH) != 0;
-		constexpr int touch_id = 0;
+    bool handle_touch(const zb::SharedPtr<IApp> &app, bool &touch_pressed, int &last_x, int &last_y)
+    {
+        const bool down = (keysHeld() & KEY_TOUCH) != 0;
+        constexpr int touch_id = 0;
 
-		if (down && !touch_pressed)
-		{
-			touchPosition touch;
-			touchRead(&touch);
-			touch_pressed = true;
-			last_x = touch.px;
-			last_y = touch.py;
+        if (down && !touch_pressed)
+        {
+            touchPosition touch;
+            touchRead(&touch);
+            touch_pressed = true;
+            last_x = touch.px;
+            last_y = touch.py;
 
-			input_event ev;
-			ev.type = input_type::touch_down;
-			ev.x = last_x;
-			ev.y = last_y;
-			ev.touch_id = touch_id;
-			LD << "touch_down " << ev.x << "," << ev.y;
-			app->input(ev);
-			return true;
-		}
+            input_event ev;
+            ev.type = input_type::touch_down;
+            ev.x = last_x;
+            ev.y = last_y;
+            ev.touch_id = touch_id;
+            LD << "touch_down " << ev.x << "," << ev.y;
+            app->input(ev);
+            return true;
+        }
 
-		if (!down && touch_pressed)
-		{
-			touch_pressed = false;
+        if (!down && touch_pressed)
+        {
+            touch_pressed = false;
 
-			input_event ev;
-			ev.type = input_type::touch_up;
-			ev.x = last_x;
-			ev.y = last_y;
-			ev.touch_id = touch_id;
-			LD << "touch_up " << ev.x << "," << ev.y;
-			app->input(ev);
-			return true;
-		}
+            input_event ev;
+            ev.type = input_type::touch_up;
+            ev.x = last_x;
+            ev.y = last_y;
+            ev.touch_id = touch_id;
+            LD << "touch_up " << ev.x << "," << ev.y;
+            app->input(ev);
+            return true;
+        }
 
-		if (down)
-		{
-			touchPosition touch;
-			touchRead(&touch);
-			if (touch.px != last_x || touch.py != last_y)
-			{
-				last_x = touch.px;
-				last_y = touch.py;
+        if (down)
+        {
+            touchPosition touch;
+            touchRead(&touch);
+            if (touch.px != last_x || touch.py != last_y)
+            {
+                last_x = touch.px;
+                last_y = touch.py;
 
-				input_event ev;
-				ev.type = input_type::touch_move;
-				ev.x = last_x;
-				ev.y = last_y;
-				ev.touch_id = touch_id;
-				LD << "touch_move " << ev.x << "," << ev.y;
-				app->input(ev);
-				return true;
-			}
-		}
-		return false;
-	}
+                input_event ev;
+                ev.type = input_type::touch_move;
+                ev.x = last_x;
+                ev.y = last_y;
+                ev.touch_id = touch_id;
+                LD << "touch_move " << ev.x << "," << ev.y;
+                app->input(ev);
+                return true;
+            }
+        }
+        return false;
+    }
 
-	// maps the d-pad to focus movement and A/B to activation
-	/*
+    // maps the d-pad to focus movement and A/B to activation
+    /*
 	 * Maps the NDS buttons to navigation keys. The hardware has no
 	 * keyboard: there is no character source on this shell (B2), so
 	 * input_event::ch stays 0 here.
 	 */
-	bool handle_keys(const zb::SharedPtr<IApp> &app)
-	{
-		const u32 down = keysDown();
-		const u32 relevant = KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT | KEY_A | KEY_B;
-		if ((down & relevant) == 0 && (keysUp() & relevant) == 0)
-		{
-			return false;
-		}
+    bool handle_keys(const zb::SharedPtr<IApp> &app)
+    {
+        const u32 down = keysDown();
+        const u32 relevant = KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT | KEY_A | KEY_B;
+        if ((down & relevant) == 0 && (keysUp() & relevant) == 0)
+        {
+            return false;
+        }
 
-		if (down & KEY_UP)
-			send_key(app, key_code::up);
-		if (down & KEY_DOWN)
-			send_key(app, key_code::down);
-		if (down & KEY_LEFT)
-			send_key(app, key_code::left);
-		if (down & KEY_RIGHT)
-			send_key(app, key_code::right);
-		if (down & KEY_A)
-			send_key(app, key_code::enter);
-		if (down & KEY_B)
-			send_key(app, key_code::space);
+        if (down & KEY_UP)
+            send_key(app, key_code::up);
+        if (down & KEY_DOWN)
+            send_key(app, key_code::down);
+        if (down & KEY_LEFT)
+            send_key(app, key_code::left);
+        if (down & KEY_RIGHT)
+            send_key(app, key_code::right);
+        if (down & KEY_A)
+            send_key(app, key_code::enter);
+        if (down & KEY_B)
+            send_key(app, key_code::space);
 
-		const u32 up = keysUp();
-		if (up & KEY_UP)
-			send_key(app, input_type::key_up, key_code::up);
-		if (up & KEY_DOWN)
-			send_key(app, input_type::key_up, key_code::down);
-		if (up & KEY_LEFT)
-			send_key(app, input_type::key_up, key_code::left);
-		if (up & KEY_RIGHT)
-			send_key(app, input_type::key_up, key_code::right);
-		if (up & KEY_A)
-			send_key(app, input_type::key_up, key_code::enter);
-		if (up & KEY_B)
-			send_key(app, input_type::key_up, key_code::space);
-		return true;
-	}
+        const u32 up = keysUp();
+        if (up & KEY_UP)
+            send_key(app, input_type::key_up, key_code::up);
+        if (up & KEY_DOWN)
+            send_key(app, input_type::key_up, key_code::down);
+        if (up & KEY_LEFT)
+            send_key(app, input_type::key_up, key_code::left);
+        if (up & KEY_RIGHT)
+            send_key(app, input_type::key_up, key_code::right);
+        if (up & KEY_A)
+            send_key(app, input_type::key_up, key_code::enter);
+        if (up & KEY_B)
+            send_key(app, input_type::key_up, key_code::space);
+        return true;
+    }
 
-	// the firmware body (code-contract §11.3); main wraps it in
-	// zb::shell::guarded_main (X-5)
-	int run_firmware()
-	{
-		// console logs must appear immediately: newlib's stdout is fully
-		// buffered by default, which would burst the log lines in batches
-		std::setvbuf(stdout, nullptr, _IONBF, 0);
+    // the firmware body (code-contract §11.3); main wraps it in
+    // zb::shell::guarded_main (X-5)
+    int run_firmware()
+    {
+        // console logs must appear immediately: newlib's stdout is fully
+        // buffered by default, which would burst the log lines in batches
+        std::setvbuf(stdout, nullptr, _IONBF, 0);
 
-		zb::Logging::set_log_handle(
-			[](const zb::Logging_Level &, const std::string &message)
-			{
-				printlog(message.c_str());
-			});
-		initSubVideoConsole();
-		initFrameBuffer();
-		lcdMainOnBottom(); // use lcdMainOnTop() or lcdSwap() to set screen. default main screen is the top one.
-		clearscreen();     // start with a clean log screen
+        zb::Logging::set_log_handle(
+            [](const zb::Logging_Level &, const std::string &message)
+            {
+                printlog(message.c_str());
+            });
+        initSubVideoConsole();
+        initFrameBuffer();
+        lcdMainOnBottom();  // use lcdMainOnTop() or lcdSwap() to set screen. default main screen is the top one.
+        clearscreen();      // start with a clean log screen
 
-		// double buffering: the app draws into an internal buffer, and the
-		// completed frame is copied to VRAM_A with DMA during the vblank.
-		// Drawing directly into VRAM would race with the LCD scanout and
-		// flicker. The framebuffer pixel format (XBBBBBGGGGGRRRRR) matches
-		// COLOR_DEPTH=16 abgr1555.
-		auto app = zb::app::make_app();
-		app->create_window(256, 192);
+        // double buffering: the app draws into an internal buffer, and the
+        // completed frame is copied to VRAM_A with DMA during the vblank.
+        // Drawing directly into VRAM would race with the LCD scanout and
+        // flicker. The framebuffer pixel format (XBBBBBGGGGGRRRRR) matches
+        // COLOR_DEPTH=16 abgr1555.
+        auto app = zb::app::make_app();
+        app->create_window(256, 192);
 
-		const auto window = app->window();
-		const void *back_buffer = window->data();
-		void *screen = FRAME_BUFFER;
+        const auto window = app->window();
+        const void *back_buffer = window->data();
+        void *screen = FRAME_BUFFER;
 
-		// the app requests to quit by closing its window (e.g. a QUIT button)
-		bool app_closed = false;
-		// held for the loop's lifetime (code-contract §11.1: the RAII
-		// subscription must outlive the handler's usefulness)
-		const auto closed_sub = app->on_closed([&app_closed]() { app_closed = true; });
+        // the app requests to quit by closing its window (e.g. a QUIT button)
+        bool app_closed = false;
+        // held for the loop's lifetime (code-contract §11.1: the RAII
+        // subscription must outlive the handler's usefulness)
+        const auto closed_sub = app->on_closed([&app_closed]()
+                                               { app_closed = true; });
 
-		// a submitted frame (painted event) is copied to VRAM during the next
-		// vblank; idle frames are skipped via is_dirty()
-		bool frame_owed = false;
-		const auto painted_sub = app->on_painted([&frame_owed](const void *) { frame_owed = true; });
+        // a submitted frame (painted event) is copied to VRAM during the next
+        // vblank; idle frames are skipped via is_dirty()
+        bool frame_owed = false;
+        const auto painted_sub = app->on_painted([&frame_owed](const void *)
+                                                 { frame_owed = true; });
 
-		app->paint(); // render the first frame (marks frame_owed)
+        app->paint();  // render the first frame (marks frame_owed)
 
-		bool touch_pressed = false;
-		int last_x = 0;
-		int last_y = 0;
+        bool touch_pressed = false;
+        int last_x = 0;
+        int last_y = 0;
 
-		// frame loop: the shell owns the loop; the app repaints on input and
-		// the shell paints idle frames only when the app owes one (see IApp
-		// rendering loop protocol + is_dirty)
-		while (!app_closed)
-		{
-			swiWaitForVBlank();
+        // frame loop: the shell owns the loop; the app repaints on input and
+        // the shell paints idle frames only when the app owes one (see IApp
+        // rendering loop protocol + is_dirty)
+        while (!app_closed)
+        {
+            swiWaitForVBlank();
 
-			if (frame_owed)
-			{
-				// A-2: present the reported dirty region, not always the
-				// full frame; idle frames already skip via frame_owed, and a
-				// clamped region keeps the DMA source inside the buffer
-				int x = 0, y = 0, w = 0, h = 0;
-				const bool dirty = app->dirty_region(x, y, w, h);
-				const zb::shell::present_rect r =
-					zb::shell::region_to_present(dirty, x, y, w, h, 256, 192);
-				if (r.w > 0 && r.h > 0)
-				{
-					if (r.x == 0 && r.y == 0 && r.w == 256 && r.h == 192)
-					{
-						dmaCopy(back_buffer, screen, 256 * 192 * sizeof(uint16_t));
-					}
-					else
-					{
-						// row-at-a-time: DMA is contiguous, a sub-rect is not
-						const auto *src = static_cast<const uint16_t *>(back_buffer);
-						auto *dst = static_cast<uint16_t *>(screen);
-						for (int row = r.y; row < r.y + r.h; ++row)
-						{
-							dmaCopy(src + row * 256 + r.x,
-									dst + row * 256 + r.x,
-									static_cast<size_t>(r.w) * sizeof(uint16_t));
-						}
-					}
-				}
-				frame_owed = false;
-			}
+            if (frame_owed)
+            {
+                // A-2: present the reported dirty region, not always the
+                // full frame; idle frames already skip via frame_owed, and a
+                // clamped region keeps the DMA source inside the buffer
+                int x = 0, y = 0, w = 0, h = 0;
+                const bool dirty = app->dirty_region(x, y, w, h);
+                const zb::shell::present_rect r =
+                    zb::shell::region_to_present(dirty, x, y, w, h, 256, 192);
+                if (r.w > 0 && r.h > 0)
+                {
+                    if (r.x == 0 && r.y == 0 && r.w == 256 && r.h == 192)
+                    {
+                        dmaCopy(back_buffer, screen, 256 * 192 * sizeof(uint16_t));
+                    }
+                    else
+                    {
+                        // row-at-a-time: DMA is contiguous, a sub-rect is not
+                        const auto *src = static_cast<const uint16_t *>(back_buffer);
+                        auto *dst = static_cast<uint16_t *>(screen);
+                        for (int row = r.y; row < r.y + r.h; ++row)
+                        {
+                            dmaCopy(src + row * 256 + r.x,
+                                    dst + row * 256 + r.x,
+                                    static_cast<size_t>(r.w) * sizeof(uint16_t));
+                        }
+                    }
+                }
+                frame_owed = false;
+            }
 
-			scanKeys();
+            scanKeys();
 
-			if (keysDown() & KEY_START)
-				break;
+            if (keysDown() & KEY_START)
+                break;
 
-			handle_touch(app, touch_pressed, last_x, last_y);
-			handle_keys(app);
-			if (app->is_dirty())
-			{
-				app->paint(); // idle frame
-			}
-		}
+            handle_touch(app, touch_pressed, last_x, last_y);
+            handle_keys(app);
+            if (app->is_dirty())
+            {
+                app->paint();  // idle frame
+            }
+        }
 
-		return 0;
-	}
+        return 0;
+    }
 }
 
 int main(void)
 {
-	// X-5: every escape becomes a diagnostic + exit 1 (main_guard.hpp)
-	return zb::shell::guarded_main(run_firmware);
+    // X-5: every escape becomes a diagnostic + exit 1 (main_guard.hpp)
+    return zb::shell::guarded_main(run_firmware);
 }

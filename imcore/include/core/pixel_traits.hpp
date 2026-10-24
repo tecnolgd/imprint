@@ -33,7 +33,7 @@ namespace zb::ui::core
     namespace pixel_traits_detail
     {
         // a 32bpp channel layout: R/G/B/A byte offsets in memory order
-        template<int RByte, int GByte, int BByte, int AByte>
+        template <int RByte, int GByte, int BByte, int AByte>
         struct layout32
         {
             static constexpr int depth = 32;
@@ -93,7 +93,7 @@ namespace zb::ui::core
      * accessors; `from()` is the only construction entry. Value-initial
      * (`Color{}`) is fully transparent (pixel == 0).
      */
-    template<typename Traits>
+    template <typename Traits>
     struct basic_color
     {
         using pixel_t = typename Traits::pixel_t;

@@ -68,7 +68,8 @@ int test_checkbox()
         InputDispatcher d;
         bool emitted = false;
         bool emitted_state = false;
-        t.box->changed += [&](const bool c) {
+        t.box->changed += [&](const bool c)
+        {
             emitted = true;
             emitted_state = c;
         };

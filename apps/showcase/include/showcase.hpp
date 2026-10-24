@@ -259,7 +259,7 @@ namespace zb::app::showcase
         zb::ui::Widget *core_tag_ = nullptr;
         zb::ui::Widget *segment_label_ = nullptr;
         zb::ui::Widget *status_ = nullptr;
-        zb::ui::Widget *sweep_ = nullptr;   // the needle pseudo host
+        zb::ui::Widget *sweep_ = nullptr;  // the needle pseudo host
         zb::ui::Widget *modal_ = nullptr;
         zb::ui::Widget *modal_title_ = nullptr;
         zb::ui::Widget *modal_text_ = nullptr;
@@ -294,10 +294,10 @@ namespace zb::app::showcase
         bool autopilot_ = true;
         bool point_on_ = true;
         bool modal_open_ = false;
-        int scan_frames_ = 0;     // DEEP SCAN link-busy countdown
-        int toast_frames_ = 0;    // toast visibility countdown
-        int log_next_ = 0;        // next periodic stream entry
-        int drift_acc_ = 0;       // heading drift accumulator
+        int scan_frames_ = 0;   // DEEP SCAN link-busy countdown
+        int toast_frames_ = 0;  // toast visibility countdown
+        int log_next_ = 0;      // next periodic stream entry
+        int drift_acc_ = 0;     // heading drift accumulator
         bool ui_ready_ = false;
 
         // ---- LONG RANGE state ----
@@ -309,17 +309,17 @@ namespace zb::app::showcase
         std::string opt_name_[2];                        // route names on offer
         uint32_t rng_ = 0;                               // LCG state
         uint32_t seed_ = 7;
-        int node_ = 0;            // 0..4 along LYRA-09 -> KEPLER-442b
-        int leg_left_ = 0;        // cruise distance left before the hazard
-        int enc_left_ = 0;        // frames left in the encounter
-        int fuel_x10_ = 834;      // stateful (the design's fuel gauge)
+        int node_ = 0;        // 0..4 along LYRA-09 -> KEPLER-442b
+        int leg_left_ = 0;    // cruise distance left before the hazard
+        int enc_left_ = 0;    // frames left in the encounter
+        int fuel_x10_ = 834;  // stateful (the design's fuel gauge)
         int shield_pool_x10_ = 640;
-        int cannon_cd_ = 0;       // pulse-cannon recharge frames
-        int hit_cd_ = 0;          // i-frames after a hit
-        int ship_roll_ = 0;       // evasive-profile frames (Q/E)
+        int cannon_cd_ = 0;  // pulse-cannon recharge frames
+        int hit_cd_ = 0;     // i-frames after a hit
+        int ship_roll_ = 0;  // evasive-profile frames (Q/E)
         int pod_charges_ = 2;
         int pirate_hp_ = 0;
-        int pirate_dist_ = 0;     // 100 (far) .. 0 (on top of us)
+        int pirate_dist_ = 0;  // 100 (far) .. 0 (on top of us)
         int pirate_shot_cd_ = 0;
         int ship_px_ = 50, ship_py_ = 50;  // helm marker, % of the scope
         bool route_pending_ = false;       // a course must be chosen
@@ -343,9 +343,9 @@ namespace zb::app::showcase
         // repositioned per frame; scoped static svg contacts stay put)
         zb::ui::Widget *sector_ = nullptr;
         zb::ui::Widget *ship_mk_ = nullptr;
-        zb::ui::Widget *mk_[4] = {};  // 0..2 rocks/dust, 3 the pirate
+        zb::ui::Widget *mk_[4] = {};       // 0..2 rocks/dust, 3 the pirate
         zb::ui::Widget *opt_a_ = nullptr;  // star-map route buttons
         zb::ui::Widget *opt_b_ = nullptr;
-        bool drag_active_ = false;    // mouse-drag helm steering
+        bool drag_active_ = false;  // mouse-drag helm steering
     };
 }

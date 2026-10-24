@@ -48,7 +48,7 @@ namespace zb::app::tictactoe
         [[nodiscard]] bool dialog_open() const noexcept;
 
         // dialog state changes (the controller composes the flow with these)
-        void open_difficulty_dialog();   // closes the others, sets the modal
+        void open_difficulty_dialog();  // closes the others, sets the modal
         void open_side_dialog();
         void open_result_dialog(const std::string &result_msg);  // re-renders the title
         void close_all_dialogs();
@@ -96,4 +96,4 @@ namespace zb::app::tictactoe
     };
 }
 
-#endif // TICTACTOE_VIEW_HPP
+#endif  // TICTACTOE_VIEW_HPP

@@ -85,7 +85,7 @@ int test_runtime_ttf();
 
 struct suite
 {
-    const char* name;
+    const char *name;
     int (*fn)();
 };
 
@@ -178,10 +178,10 @@ static_assert(sizeof(g_suites) / sizeof(g_suites[0]) <= kMaxSelected,
 //   --list        print matching suite names (all suites when no filter given)
 //   filter        substring match against suite names; a suite runs when it
 //                 matches any filter; no filter means run everything
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     bool list_only = false;
-    const char* filters[16] = {};
+    const char *filters[16] = {};
     int filter_count = 0;
     for (int i = 1; i < argc && filter_count < 16; ++i)
     {
@@ -194,9 +194,9 @@ int main(int argc, char** argv)
     constexpr int total_suites =
         static_cast<int>(sizeof(g_suites) / sizeof(g_suites[0]));
 
-    const suite* selected[kMaxSelected];
+    const suite *selected[kMaxSelected];
     int selected_count = 0;
-    for (const suite& s : g_suites)
+    for (const suite &s : g_suites)
     {
         if (filter_count == 0)
         {

@@ -133,8 +133,8 @@ namespace
     {
         asset a{"card_shadow", "kCardShadow", 48, 48, {}};
         a.pixels.resize(static_cast<std::size_t>(a.width) * a.height);
-        const int m = 10;           // the solid rect inset (blur tail lives outside)
-        const int solid = 28;       // [m, m+solid) — the 9-slice center tile
+        const int m = 10;      // the solid rect inset (blur tail lives outside)
+        const int solid = 28;  // [m, m+solid) — the 9-slice center tile
         const int radius = 6;
         std::vector<int> alpha(static_cast<std::size_t>(a.width) * a.height, 0);
         for (int y = 0; y < a.height; ++y)
@@ -149,10 +149,12 @@ namespace
                 if (in_x && in_y)
                 {
                     inside = true;
-                    const int cx = x < m + radius ? m + radius
-                                 : x >= m + solid - radius ? m + solid - radius - 1 : x;
-                    const int cy = y < m + radius ? m + radius
-                                 : y >= m + solid - radius ? m + solid - radius - 1 : y;
+                    const int cx = x < m + radius          ? m + radius
+                                 : x >= m + solid - radius ? m + solid - radius - 1
+                                                           : x;
+                    const int cy = y < m + radius          ? m + radius
+                                 : y >= m + solid - radius ? m + solid - radius - 1
+                                                           : y;
                     if ((cx == m + radius || cx == m + solid - radius - 1) &&
                         (cy == m + radius || cy == m + solid - radius - 1))
                     {

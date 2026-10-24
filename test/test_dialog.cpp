@@ -34,8 +34,8 @@ int test_dialog()
         const auto body_pos = d.get_body().get_position();
         const auto body_sz = d.get_body().get_size();
         EXPECT(body_pos.x == pad);
-        EXPECT(body_pos.y == pad + 16 + 4);              // title + spacing
-        EXPECT(body_sz.width == 60 - 2 * pad);           // 44
+        EXPECT(body_pos.y == pad + 16 + 4);                          // title + spacing
+        EXPECT(body_sz.width == 60 - 2 * pad);                       // 44
         EXPECT(body_sz.height == (80 - pad - 18) - 4 - body_pos.y);  // 22
     }
 
@@ -103,7 +103,8 @@ int test_dialog()
         auto &b = d.add_button("Restart");
         b.set_size(60, 20);
         int clicks = 0;
-        b.clicked += [&clicks]() { ++clicks; };
+        b.clicked += [&clicks]()
+        { ++clicks; };
         b.press();
         b.release();
         EXPECT(clicks == 1);
@@ -161,7 +162,8 @@ int test_dialog()
         btn->set_position(35, 40);  // under the dialog area
         auto *pbtn = btn.get();
         int clicks = 0;
-        pbtn->clicked += [&clicks]() { ++clicks; };
+        pbtn->clicked += [&clicks]()
+        { ++clicks; };
 
         auto dlg = std::make_unique<Dialog>();
         dlg->set_size(40, 40);

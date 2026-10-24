@@ -5,71 +5,71 @@
 
 void clearscreen(void)
 {
-	printf("\x1b[2J");
-	printf("\x1b[H");
+    printf("\x1b[2J");
+    printf("\x1b[H");
 }
 
 void clearinfo(void)
 {
-	printf("\x1b[12;0H");
-	for (int i = 1; i <= 8; i++)
-	{
-		printf("\x1b[K");
-		printf("\x1b[1B");
-	}
+    printf("\x1b[12;0H");
+    for (int i = 1; i <= 8; i++)
+    {
+        printf("\x1b[K");
+        printf("\x1b[1B");
+    }
 }
 
 void printinfo(std::string str)
 {
-	clearinfo();
-	printf("\x1b[12;0H%s", str.c_str());
+    clearinfo();
+    printf("\x1b[12;0H%s", str.c_str());
 }
 
 void printnext(std::string str)
 {
-	printf("\x1b[1;0H");
-	printf("\x1b[K");
-	printf("\x1b[1;0HNext -> %s", str.c_str());
+    printf("\x1b[1;0H");
+    printf("\x1b[K");
+    printf("\x1b[1;0HNext -> %s", str.c_str());
 }
 
 void printscore(int blacknum, int whitenum)
 {
-	printf("\x1b[5;0H");
-	printf("\x1b[K");
-	printf("\x1b[5;0HBlack = %02d | White = %02d", blacknum, whitenum);
+    printf("\x1b[5;0H");
+    printf("\x1b[K");
+    printf("\x1b[5;0HBlack = %02d | White = %02d", blacknum, whitenum);
 }
 
 void initFrameBuffer(void)
 {
-	videoSetMode(MODE_FB0);
-	vramSetBankA(VRAM_A_LCD);
+    videoSetMode(MODE_FB0);
+    vramSetBankA(VRAM_A_LCD);
 }
 
 void initSubVideoConsole(void)
 {
-	static PrintConsole topScreen;
-	static PrintConsole bottomScreen;
+    static PrintConsole topScreen;
+    static PrintConsole bottomScreen;
 
-	videoSetMode(MODE_0_2D);
-	videoSetModeSub(MODE_0_2D);
+    videoSetMode(MODE_0_2D);
+    videoSetModeSub(MODE_0_2D);
 
-	vramSetBankA(VRAM_A_MAIN_BG);
-	vramSetBankC(VRAM_C_SUB_BG);
+    vramSetBankA(VRAM_A_MAIN_BG);
+    vramSetBankC(VRAM_C_SUB_BG);
 
-	consoleInit(&topScreen, 3, BgType_Text4bpp, BgSize_T_256x256, 31, 0, true, true);
-	consoleInit(&bottomScreen, 3, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
+    consoleInit(&topScreen, 3, BgType_Text4bpp, BgSize_T_256x256, 31, 0, true, true);
+    consoleInit(&bottomScreen, 3, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
 
-	consoleSelect(&bottomScreen); // after swap it will go to topscreen
-								  // printf("\n\n\tHello DS dev'rs\n");
-								  // printf("\twww.drunkencoders.com\n");
-								  // printf("\twww.devkitpro.org");
+    consoleSelect(&bottomScreen);  // after swap it will go to topscreen
+                                   // printf("\n\n\tHello DS dev'rs\n");
+                                   // printf("\twww.drunkencoders.com\n");
+                                   // printf("\twww.devkitpro.org");
 }
 
 void printlog(const char *message)
 {
-	// the message itself may contain '%' (e.g. coordinates), so it must
-	// not be used as the printf format
-	std::printf("%s\n", message);
+    // the message itself may contain '%' (e.g. coordinates), so it must
+    // not be used as the printf format
+    std::printf("%s\n", message);
 }
 
 /*

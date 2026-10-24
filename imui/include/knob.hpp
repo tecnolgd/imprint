@@ -32,9 +32,27 @@ namespace zb::ui
         void set_step(int s);
         [[nodiscard]] int get_step() const { return step; }
 
-        void set_face_color(const core::Color &c) { if (face_color && face_color->pixel == c.pixel) return; face_color = c; mark_dirty(); }
-        void set_ring_color(const core::Color &c) { if (ring_color && ring_color->pixel == c.pixel) return; ring_color = c; mark_dirty(); }
-        void set_pointer_color(const core::Color &c) { if (pointer_color && pointer_color->pixel == c.pixel) return; pointer_color = c; mark_dirty(); }
+        void set_face_color(const core::Color &c)
+        {
+            if (face_color && face_color->pixel == c.pixel)
+                return;
+            face_color = c;
+            mark_dirty();
+        }
+        void set_ring_color(const core::Color &c)
+        {
+            if (ring_color && ring_color->pixel == c.pixel)
+                return;
+            ring_color = c;
+            mark_dirty();
+        }
+        void set_pointer_color(const core::Color &c)
+        {
+            if (pointer_color && pointer_color->pixel == c.pixel)
+                return;
+            pointer_color = c;
+            mark_dirty();
+        }
 
         // fired on user interaction with the new value
         zb::event::Event<int> changed;
@@ -62,7 +80,7 @@ namespace zb::ui
         [[nodiscard]] int value_deg() const;
 
         bool captured_drag_ = false;
-        int drag_budget_ = 0;   // 256-scaled fractional accumulator
+        int drag_budget_ = 0;  // 256-scaled fractional accumulator
         int last_y_ = 0;
 
         int min = 0;
@@ -70,8 +88,8 @@ namespace zb::ui
         int value = 0;
         int step = 1;
         // unset = follow the active theme (contract 10.3)
-        std::optional<core::Color> face_color;    // field_bg
-        std::optional<core::Color> ring_color;    // border
-        std::optional<core::Color> pointer_color; // accent
+        std::optional<core::Color> face_color;     // field_bg
+        std::optional<core::Color> ring_color;     // border
+        std::optional<core::Color> pointer_color;  // accent
     };
 }

@@ -151,8 +151,8 @@ namespace zb::ui
         }
 
         // the shared flattener constants (code-contract §3.2)
-        constexpr double kPathTol = 0.1;      // viewBox-unit chord tolerance
-        constexpr int kPathMaxDepth = 12;     // <= 4096 emits per curve
+        constexpr double kPathTol = 0.1;   // viewBox-unit chord tolerance
+        constexpr int kPathMaxDepth = 12;  // <= 4096 emits per curve
         constexpr double kDegToRad = 0.017453292519943295;
 
         /*
@@ -229,16 +229,30 @@ namespace zb::ui
             x -= static_cast<double>(quad) * 90.0;
             const double r = x * kDegToRad;
             const double r2 = r * r;
-            double sn = r * (1.0 - r2 / 6.0 * (1.0 - r2 / 20.0 *
-                             (1.0 - r2 / 42.0 * (1.0 - r2 / 72.0))));
-            double cs = 1.0 - r2 / 2.0 * (1.0 - r2 / 12.0 *
-                         (1.0 - r2 / 30.0 * (1.0 - r2 / 56.0)));
+            double sn = r * (1.0 - r2 / 6.0 * (1.0 - r2 / 20.0 * (1.0 - r2 / 42.0 * (1.0 - r2 / 72.0))));
+            double cs = 1.0 - r2 / 2.0 * (1.0 - r2 / 12.0 * (1.0 - r2 / 30.0 * (1.0 - r2 / 56.0)));
             switch (quad)
             {
-                case 1: { const double t = sn; sn = cs; cs = -t; break; }
-                case 2: sn = -sn; cs = -cs; break;
-                case 3: { const double t = sn; sn = -cs; cs = t; break; }
-                default: break;
+            case 1:
+            {
+                const double t = sn;
+                sn = cs;
+                cs = -t;
+                break;
+            }
+            case 2:
+                sn = -sn;
+                cs = -cs;
+                break;
+            case 3:
+            {
+                const double t = sn;
+                sn = -cs;
+                cs = t;
+                break;
+            }
+            default:
+                break;
             }
             if (deg < 0)
             {
@@ -375,7 +389,8 @@ namespace zb::ui
         bool sub_closed = false;
         double cx = 0.0, cy = 0.0;
         double sx = 0.0, sy = 0.0;  // subpath start: close returns here
-        const auto flush = [&] {
+        const auto flush = [&]
+        {
             if (sub_open && pts.size() >= 2)
             {
                 Path item;
@@ -397,62 +412,62 @@ namespace zb::ui
         {
             switch (cmd.op)
             {
-                case PathCmd::Op::move:
-                    flush();
-                    cx = cmd.x;
-                    cy = cmd.y;
+            case PathCmd::Op::move:
+                flush();
+                cx = cmd.x;
+                cy = cmd.y;
+                sx = cx;
+                sy = cy;
+                pts.emplace_back(cx, cy);
+                sub_open = true;
+                break;
+            case PathCmd::Op::line:
+                if (!sub_open)
+                {
+                    // an implicit subpath start at the current point
                     sx = cx;
                     sy = cy;
                     pts.emplace_back(cx, cy);
                     sub_open = true;
-                    break;
-                case PathCmd::Op::line:
-                    if (!sub_open)
-                    {
-                        // an implicit subpath start at the current point
-                        sx = cx;
-                        sy = cy;
-                        pts.emplace_back(cx, cy);
-                        sub_open = true;
-                    }
-                    cx = cmd.x;
-                    cy = cmd.y;
+                }
+                cx = cmd.x;
+                cy = cmd.y;
+                pts.emplace_back(cx, cy);
+                break;
+            case PathCmd::Op::cubic:
+                if (!sub_open)
+                {
+                    sx = cx;
+                    sy = cy;
                     pts.emplace_back(cx, cy);
-                    break;
-                case PathCmd::Op::cubic:
-                    if (!sub_open)
-                    {
-                        sx = cx;
-                        sy = cy;
-                        pts.emplace_back(cx, cy);
-                        sub_open = true;
-                    }
-                    svg_flatten_cubic(pts, cx, cy, cmd.x1, cmd.y1,
-                                      cmd.x2, cmd.y2, cmd.x, cmd.y, 0);
-                    cx = cmd.x;
-                    cy = cmd.y;
-                    break;
-                case PathCmd::Op::quad:
-                    if (!sub_open)
-                    {
-                        sx = cx;
-                        sy = cy;
-                        pts.emplace_back(cx, cy);
-                        sub_open = true;
-                    }
-                    svg_flatten_quad(pts, cx, cy, cmd.x1, cmd.y1,
-                                     cmd.x, cmd.y);
-                    cx = cmd.x;
-                    cy = cmd.y;
-                    break;
-                case PathCmd::Op::close:
-                    sub_closed = true;
-                    flush();
-                    // SVG Z semantics: the current point returns to the
-                    // subpath start
-                    cx = sx;
-                    cy = sy;
-                    break;
+                    sub_open = true;
+                }
+                svg_flatten_cubic(pts, cx, cy, cmd.x1, cmd.y1,
+                                  cmd.x2, cmd.y2, cmd.x, cmd.y, 0);
+                cx = cmd.x;
+                cy = cmd.y;
+                break;
+            case PathCmd::Op::quad:
+                if (!sub_open)
+                {
+                    sx = cx;
+                    sy = cy;
+                    pts.emplace_back(cx, cy);
+                    sub_open = true;
+                }
+                svg_flatten_quad(pts, cx, cy, cmd.x1, cmd.y1,
+                                 cmd.x, cmd.y);
+                cx = cmd.x;
+                cy = cmd.y;
+                break;
+            case PathCmd::Op::close:
+                sub_closed = true;
+                flush();
+                // SVG Z semantics: the current point returns to the
+                // subpath start
+                cx = sx;
+                cy = sy;
+                break;
             }
         }
         flush();
@@ -557,7 +572,8 @@ namespace zb::ui
         // viewBox -> device, Q10, rounded half toward +infinity; without
         // a viewBox coordinates are already device pixels
         const auto map_q10 = [&](const int vx, const int w, const int vb_x,
-                                 const int vb_w) -> int64_t {
+                                 const int vb_w) -> int64_t
+        {
             if (vb_w <= 0)
             {
                 return clamp_q10(static_cast<int64_t>(vx) * kQ10);
@@ -579,11 +595,11 @@ namespace zb::ui
             // the transform mixes the axes: map through doubles, apply
             // the affine, then round into Q10
             const double dsx = vb_w_ > 0
-                                   ? static_cast<double>(s.width) / vb_w_
-                                   : 1.0;
+                                 ? static_cast<double>(s.width) / vb_w_
+                                 : 1.0;
             const double dsy = vb_h_ > 0
-                                   ? static_cast<double>(s.height) / vb_h_
-                                   : 1.0;
+                                 ? static_cast<double>(s.height) / vb_h_
+                                 : 1.0;
             double axd = (l.x1 - vb_x_) * dsx;
             double ayd = (l.y1 - vb_y_) * dsy;
             apply_tf(axd, ayd);
@@ -606,7 +622,7 @@ namespace zb::ui
         if (vb_w_ > 0 && vb_h_ > 0)
         {
             const int64_t ratio = static_cast<int64_t>(s.width) * s.height *
-                                      (kQ10 * kQ10) /
+                                  (kQ10 * kQ10) /
                                   (static_cast<int64_t>(vb_w_) * vb_h_);
             dev_w = mul_q10(dev_w, isqrt64(ratio));
         }
@@ -621,7 +637,8 @@ namespace zb::ui
         }
         if (dev_w < 3 * kQ10 / 2)
         {
-            const auto round10 = [](const int64_t v) {
+            const auto round10 = [](const int64_t v)
+            {
                 return static_cast<int>((v + kQ10 / 2) / kQ10);
             };
             area.draw_line_aa(round10(ax), round10(ay), round10(bx),
@@ -816,7 +833,7 @@ namespace zb::ui
         if (vb_w_ > 0 && vb_h_ > 0)
         {
             const int64_t ratio = static_cast<int64_t>(s.width) * s.height *
-                                      (kQ10 * kQ10) /
+                                  (kQ10 * kQ10) /
                                   (static_cast<int64_t>(vb_w_) * vb_h_);
             dev_w = mul_q10(dev_w, isqrt64(ratio));
         }
@@ -845,7 +862,8 @@ namespace zb::ui
         // translucent hairline, the accepted line fallback trade-off
         if (dev_w < 3 * kQ10 / 2)
         {
-            const auto round10 = [](const int64_t v) {
+            const auto round10 = [](const int64_t v)
+            {
                 return static_cast<int>((v + kQ10 / 2) / kQ10);
             };
             for (size_t i = 0; i < segs; ++i)
@@ -1062,7 +1080,8 @@ namespace zb::ui
                                     : 1.0;
         const double sy = vb_h_ > 0 ? static_cast<double>(sz.height) / vb_h_
                                     : 1.0;
-        const auto map_q10 = [&](const double v, const double scale) {
+        const auto map_q10 = [&](const double v, const double scale)
+        {
             return q10_of_px(v * scale);
         };
         if (tf_active_ && (tf_b_ != 0.0 || tf_c_ != 0.0))
@@ -1298,11 +1317,11 @@ namespace zb::ui
         }
         const auto sz = get_size();
         const double sx = vb_w_ > 0
-                              ? static_cast<double>(sz.width) / vb_w_
-                              : 1.0;
+                            ? static_cast<double>(sz.width) / vb_w_
+                            : 1.0;
         const double sy = vb_h_ > 0
-                              ? static_cast<double>(sz.height) / vb_h_
-                              : 1.0;
+                            ? static_cast<double>(sz.height) / vb_h_
+                            : 1.0;
         constexpr double kPi = 3.14159265358979323846;
         double perim = kPi * (s.rx * sx + s.ry * sy);  // exact for a
         const double len =                             // circle, ~9% shy
@@ -1378,11 +1397,11 @@ namespace zb::ui
                 // stroke_points, own scratch buffers
                 const auto s = get_size();
                 const double sx = vb_w_ > 0
-                                      ? static_cast<double>(s.width) / vb_w_
-                                      : 1.0;
+                                    ? static_cast<double>(s.width) / vb_w_
+                                    : 1.0;
                 const double sy = vb_h_ > 0
-                                      ? static_cast<double>(s.height) / vb_h_
-                                      : 1.0;
+                                    ? static_cast<double>(s.height) / vb_h_
+                                    : 1.0;
                 static std::vector<int64_t> fx, fy;
                 fx.resize(p.pts.size());
                 fy.resize(p.pts.size());
@@ -1419,8 +1438,8 @@ namespace zb::ui
 #if defined(IMCORE_HAS_TTF_RUNTIME)
             const auto sz = get_size();
             double sy = vb_h_ > 0
-                            ? static_cast<double>(sz.height) / vb_h_
-                            : 1.0;
+                          ? static_cast<double>(sz.height) / vb_h_
+                          : 1.0;
             // the canvas transform scales the upright glyphs by
             // sqrt(|det|) (code-contract §3.2: no rotated glyphs)
             const double tlen = static_cast<double>(tf_len_q10()) / kQ10;

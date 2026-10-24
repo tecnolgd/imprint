@@ -29,7 +29,8 @@ namespace
         log_probe()
         {
             zb::Logging::set_log_handle(
-                [this](const zb::Logging_Level level, const std::string &msg) {
+                [this](const zb::Logging_Level level, const std::string &msg)
+                {
                     if (level == zb::Logging_Level::warn)
                     {
                         messages.push_back(msg);
@@ -56,8 +57,7 @@ int test_sixel()
         EXPECT(s.find("\"1;1;4;4") != std::string::npos);
         // 32bpp: 255 -> 100; 16bpp: 255 truncates to the 5-bit 31,
         // reads back 248 -> 97
-        EXPECT(s.find(core::Color::depth == 32 ? "#0;2;100;0;0" : "#0;2;97;0;0")
-               != std::string::npos);
+        EXPECT(s.find(core::Color::depth == 32 ? "#0;2;100;0;0" : "#0;2;97;0;0") != std::string::npos);
         EXPECT(s.substr(s.size() - 2) == "\x1b\\");
         // 4 columns of the same mask (all 4 band rows red -> bits 15 ->
         // '?'+15 = 'N'), run of 4 collapses to !4N
@@ -72,10 +72,8 @@ int test_sixel()
         const std::string s = encode_color4(core::Color::from(255, 0, 0, 255),
                                             core::Color::from(0, 0, 255, 255));
         // same depth split as the one-color case (red then blue register)
-        EXPECT(s.find(core::Color::depth == 32 ? "#0;2;100;0;0" : "#0;2;97;0;0")
-               != std::string::npos);
-        EXPECT(s.find(core::Color::depth == 32 ? "#1;2;0;0;100" : "#1;2;0;0;97")
-               != std::string::npos);
+        EXPECT(s.find(core::Color::depth == 32 ? "#0;2;100;0;0" : "#0;2;97;0;0") != std::string::npos);
+        EXPECT(s.find(core::Color::depth == 32 ? "#1;2;0;0;100" : "#1;2;0;0;97") != std::string::npos);
         EXPECT(s.find('$') != std::string::npos);
     }
 

@@ -75,9 +75,9 @@ namespace zb::ui
 
         void set_position(const core::impoint_t &p)
         {
-            mark_dirty();     // old area
+            mark_dirty();  // old area
             position = p;
-            mark_dirty();     // new area
+            mark_dirty();  // new area
         }
         void set_position(const int x, const int y)
         {
@@ -296,7 +296,7 @@ namespace zb::ui
         {
             int16_t w = 0;
             int16_t h = 0;
-            int16_t off[4] = {0, 0, 0, 0};  // l/t/r/b
+            int16_t off[4] = {0, 0, 0, 0};     // l/t/r/b
             int16_t margin[4] = {0, 0, 0, 0};  // l/t/r/b
             int16_t rot_ang = 0;
             int16_t rot_ox = 50;
@@ -405,8 +405,8 @@ namespace zb::ui
                 return nullptr;
             }
             return (ext_ != nullptr && ext_->has_pseudo[kind] != 0)
-                       ? &ext_->pseudo[kind]
-                       : nullptr;
+                     ? &ext_->pseudo[kind]
+                     : nullptr;
         }
         [[nodiscard]] bool is_positioned() const
         {
@@ -437,7 +437,7 @@ namespace zb::ui
         {
             const abs_spec *const p = pos();
             return (p != nullptr && side >= 0 && side <= 3) ? p->off[side]
-                                                           : INT16_MIN;
+                                                            : INT16_MIN;
         }
         [[nodiscard]] bool abs_off_pct(const int side) const
         {
@@ -449,7 +449,7 @@ namespace zb::ui
         {
             const abs_spec *const p = pos();
             return (p != nullptr && axis >= 0 && axis <= 1) ? p->tr[axis]
-                                                           : INT16_MIN;
+                                                            : INT16_MIN;
         }
         [[nodiscard]] bool abs_tr_pct(const int axis) const
         {
@@ -507,7 +507,8 @@ namespace zb::ui
         // children ignore them
         void set_margin(const int t, const int r, const int b, const int l)
         {
-            const auto cl = [](const int v) {
+            const auto cl = [](const int v)
+            {
                 return static_cast<int16_t>(v < 0 ? 0 : (v > 32767 ? 32767 : v));
             };
             const int16_t m[4] = {cl(t), cl(r), cl(b), cl(l)};
@@ -683,7 +684,8 @@ namespace zb::ui
                                    const core::Color &from, const int from_pos,
                                    const core::Color &to, const int to_pos)
         {
-            auto clamp100 = [](const int v) {
+            auto clamp100 = [](const int v)
+            {
                 return v < 0 ? 0 : (v > 100 ? 100 : v);
             };
             dress_.bg_kind = 2;
@@ -731,7 +733,7 @@ namespace zb::ui
         {
             bord_t *const b = mut_bord();
             b->w = static_cast<uint8_t>(width_px < 0 ? 0
-                                          : (width_px > 255 ? 255 : width_px));
+                                                     : (width_px > 255 ? 255 : width_px));
             b->c = c;
             mark_dirty();
         }
@@ -828,7 +830,7 @@ namespace zb::ui
             g->kind = 5;
             g->flags = horizontal ? 1 : 0;
             g->a = static_cast<uint16_t>(mid_p < 0 ? 0
-                                           : (mid_p > 100 ? 100 : mid_p));
+                                                   : (mid_p > 100 ? 100 : mid_p));
             g->col[0] = from;
             g->col[1] = mid;
             g->col[2] = to;
@@ -932,7 +934,7 @@ namespace zb::ui
             valign = a;
             mark_dirty();
         }
-[[nodiscard]] h_align get_h_align() const { return halign; }
+        [[nodiscard]] h_align get_h_align() const { return halign; }
         [[nodiscard]] v_align get_v_align() const { return valign; }
         // text dressing (P-2a, all default-off): tracking in px
         // (negative clamps to 0), bold = double-strike +1px, one solid
@@ -951,8 +953,8 @@ namespace zb::ui
         [[nodiscard]] int letter_spacing() const
         {
             return (ext_ != nullptr && ext_->has_text != 0)
-                       ? ext_->letter_px
-                       : 0;
+                     ? ext_->letter_px
+                     : 0;
         }
         void set_bold(const bool on)
         {
@@ -987,7 +989,7 @@ namespace zb::ui
         [[nodiscard]] bool has_text_shadow() const
         {
             return ext_ != nullptr && ext_->has_text != 0 &&
-                    ext_->shadow_color.a() != 0;
+                   ext_->shadow_color.a() != 0;
         }
         // multi-line text (H-1, code-contract §2 "Wrapped text"): greedy
         // word wrapping at the assigned box width, '\n' a hard break,
@@ -1048,8 +1050,8 @@ namespace zb::ui
         [[nodiscard]] int font_size() const
         {
             return (ext_ != nullptr && ext_->has_font != 0)
-                       ? ext_->font_px
-                       : 0;
+                     ? ext_->font_px
+                     : 0;
         }
 #else
         // Documented degradation (code-contract §2.4): without
@@ -1231,7 +1233,11 @@ namespace zb::ui
          * Return true to claim the event (the dispatcher then tracks the
          * widget as the pressed target until the release).
          */
-        virtual bool on_input(const input::input_event &ev) { (void)ev; return false; }
+        virtual bool on_input(const input::input_event &ev)
+        {
+            (void)ev;
+            return false;
+        }
 
         // called when the pressed target leaves its area while held
         virtual void on_cancel() {}
@@ -1251,14 +1257,23 @@ namespace zb::ui
          * Returns the deepest interactive child hit by a point given in
          * this widget's local coordinates, or nullptr.
          */
-        virtual Widget *pick(const int x, const int y) { (void)x; (void)y; return nullptr; }
+        virtual Widget *pick(const int x, const int y)
+        {
+            (void)x;
+            (void)y;
+            return nullptr;
+        }
 
         /*
          * Tree traversal, used by the input dispatcher for focus cycling.
          * Containers override these.
          */
         virtual size_t child_count() const { return 0; }
-        virtual Widget *child_at(const size_t i) { (void)i; return nullptr; }
+        virtual Widget *child_at(const size_t i)
+        {
+            (void)i;
+            return nullptr;
+        }
 
         // set by the input dispatcher when the widget gains/loses focus
         void set_focused(const bool f)
@@ -1472,11 +1487,11 @@ namespace zb::ui
             shadow_spec sh_in[2]{};
             pseudo_spec pseudo[2]{};  // 0 ::before, 1 ::after
             int16_t letter_px = 0;
-            int16_t margin[4] = {0, 0, 0, 0};  // t/r/b/l in-flow margins (H-3)
-            int16_t font_px = 0;  // per-widget size declaration (0 = unset)
-            uint8_t text_flags = 0;  // bit0 = bold (double-strike)
-            uint8_t wrap_enabled = 0;  // H-1: wrap at the assigned width
-            int16_t line_h = 0;  // H-1: wrapped-line pitch (0 = provider)
+            int16_t margin[4] = {0, 0, 0, 0};                  // t/r/b/l in-flow margins (H-3)
+            int16_t font_px = 0;                               // per-widget size declaration (0 = unset)
+            uint8_t text_flags = 0;                            // bit0 = bold (double-strike)
+            uint8_t wrap_enabled = 0;                          // H-1: wrap at the assigned width
+            int16_t line_h = 0;                                // H-1: wrapped-line pitch (0 = provider)
             mutable std::vector<std::pair<int, int>> spans{};  // H-1 wrap lines
             mutable int spans_key_w = -1;
             mutable int spans_key_gen = 0;
@@ -1509,7 +1524,7 @@ namespace zb::ui
         [[nodiscard]] const abs_spec *pos() const
         {
             return (ext_ != nullptr && ext_->has_pos != 0) ? &ext_->pos
-                                                          : nullptr;
+                                                           : nullptr;
         }
         abs_spec *mut_pos()
         {
@@ -1520,7 +1535,7 @@ namespace zb::ui
         [[nodiscard]] const grad_ex *grad() const
         {
             return (ext_ != nullptr && ext_->has_grad != 0) ? &ext_->grad
-                                                           : nullptr;
+                                                            : nullptr;
         }
         grad_ex *mut_grad()
         {
@@ -1531,7 +1546,7 @@ namespace zb::ui
         [[nodiscard]] const rep_ex *rep() const
         {
             return (ext_ != nullptr && ext_->has_rep != 0) ? &ext_->rep
-                                                          : nullptr;
+                                                           : nullptr;
         }
         rep_ex *mut_rep()
         {
@@ -1580,14 +1595,18 @@ namespace zb::ui
          * (covers/measure), so every setter that changes either resets
          * the cache. advance_of() (arbitrary runs) stays uncached.
          */
-         mutable int advance_cache_ = -1;
+        mutable int advance_cache_ = -1;
         // wrap span cache key (H-1): bumped by every setter that changes
         // the wrapped line breakpoints (text, letter-spacing, bold,
         // providers, wrap switch, line pitch); wrap_spans() rebuilds the
         // sidecar spans only when width or this key changes. reset_wrap_cache
         // also clears the text-advance cache, which the same setters depend on.
         mutable int wrap_gen_ = 0;
-        void reset_wrap_cache() { advance_cache_ = -1; ++wrap_gen_; }
+        void reset_wrap_cache()
+        {
+            advance_cache_ = -1;
+            ++wrap_gen_;
+        }
     };
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -1633,6 +1652,9 @@ namespace zb::ui
     [[nodiscard]] bool has_font_family();
     [[nodiscard]] const TtfFamily &font_family();
 #else
-    [[nodiscard]] inline bool has_font_family() { return false; }
+    [[nodiscard]] inline bool has_font_family()
+    {
+        return false;
+    }
 #endif
 }

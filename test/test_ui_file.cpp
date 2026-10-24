@@ -276,7 +276,8 @@ column id="main" spacing=4 padding=8
 
         // both widgets are clickable through the shared dispatcher
         bool ok_clicked = false;
-        ok->clicked += [&ok_clicked]() { ok_clicked = true; };
+        ok->clicked += [&ok_clicked]()
+        { ok_clicked = true; };
         zb::ui::InputDispatcher d;
         const core::impoint_t p = ok->get_absolute_position();
         EXPECT(d.dispatch(host, press_at(p.x + 2, p.y + 2)));
@@ -300,7 +301,7 @@ column id="main" spacing=4 padding=8
         EXPECT(find_ui_file(kUiFiles[0].name) == &kUiFiles[0]);
         EXPECT(find_ui_file("no_such.ui") == nullptr);
     }
-    
+
     // alignment attributes parsing: halign and valign
     {
         ui_node root = parse_ui_text(
@@ -316,10 +317,14 @@ column id="main" spacing=4 padding=8
         // find properties by name
         std::string h_val = "";
         std::string v_val = "";
-        for (const auto& prop : lbl.props) {
-            if (prop.first == "halign") {
+        for (const auto &prop : lbl.props)
+        {
+            if (prop.first == "halign")
+            {
                 h_val = test::vget<std::string>(prop.second);
-            } else if (prop.first == "valign") {
+            }
+            else if (prop.first == "valign")
+            {
                 v_val = test::vget<std::string>(prop.second);
             }
         }

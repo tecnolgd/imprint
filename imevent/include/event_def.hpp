@@ -14,4 +14,4 @@ namespace zb::event
     using CLOSE_EVENT = event::Event<>;
 }
 
-#endif // IMEVENT_EVENT_DEF_HPP
+#endif  // IMEVENT_EVENT_DEF_HPP

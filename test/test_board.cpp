@@ -48,7 +48,8 @@ int test_board()
         b->set_position(20, 20);
         auto *pboard = b.get();
         int calls = 0;
-        pboard->cell_clicked += [&calls](const int, const int) { ++calls; };
+        pboard->cell_clicked += [&calls](const int, const int)
+        { ++calls; };
         root.add_child(std::move(b));
 
         InputDispatcher d;

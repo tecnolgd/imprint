@@ -64,11 +64,11 @@ namespace zb::ui
         // the offset moved
         bool scroll_by(const int delta);
 
-        int top_ = 0;           // scroll offset in pixels
-        bool dragging_ = false; // a thumb drag is in flight
-        int drag_grab_ = 0;     // press offset from the thumb top
+        int top_ = 0;            // scroll offset in pixels
+        bool dragging_ = false;  // a thumb drag is in flight
+        int drag_grab_ = 0;      // press offset from the thumb top
 
-        static constexpr int gutter = 8;      // scrollbar width
-        static constexpr int wheel_step = 32; // px per wheel notch
+        static constexpr int gutter = 8;       // scrollbar width
+        static constexpr int wheel_step = 32;  // px per wheel notch
     };
 }

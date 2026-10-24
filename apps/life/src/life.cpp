@@ -95,8 +95,7 @@ void LifeCanvas::stamp_glider_gun()
         "##........#...#.##....#.#..........",
         "..........#.....#.......#..........",
         "...........#...#...................",
-        "............##....................."
-    };
+        "............##....................."};
     for (int r = 0; r < 9; ++r)
     {
         for (int c = 0; kGun[r][c] != 0; ++c)
@@ -236,8 +235,8 @@ void Life::create_window(const uint32_t max_client_width,
     // 320x240 tier this comes out as 4px cells, canvas 256x192 at
     // (32, 40) -- byte-identical to the old hardcoded layout.
     const int fit = (w - 64) / LifeCanvas::kCols < (h - header_h - 8) / LifeCanvas::kRows
-                        ? (w - 64) / LifeCanvas::kCols
-                        : (h - header_h - 8) / LifeCanvas::kRows;
+                      ? (w - 64) / LifeCanvas::kCols
+                      : (h - header_h - 8) / LifeCanvas::kRows;
     scale_ = clamp_i(fit, LifeCanvas::kScale, 12);
 
     auto &root = window_->root();
@@ -258,7 +257,8 @@ void Life::create_window(const uint32_t max_client_width,
         b->set_size(kBtns[i].w * u, 22 * u);
         b->set_position(bx, 8 * u);
         b->set_font_size(7 * u);
-        subs_[i] = b->clicked.subscribe([this, i] { on_mode(i); });
+        subs_[i] = b->clicked.subscribe([this, i]
+                                        { on_mode(i); });
         mode_btns_[i] = b.get();
         root.add_child(std::move(b));
         bx += (kBtns[i].w + 8) * u;

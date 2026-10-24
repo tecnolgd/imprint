@@ -78,9 +78,9 @@ namespace zb::ui
             return;
         }
 
-        const core::Color bg   = bg_color.value_or(theme().field_bg);
+        const core::Color bg = bg_color.value_or(theme().field_bg);
         const core::Color line = line_color.value_or(theme().accent);
-        const core::Color brd  = theme().border;
+        const core::Color brd = theme().border;
 
         // card background (AA adoption)
         area.fill_round_rect_aa(0, 0, w - 1, h - 1, 2, bg);
@@ -121,7 +121,7 @@ namespace zb::ui
         for (std::size_t i = 1; i < n; ++i)
         {
             const int x0 = 2 + static_cast<int>(i - 1) * (w - 4) / static_cast<int>(n - 1);
-            const int x1 = 2 + static_cast<int>(i)     * (w - 4) / static_cast<int>(n - 1);
+            const int x1 = 2 + static_cast<int>(i) * (w - 4) / static_cast<int>(n - 1);
 
             auto map_y = [&](const int v) -> int
             {

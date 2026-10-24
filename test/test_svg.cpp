@@ -521,7 +521,8 @@ int test_svg()
     // translate shifts, scale widens, rotation routes through the
     // even-odd fallback
     {
-        const auto render = [](SvgCanvas &v) {
+        const auto render = [](SvgCanvas &v)
+        {
             core::Graphics g(100, 50, nullptr);
             g.fill(core::colors::White);
             v.draw(g);
@@ -537,10 +538,12 @@ int test_svg()
             return out;
         };
         const auto at = [](const std::vector<uint32_t> &px, const int x,
-                           const int y) {
+                           const int y)
+        {
             return px[static_cast<size_t>(y) * 100 + x];
         };
-        const auto make = [] {
+        const auto make = []
+        {
             auto c = std::make_unique<SvgCanvas>();
             c->set_size(100, 50);
             SvgCanvas::Shape box;
@@ -658,7 +661,8 @@ int test_svg()
         // 1.0 stays a hairline — under the old truncate-first math both
         // landed on the same 1px hairline
         {
-            const auto stroke_pixels = [](const double width) {
+            const auto stroke_pixels = [](const double width)
+            {
                 SvgCanvas v;
                 v.set_size(60, 20);
                 SvgCanvas::DrawPath dp;

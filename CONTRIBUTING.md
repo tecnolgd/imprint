@@ -36,9 +36,12 @@ file disagree, they win.
   set in `cmake/imprint-warnings.cmake` and `-Werror`
   (`-DIMPRINT_WERROR=OFF` is the escape hatch for a compiler that ships a
   new diagnostic before the tree is cleaned).
-- **New and edited code follows [`.clang-format`](.clang-format)**
-  (`ColumnLimit: 0`, Allman). Do not reformat untouched files — the
-  tree-wide pass is a separate backlog item.
+- **Formatting is gated.** The whole first-party tree is formatted with
+  clang-format 18.1.3 to [`.clang-format`](.clang-format) (`ColumnLimit:
+  0`, Allman). Run `sh tools/format-check.sh --write` before a commit
+  that touches first-party C++; CI runs the same check without
+  `--write` and fails on drift. The gate pins the version, so install
+  clang-format 18.1.3 (or let the script tell you it is missing).
 - **Tests ride the local `EXPECT` macro** in `test/test.hpp`
   (NDEBUG-safe, no framework) and register in `test/test_main.cpp`. A
   behavior change needs a suite that fails without it.

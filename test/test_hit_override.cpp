@@ -108,7 +108,7 @@ int test_hit_override()
     {
         Tree t;
         InputDispatcher d;
-        EXPECT(d.dispatch(t.root, press_at(30, 30)));   // circle center
+        EXPECT(d.dispatch(t.root, press_at(30, 30)));  // circle center
         EXPECT(t.probe->presses == 1);
         EXPECT(d.dispatch(t.root, release_at(30, 30)));
         EXPECT(t.probe->releases == 1);

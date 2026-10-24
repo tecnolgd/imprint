@@ -44,8 +44,8 @@ int test_scroll_panel()
         constexpr int view_h = 60000;
         constexpr int content_h = 60000000;
         const int th = detail::ratio(track_h, view_h, content_h);
-        EXPECT(th > 0);           // wrapped negative before X-9
-        EXPECT(th >= 8);          // still at least the grabbable gutter
+        EXPECT(th > 0);   // wrapped negative before X-9
+        EXPECT(th >= 8);  // still at least the grabbable gutter
         EXPECT(th <= track_h);
         const int thumb = th < 8 ? 8 : th;
         const int thumb_y = 1 + detail::ratio(content_h / 2, track_h - thumb, content_h);
@@ -189,7 +189,8 @@ int test_scroll_panel()
             if (i == 3)
             {
                 last = btn.get();
-                last->clicked += [&clicks]() { ++clicks; };
+                last->clicked += [&clicks]()
+                { ++clicks; };
             }
             sp->add_child(std::move(btn));
         }

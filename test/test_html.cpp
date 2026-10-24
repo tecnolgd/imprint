@@ -343,7 +343,7 @@ int test_html()
         // background face sampled away from the top-left 5x7 text
         EXPECT(test::pixel_at(g, cp.x + cs.width - 1, cp.y + cs.height - 1) ==
                core::Color::from(0, 0, 255).pixel);  // BLUE face
-        bool saw_red = false;  // RED text somewhere in the box
+        bool saw_red = false;                        // RED text somewhere in the box
         for (int y = 0; y < cs.height && !saw_red; ++y)
         {
             for (int x = 0; x < cs.width; ++x)
@@ -422,7 +422,7 @@ int test_html()
         auto *rb = static_cast<RadioButton *>(host.find_by_id("r"));
         EXPECT(p != nullptr && q != nullptr && rb != nullptr);
         EXPECT(p->get_min() == -5 && p->get_max() == 5);
-        EXPECT(p->get_value() == 5);  // clamped into range
+        EXPECT(p->get_value() == 5);                       // clamped into range
         EXPECT(q->get_min() == 10 && q->get_max() == 10);  // reversed collapses
         EXPECT(q->get_value() == 10);
         EXPECT(rb->get_group() == -2);
@@ -827,16 +827,16 @@ int test_html()
         int max_depth = 0;
         std::function<void(const ui_node &, int)> walk =
             [&](const ui_node &n, int d)
+        {
+            if (d > max_depth)
             {
-                if (d > max_depth)
-                {
-                    max_depth = d;
-                }
-                for (const ui_node &c : n.children)
-                {
-                    walk(c, d + 1);
-                }
-            };
+                max_depth = d;
+            }
+            for (const ui_node &c : n.children)
+            {
+                walk(c, d + 1);
+            }
+        };
         walk(r, 0);
         EXPECT(max_depth <= 32);
         // the label below the cap is gone, and the warning fired once
@@ -1099,7 +1099,6 @@ int test_html()
         EXPECT(host2.get_items()[0].child->get_position().x == 10);
         EXPECT(host2.get_items()[0].child->get_position().y == 10);
     }
-
 
     // C4: an unquoted value ends at whitespace or '/': value=30/> is
     // value "30", self-closed
@@ -1542,7 +1541,8 @@ int test_html()
             "<g fill=\"none\" stroke-linecap=\"round\">"
             "<path d=\"M 0 104 C 18 94, 34 90, 52 98 S 86 124, 106 116\""
             " stroke=\"#57f5a0\" stroke-width=\"2.5\"/>"
-            "</g></svg></div>\n", &ok);
+            "</g></svg></div>\n",
+            &ok);
         EXPECT(ok);
         const ui_node &s = root.children[0];
         EXPECT(s.children.size() == 1);
@@ -1686,7 +1686,7 @@ int test_html()
         EXPECT(rover.children[0].children.empty());
         EXPECT(warns.size() == 1);
         EXPECT(!warns.empty() && warns[0].find("1024-command") !=
-                                      std::string::npos);
+                                     std::string::npos);
 
         // the grammar diagnostic still says "supported subset", so the
         // two failure reasons stay distinguishable in a log
@@ -1725,7 +1725,7 @@ int test_html()
         EXPECT(rpt.children[0].children.empty());
         EXPECT(warns.size() == 1);
         EXPECT(!warns.empty() && warns[0].find("4096-point") !=
-                                      std::string::npos);
+                                     std::string::npos);
     }
 
     // svg static geometry (H-6): rect/circle/ellipse/polyline/polygon,
@@ -1740,7 +1740,8 @@ int test_html()
             "<ellipse cx=\"50\" cy=\"40\" rx=\"8\" ry=\"4\" fill=\"none\" stroke=\"red\"/>"
             "<polyline points=\"10,10 20,10.5 30,-2\"/>"
             "<polygon points=\"0,0 10,0 10,10\" fill=\"green\"/>"
-            "</svg></div>\n", &ok);
+            "</svg></div>\n",
+            &ok);
         EXPECT(ok);
         const ui_node &s = root.children[0];
         EXPECT(s.children.size() == 5);
@@ -1781,7 +1782,8 @@ int test_html()
         // degenerate geometry renders nothing (dropped at parse)
         ui_node rd = parse_html(
             "<div><svg><rect width=\"0\" height=\"10\"/><circle r=\"-3\"/>"
-            "<ellipse rx=\"0\" ry=\"5\"/></svg></div>\n", nullptr);
+            "<ellipse rx=\"0\" ry=\"5\"/></svg></div>\n",
+            nullptr);
         EXPECT(rd.children[0].children.empty());
         // rect rx/ry is warned, corners stay square
         ui_node rr2 = parse_html(
@@ -1792,17 +1794,20 @@ int test_html()
         ui_node rm2 = parse_html(
             "<div><svg><rect width=\"oops\" height=\"10\"/>"
             "<polyline points=\"10,10 20\"/>"
-            "<polygon points=\"10,10 x,5 5,5\"/></svg></div>\n", nullptr);
+            "<polygon points=\"10,10 x,5 5,5\"/></svg></div>\n",
+            nullptr);
         EXPECT(rm2.children[0].children.empty());
         // malformed stroke-width drops the element (the line rule)
         ui_node rw2 = parse_html(
             "<div><svg><rect width=\"10\" height=\"10\" stroke=\"red\""
-            " stroke-width=\"oops\"/></svg></div>\n", nullptr);
+            " stroke-width=\"oops\"/></svg></div>\n",
+            nullptr);
         EXPECT(rw2.children[0].children.empty());
         // zero stroke-width keeps the fill, drops the stroke
         ui_node rz2 = parse_html(
             "<div><svg><rect width=\"10\" height=\"10\" fill=\"red\""
-            " stroke=\"blue\" stroke-width=\"0\"/></svg></div>\n", nullptr);
+            " stroke=\"blue\" stroke-width=\"0\"/></svg></div>\n",
+            nullptr);
         EXPECT(test::vget<std::string>(node_prop_v(rz2.children[0].children[0],
                                                    "fill")) == "red");
         EXPECT(find_prop(rz2.children[0].children[0], "stroke") < 0);
@@ -2500,7 +2505,8 @@ int test_html()
         g.fill(gray);
         host.draw(g);
         const auto kp = knob->get_position();
-        auto covered = [&](const int x, const int y) {
+        auto covered = [&](const int x, const int y)
+        {
             return test::pixel_at(g, x, y) != gray.pixel;
         };
         // transparent corners, covered apexes and mid-edge
@@ -2540,7 +2546,8 @@ int test_html()
         core::Graphics sg(100, 80, nullptr);
         sg.fill(core::colors::Black);
         sym_host.draw(sg);
-        auto sym_covered = [&](const int x, const int y) {
+        auto sym_covered = [&](const int x, const int y)
+        {
             return test::pixel_at(sg, x, y) != core::colors::Black.pixel;
         };
         for (int r = 0; r < 54; ++r)
@@ -2550,12 +2557,14 @@ int test_html()
             {
                 if (sym_covered(sp.x + c, sp.y + r))
                 {
-                    if (lt < 0) lt = c;
+                    if (lt < 0)
+                        lt = c;
                     rt = c;
                 }
                 if (sym_covered(sp.x + c, sp.y + 53 - r))
                 {
-                    if (lb < 0) lb = c;
+                    if (lb < 0)
+                        lb = c;
                     rb = c;
                 }
             }

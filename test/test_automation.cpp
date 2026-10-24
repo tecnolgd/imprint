@@ -27,7 +27,8 @@ namespace
         Driver(const int w, const int h)
         {
             win.create(static_cast<uint32_t>(w), static_cast<uint32_t>(h));
-            win.painted += [this](const void *) { ++frames; };
+            win.painted += [this](const void *)
+            { ++frames; };
         }
 
         Widget *by_id(const char *id) { return win.root().find_by_id(id); }
@@ -96,7 +97,8 @@ int test_automation()
         ok->set_position(10, 10);
         auto *ok_ptr = ok.get();
         int ok_clicks = 0;
-        ok->clicked += [&ok_clicks]() { ++ok_clicks; };
+        ok->clicked += [&ok_clicks]()
+        { ++ok_clicks; };
         d.win.root().add_child(std::move(ok));
 
         auto name = std::make_unique<TextInput>();
@@ -169,7 +171,8 @@ int test_automation()
         b->set_position(30, 0);
         auto *bp = b.get();
         int b_clicks = 0;
-        b->clicked += [&b_clicks]() { ++b_clicks; };
+        b->clicked += [&b_clicks]()
+        { ++b_clicks; };
         d.win.root().add_child(std::move(a));
         d.win.root().add_child(std::move(b));
         d.win.paint();
@@ -191,7 +194,8 @@ int test_automation()
         under->set_position(10, 10);
         auto *up = under.get();
         int under_clicks = 0;
-        under->clicked += [&under_clicks]() { ++under_clicks; };
+        under->clicked += [&under_clicks]()
+        { ++under_clicks; };
         d.win.root().add_child(std::move(under));
 
         auto dlg = std::make_unique<Dialog>();
@@ -199,7 +203,8 @@ int test_automation()
         dlg->set_frame_size(80, 60);
         Button &dbtn = dlg->add_button("OK");
         int dlg_clicks = 0;
-        dbtn.clicked += [&dlg_clicks]() { ++dlg_clicks; };
+        dbtn.clicked += [&dlg_clicks]()
+        { ++dlg_clicks; };
         auto *dp = dlg.get();
         d.win.root().add_child(std::move(dlg));
         d.win.paint();

@@ -1,5 +1,5 @@
 ---
-# Imprint C++ formatting (X-8).
+# Imprint C++ formatting (X-8, tree-wide pass landed as X-19).
 #
 # The tree's style, expressed for clang-format: Allman braces, 4-space
 # indent, indented namespaces, pointers bound to the name, no column
@@ -8,17 +8,18 @@
 # no include sorting (the include order in this tree is deliberate: the
 # header under test first, then its dependencies).
 #
-# The tree is NOT reformatted to this file yet. Measured 2026-10-19 with
-# clang-format 18.1.3: 137 of 240 first-party files still drift, ~6.3k
-# diff lines, concentrated in the fluent-builder tests (continuation
-# alignment) and two hand-formatted legacy files (imshell/src/nds/main.cpp
-# is tab-indented). The tree-wide reformat is a recorded follow-up
-# (docs/backlog.md, Batch X); CI does not gate on formatting until it
-# lands. Until then this file is the reference for new and edited code.
+# The whole first-party tree is formatted to this file. The reformat
+# landed 2026-10-24 with clang-format 18.1.3 (~6.5k lines over 136 of
+# 239 tracked files, mechanical — no token changed), and tools/format-check.sh
+# gates it: it pins 18.1.3, refuses to judge with any other version, and
+# CI runs it in the linux-desktop job. Run it with --write before a
+# commit when you have touched first-party code.
 #
-# clang-format output changes between major versions: the reformat
-# commit and any later gate must pin the version the tree was formatted
-# with (18.x at the time of writing), not whatever the runner ships.
+# clang-format output changes between major versions, so the pinned
+# version is the one the tree was formatted with (18.1.3), not whatever
+# the runner ships. A reformat under a new version is its own commit:
+# run the whole tree through tools/format-check.sh --write, verify the
+# battery is byte-identical, and move the pin in one step.
 Language: Cpp
 BasedOnStyle: LLVM
 

@@ -21,8 +21,14 @@ namespace
     // geometry (and the probe/button coordinates derived from it) comes
     // from tictactoe_layout.hpp -- the single source the view also uses
 
-    int cell_x(const int col) { return board_x + col * board_cell + board_cell / 2; }
-    int cell_y(const int row) { return board_y + row * board_cell + board_cell / 2; }
+    int cell_x(const int col)
+    {
+        return board_x + col * board_cell + board_cell / 2;
+    }
+    int cell_y(const int row)
+    {
+        return board_y + row * board_cell + board_cell / 2;
+    }
 
     void click(const zb::SharedPtr<IApp> &app, const int x, const int y)
     {

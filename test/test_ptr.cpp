@@ -35,14 +35,14 @@ int test_ptr()
     // skipped the whole block when both variables already shared the object.
     {
         zb::SharedPtr<PtrDerived> d = zb::make_shared<PtrDerived>();
-        zb::SharedPtr<PtrBase> b = d;   // b aliases d (refcount == 2)
-        b = std::move(d);               // move the aliased source
-        EXPECT(static_cast<bool>(b));   // target still owns the object
-        EXPECT(!d);                     // source must be empty afterwards
+        zb::SharedPtr<PtrBase> b = d;  // b aliases d (refcount == 2)
+        b = std::move(d);              // move the aliased source
+        EXPECT(static_cast<bool>(b));  // target still owns the object
+        EXPECT(!d);                    // source must be empty afterwards
         b->tag = 7;
         EXPECT(b->tag == 7);
     }
-    EXPECT(PtrDerived::alive == 0);     // destroyed exactly once, no leak
+    EXPECT(PtrDerived::alive == 0);  // destroyed exactly once, no leak
 
     // ordinary cross-type move from a freshly created object
     {
@@ -79,7 +79,7 @@ int test_ptr()
         EXPECT(!d);
         EXPECT(static_cast<bool>(b));
         zb::SharedPtr<PtrBase> c;
-        c = b;                                    // converting copy assignment
+        c = b;  // converting copy assignment
         EXPECT(static_cast<bool>(c));
         EXPECT(c.get() == b.get());
     }
@@ -107,13 +107,13 @@ int test_ptr()
         {
             zb::SharedPtr<PtrDerived> b = a;  // copy ctor: two owners
             EXPECT(a.get() == b.get());
-            EXPECT(PtrDerived::alive == 1);   // one object, two owners
-            b->tag = 3;                       // aliasing writes are visible
+            EXPECT(PtrDerived::alive == 1);  // one object, two owners
+            b->tag = 3;                      // aliasing writes are visible
             EXPECT(a->tag == 3);
         }
-        EXPECT(PtrDerived::alive == 1);       // b died, the object survived
+        EXPECT(PtrDerived::alive == 1);  // b died, the object survived
     }
-    EXPECT(PtrDerived::alive == 0);           // last owner destroyed it
+    EXPECT(PtrDerived::alive == 0);  // last owner destroyed it
 
     // copy assignment releases the previously held object
     {
@@ -121,7 +121,7 @@ int test_ptr()
         zb::SharedPtr<PtrDerived> b = zb::make_shared<PtrDerived>();
         EXPECT(PtrDerived::alive == 2);
         a = b;
-        EXPECT(PtrDerived::alive == 1);       // a's old object released
+        EXPECT(PtrDerived::alive == 1);  // a's old object released
         EXPECT(a.get() == b.get());
     }
     EXPECT(PtrDerived::alive == 0);

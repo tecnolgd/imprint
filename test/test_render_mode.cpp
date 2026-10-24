@@ -213,8 +213,8 @@ int test_render_mode()
         gw.set_render_mode(mode::wireframe);
         root.draw(gw);
         EXPECT(list->rasterization_count() == full_misses);  // no cache use
-        EXPECT(test::pixel_at(gw, 12, 18) == White.pixel);  // face outlined
-        bool saw_text = false;  // row-0 glyphs still drawn, live
+        EXPECT(test::pixel_at(gw, 12, 18) == White.pixel);   // face outlined
+        bool saw_text = false;                               // row-0 glyphs still drawn, live
         for (int y = 10; y < 26 && !saw_text; ++y)
         {
             for (int x = 10; x < 110; ++x)
@@ -274,8 +274,10 @@ int test_render_mode()
             {
                 if (test::pixel_at(l, x, y) == Black.pixel)
                 {
-                    if (x < min_x) min_x = x;
-                    if (x > max_x) max_x = x;
+                    if (x < min_x)
+                        min_x = x;
+                    if (x > max_x)
+                        max_x = x;
                 }
             }
         }
@@ -317,8 +319,10 @@ int test_render_mode()
             {
                 if (test::pixel_at(r, x, y) == Black.pixel)
                 {
-                    if (x < left_most) left_most = x;
-                    if (x > right_most) right_most = x;
+                    if (x < left_most)
+                        left_most = x;
+                    if (x > right_most)
+                        right_most = x;
                 }
             }
         }

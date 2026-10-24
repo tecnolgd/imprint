@@ -202,10 +202,10 @@ int FB::init()
         return 5;
     }
 
-    screen_width = vinfo.xres;           // in pixels
-    screen_height = vinfo.yres;          // in pixels
-    screen_line_len = finfo.line_length; // in bytes
-    screen_mem_len = screen_line_len * screen_height;   // in bytes
+    screen_width = vinfo.xres;                         // in pixels
+    screen_height = vinfo.yres;                        // in pixels
+    screen_line_len = finfo.line_length;               // in bytes
+    screen_mem_len = screen_line_len * screen_height;  // in bytes
 
     LD << "screen_width : " << screen_width;
     LD << "screen_height : " << screen_height;

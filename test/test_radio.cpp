@@ -78,9 +78,12 @@ int test_radio()
         Tree t;
         InputDispatcher d;
         int fires = 0;
-        t.r1->changed += [&fires]() { ++fires; };
-        t.r2->changed += [&fires]() { ++fires; };
-        t.r3->changed += [&fires]() { ++fires; };
+        t.r1->changed += [&fires]()
+        { ++fires; };
+        t.r2->changed += [&fires]()
+        { ++fires; };
+        t.r3->changed += [&fires]()
+        { ++fires; };
 
         d.dispatch(t.root, press_at(15, 45));
         d.dispatch(t.root, release_at(15, 45));
@@ -123,7 +126,8 @@ int test_radio()
     {
         Tree t;
         int fires = 0;
-        t.r1->changed += [&fires]() { ++fires; };
+        t.r1->changed += [&fires]()
+        { ++fires; };
         t.r3->set_checked(true);
         EXPECT(t.r3->is_checked());
         EXPECT(!t.r1->is_checked());

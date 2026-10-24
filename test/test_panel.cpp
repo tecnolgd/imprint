@@ -143,9 +143,9 @@ int test_panel()
         p.add_child(std::move(child));
         p.draw(*g);
 
-        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Red.pixel);     // panel area
-        EXPECT(test::pixel_at(*g, 3, 3) == core::colors::Blue.pixel);    // child area (1+2, 1+2)
-        EXPECT(test::pixel_at(*g, 2, 2) == core::colors::Red.pixel);     // panel area around child
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Red.pixel);   // panel area
+        EXPECT(test::pixel_at(*g, 3, 3) == core::colors::Blue.pixel);  // child area (1+2, 1+2)
+        EXPECT(test::pixel_at(*g, 2, 2) == core::colors::Red.pixel);   // panel area around child
         EXPECT(test::pixel_at(*g, 0, 0) == 0);
     }
 
@@ -182,8 +182,8 @@ int test_panel()
         p.add_child(std::move(child));
         p.draw(*g);
 
-        EXPECT(test::pixel_at(*g, 3, 3) == core::colors::Blue.pixel);   // visible corner of child
-        EXPECT(test::pixel_at(*g, 5, 5) == 0);                          // clipped part not drawn
+        EXPECT(test::pixel_at(*g, 3, 3) == core::colors::Blue.pixel);  // visible corner of child
+        EXPECT(test::pixel_at(*g, 5, 5) == 0);                         // clipped part not drawn
     }
 
     return test::report("panel");

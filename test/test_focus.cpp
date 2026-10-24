@@ -76,7 +76,8 @@ int test_focus()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.b->clicked += [&clicks]() { ++clicks; };
+        t.b->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, key_event(zb::input::key_code::tab));
         d.dispatch(t.root, key_event(zb::input::key_code::tab));  // focus b
@@ -89,7 +90,8 @@ int test_focus()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.a->clicked += [&clicks]() { ++clicks; };
+        t.a->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, key_event(zb::input::key_code::tab));
         d.dispatch(t.root, key_event(zb::input::key_code::space));

@@ -25,7 +25,7 @@ namespace zb::app
 
         event::CLOSE_EVENT closing;
         event::CLOSE_EVENT closed;
-        
+
         virtual void close() noexcept = 0;
 
         /*
@@ -51,4 +51,4 @@ namespace zb::app
 
 }
 
-#endif // IGUI_HPP
+#endif  // IGUI_HPP

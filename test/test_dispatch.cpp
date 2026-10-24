@@ -179,7 +179,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, press_at(15, 15));
         EXPECT(t.button->get_state() == Button::state::pressed);
@@ -193,7 +194,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, press_at(50, 50));
         d.dispatch(t.root, release_at(50, 50));
@@ -206,10 +208,11 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, press_at(15, 15));
-        d.dispatch(t.root, move_to(80, 80));  // left the button
+        d.dispatch(t.root, move_to(80, 80));                     // left the button
         EXPECT(t.button->get_state() == Button::state::normal);  // cancelled
         d.dispatch(t.root, release_at(80, 80));
         EXPECT(clicks == 0);
@@ -220,10 +223,11 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
-        d.dispatch(t.root, press_at(28, 15));    // inside the button (10..29)
-        d.dispatch(t.root, move_to(32, 15));     // 3px out, but 4px drift
+        d.dispatch(t.root, press_at(28, 15));  // inside the button (10..29)
+        d.dispatch(t.root, move_to(32, 15));   // 3px out, but 4px drift
         EXPECT(t.button->get_state() == Button::state::pressed);
         d.dispatch(t.root, release_at(32, 15));
         EXPECT(clicks == 1);
@@ -234,7 +238,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, press_at(15, 15));
         d.dispatch(t.root, release_at(80, 80));  // released elsewhere
@@ -247,7 +252,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, touch_press_at(15, 15, 1));
         EXPECT(t.button->get_state() == Button::state::pressed);
@@ -272,7 +278,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, touch_press_at(28, 15, 3));
         d.dispatch(t.root, touch_move_to(32, 15, 3));  // 3px out, 4px drift
@@ -287,7 +294,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, touch_press_at(15, 15, 0));
         d.dispatch(t.root, touch_move_to(0, 0, 0));  // glitch spike
@@ -301,7 +309,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, touch_press_at(15, 15, 0));
         d.dispatch(t.root, touch_move_to(80, 80, 0));
@@ -317,12 +326,13 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, touch_press_at(15, 15, 0));
-        d.dispatch(t.root, touch_move_to(80, 80, 0));   // tolerated
-        d.dispatch(t.root, touch_move_to(15, 15, 0));   // back on the button
-        d.dispatch(t.root, touch_move_to(80, 80, 0));   // tolerated again
+        d.dispatch(t.root, touch_move_to(80, 80, 0));  // tolerated
+        d.dispatch(t.root, touch_move_to(15, 15, 0));  // back on the button
+        d.dispatch(t.root, touch_move_to(80, 80, 0));  // tolerated again
         EXPECT(t.button->get_state() == Button::state::pressed);
         d.dispatch(t.root, touch_release_at(80, 80, 0));
         EXPECT(clicks == 1);
@@ -335,14 +345,15 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, touch_press_at(15, 15, 0));
-        d.dispatch(t.root, touch_move_to(80, 80, 0));   // strike 1 (tolerated)
+        d.dispatch(t.root, touch_move_to(80, 80, 0));  // strike 1 (tolerated)
         // off the 20px button at (10,10) but only 6px from press origin
         d.dispatch(t.root, touch_move_to(9, 16, 0));
         EXPECT(t.button->get_state() == Button::state::pressed);
-        d.dispatch(t.root, touch_move_to(80, 80, 0));   // strike 1 again
+        d.dispatch(t.root, touch_move_to(80, 80, 0));  // strike 1 again
         EXPECT(t.button->get_state() == Button::state::pressed);
         d.dispatch(t.root, touch_release_at(15, 15, 0));
         EXPECT(clicks == 1);
@@ -353,7 +364,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         zb::input::input_event ev = press_at(15, 15);
         ev.type = zb::input::input_type::mouse_right_down;
@@ -388,7 +400,8 @@ int test_dispatch()
 
         InputDispatcher d;
         int clicks = 0;
-        pbtn->clicked += [&clicks]() { ++clicks; };
+        pbtn->clicked += [&clicks]()
+        { ++clicks; };
 
         // button sits at (0,0) inside inner -> (15,15) in root coordinates,
         // spanning (15,15)..(24,24)
@@ -406,7 +419,8 @@ int test_dispatch()
         Tree t;
         InputDispatcher d;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
 
         d.dispatch(t.root, press_at(15, 15));
         d.reset();
@@ -425,7 +439,8 @@ int test_dispatch()
         outer->set_position(0, 0);
         auto *pouter = outer.get();
         int outer_clicks = 0;
-        pouter->clicked += [&outer_clicks]() { ++outer_clicks; };
+        pouter->clicked += [&outer_clicks]()
+        { ++outer_clicks; };
 
         // dialog covers (30,30)..(69,69); its button sits inside
         auto dlg = std::make_unique<Dialog>();
@@ -436,7 +451,8 @@ int test_dispatch()
         dlg->open();
         auto &ok = dlg->add_button("OK");
         int ok_clicks = 0;
-        ok.clicked += [&ok_clicks]() { ++ok_clicks; };
+        ok.clicked += [&ok_clicks]()
+        { ++ok_clicks; };
         auto *pdlg = dlg.get();
 
         root.add_child(std::move(outer));
@@ -494,7 +510,8 @@ int test_dispatch()
     {
         Tree t;
         int clicks = 0;
-        t.button->clicked += [&clicks]() { ++clicks; };
+        t.button->clicked += [&clicks]()
+        { ++clicks; };
         InputDispatcher d;
         d.dispatch(t.root, press_at(15, 15));
         d.dispatch(t.root, move_to(-10, -10));
@@ -570,7 +587,8 @@ int test_dispatch()
         dlg->close();
         auto &ok = dlg->add_button("OK");
         int ok_clicks = 0;
-        ok.clicked += [&ok_clicks]() { ++ok_clicks; };
+        ok.clicked += [&ok_clicks]()
+        { ++ok_clicks; };
         root.add_child(std::move(dlg));
 
         InputDispatcher d;
@@ -599,9 +617,9 @@ int test_dispatch()
 
         // a move far outside the widget cancels the press (a change)
         EXPECT(d.dispatch(t.root, press_at(15, 15)));
-        EXPECT(d.dispatch(t.root, move_to(80, 80)));  // beyond slop
+        EXPECT(d.dispatch(t.root, move_to(80, 80)));      // beyond slop
         EXPECT(!d.dispatch(t.root, release_at(80, 80)));  // no press left
-        EXPECT(!d.dispatch(t.root, move_to(80, 80)));  // no press: no-op
+        EXPECT(!d.dispatch(t.root, move_to(80, 80)));     // no press: no-op
     }
 
     // keyboard events report focus moves and activations
@@ -661,7 +679,7 @@ int test_dispatch()
 
         d.dispatch(t.root, press_at(28, 15));
         EXPECT(t.button->get_state() == Button::state::pressed);
-        d.dispatch(t.root, move_to(40, 15));  // 11px out: beyond slop
+        d.dispatch(t.root, move_to(40, 15));                     // 11px out: beyond slop
         EXPECT(t.button->get_state() == Button::state::normal);  // cancelled
     }
 
@@ -703,7 +721,8 @@ int test_dispatch()
 
         // activations only fire when the key is not consumed
         int clicks = 0;
-        pbtn->clicked += [&clicks]() { ++clicks; };
+        pbtn->clicked += [&clicks]()
+        { ++clicks; };
         // walk the focus to the button with an unconsumed tab
         pprobe->consume = false;
         EXPECT(d.dispatch(root, key_down(static_cast<int>(zb::input::key_code::tab))));  // probe -> button
@@ -736,7 +755,8 @@ int test_dispatch()
         root.add_child(std::move(btn));
 
         InputDispatcher d;
-        auto ch_ev = [](const int ch) {
+        auto ch_ev = [](const int ch)
+        {
             zb::input::input_event ev;
             ev.type = zb::input::input_type::key_down;
             ev.ch = ch;
@@ -776,7 +796,8 @@ int test_dispatch()
         a->set_position(5, 5);
         auto *pa = a.get();
         int a_clicks = 0;
-        pa->clicked += [&a_clicks]() { ++a_clicks; };
+        pa->clicked += [&a_clicks]()
+        { ++a_clicks; };
         root.add_child(std::move(a));
 
         auto dlg = std::make_unique<Panel>();
@@ -787,7 +808,8 @@ int test_dispatch()
         b->set_position(5, 5);  // absolute (45, 45)
         auto *pb = b.get();
         int b_clicks = 0;
-        pb->clicked += [&b_clicks]() { ++b_clicks; };
+        pb->clicked += [&b_clicks]()
+        { ++b_clicks; };
         dlg->add_child(std::move(b));
         auto *pdlg = dlg.get();
         root.add_child(std::move(dlg));
@@ -968,7 +990,8 @@ int test_dispatch()
         outer->set_size(20, 20);
         outer->set_position(0, 0);
         int outer_clicks = 0;
-        outer->clicked += [&outer_clicks]() { ++outer_clicks; };
+        outer->clicked += [&outer_clicks]()
+        { ++outer_clicks; };
 
         auto dlg = std::make_unique<Dialog>();
         dlg->set_size(40, 40);
@@ -978,7 +1001,8 @@ int test_dispatch()
         dlg->open();
         auto &ok = dlg->add_button("OK");
         int ok_clicks = 0;
-        ok.clicked += [&ok_clicks]() { ++ok_clicks; };
+        ok.clicked += [&ok_clicks]()
+        { ++ok_clicks; };
         auto *pdlg = dlg.get();
 
         root.add_child(std::move(outer));

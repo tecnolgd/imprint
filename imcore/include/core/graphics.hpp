@@ -26,7 +26,7 @@ namespace zb::ui::core
          * The optional `data` buffer is wrapped, not copied: the framework
          * writes into it, so it must be writable (no const buffer).
          */
-        Graphics(uint32_t width, uint32_t height, void* data);
+        Graphics(uint32_t width, uint32_t height, void *data);
         ~Graphics();
 
         // Graphics manages a raw pixel buffer. Copying the object itself is forbidden
@@ -63,8 +63,7 @@ namespace zb::ui::core
             friend class Graphics;
             ClipGuard(Graphics &g, const imarea_t &saved_area, const bool saved_offset_enabled,
                       const impoint_t &saved_offset, const bool valid)
-                : g_(g), saved_area_(saved_area), saved_offset_enabled_(saved_offset_enabled),
-                  saved_offset_(saved_offset), valid_(valid)
+                : g_(g), saved_area_(saved_area), saved_offset_enabled_(saved_offset_enabled), saved_offset_(saved_offset), valid_(valid)
             {
             }
 
@@ -449,12 +448,12 @@ namespace zb::ui::core
          * Draw an image, a Color pixels array, into graphics.
          * */
         void draw_image(
-            const Color *img,          // bitmap buffer pointer
-            int img_width,      // bitmap widht
-            int img_height,     // bitmap height
-            int img_row_stride, // pixel amount in one row
-            int start_x,        // x coordinate in the graphic where starting to draw bitmap
-            int start_y         // y coordinate in the graphic where starting to draw bitmap
+            const Color *img,    // bitmap buffer pointer
+            int img_width,       // bitmap widht
+            int img_height,      // bitmap height
+            int img_row_stride,  // pixel amount in one row
+            int start_x,         // x coordinate in the graphic where starting to draw bitmap
+            int start_y          // y coordinate in the graphic where starting to draw bitmap
         );
 
         /* draw an image_t view; row_stride 0 means width, a malformed
@@ -504,12 +503,12 @@ namespace zb::ui::core
          * Contracts: code-contract §9, ARCHITECTURE §4.4.
          */
         void draw_surface(
-            const Color *src,   // consumer-owned pixel block
-            int src_stride,     // pixel amount in one source row
-            int width,          // surface width in pixels
-            int height,         // surface height in pixels
-            int start_x,        // widget-local destination x
-            int start_y);       // widget-local destination y
+            const Color *src,  // consumer-owned pixel block
+            int src_stride,    // pixel amount in one source row
+            int width,         // surface width in pixels
+            int height,        // surface height in pixels
+            int start_x,       // widget-local destination x
+            int start_y);      // widget-local destination y
 
         /*
          * WIREFRAME companion (S-1, opt-in): 1px dots every `spacing`

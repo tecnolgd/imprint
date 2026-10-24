@@ -110,11 +110,13 @@ namespace
         // the app requests to quit by closing its window (e.g. a QUIT button)
         bool app_closed = false;
         // held for the loop's lifetime (code-contract §11.1)
-        const auto closed_sub = app->on_closed([&app_closed]() { app_closed = true; });
+        const auto closed_sub = app->on_closed([&app_closed]()
+                                               { app_closed = true; });
 
         // painted callback: the frame is owed, present at the next loop tick
         bool frame_owed = false;
-        const auto painted_sub = app->on_painted([&frame_owed](const void *) { frame_owed = true; });
+        const auto painted_sub = app->on_painted([&frame_owed](const void *)
+                                                 { frame_owed = true; });
 
         zb::shell::term_input::parser parser(buffer_w, buffer_h);
         std::vector<zb::input::input_event> events;
@@ -166,9 +168,7 @@ namespace
 int main(int, char *[])
 {
     zb::Logging::set_log_handle([](const zb::Logging_Level &, const std::string &message)
-    {
-        std::printf("%s", message.c_str());
-    });
+                                { std::printf("%s", message.c_str()); });
 
     LD << "run on terminal (SIXEL)";
 

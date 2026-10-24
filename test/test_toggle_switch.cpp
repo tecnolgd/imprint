@@ -12,7 +12,7 @@ int test_toggle_switch()
 
     // the pixel assertions depend on the light theme
     set_theme(light_theme());
-    const core::Color blue  = theme().accent;
+    const core::Color blue = theme().accent;
     const core::Color field = theme().field_bg;
     const core::Color white = theme().text_inverted;
 
@@ -85,10 +85,9 @@ int test_toggle_switch()
     int changed_count = 0;
     bool last_state = false;
     plain.changed.sub([&](const bool v)
-    {
+                      {
         ++changed_count;
-        last_state = v;
-    });
+        last_state = v; });
     plain.set_checked(true);
     EXPECT(plain.is_checked());
     EXPECT(changed_count == 0);
@@ -98,10 +97,9 @@ int test_toggle_switch()
         Tree t;
         InputDispatcher d;
         t.sw->changed.sub([&](const bool v)
-        {
+                          {
             ++changed_count;
-            last_state = v;
-        });
+            last_state = v; });
         d.dispatch(t.root, press_at(70, 40));
         EXPECT(t.sw->is_pressed());
         d.dispatch(t.root, release_at(70, 40));
@@ -117,10 +115,9 @@ int test_toggle_switch()
         changed_count = 0;
         last_state = false;
         t.sw->changed.sub([&](const bool v)
-        {
+                          {
             ++changed_count;
-            last_state = v;
-        });
+            last_state = v; });
         d.dispatch(t.root, press_at(70, 40));
         d.dispatch(t.root, move_to(150, 90));
         EXPECT(!t.sw->is_pressed());

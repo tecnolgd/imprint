@@ -93,8 +93,8 @@ namespace zb::ui
         {
             const auto s = get_size();
             const core::Color edge = is_focused()
-                                         ? focus_border.value_or(theme().accent)
-                                         : border.value_or(theme().border);
+                                       ? focus_border.value_or(theme().accent)
+                                       : border.value_or(theme().border);
             area.draw_rect(0, 0, s.width - 1, s.height - 1, edge);
         }
         draw_text(area);

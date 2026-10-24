@@ -136,14 +136,23 @@ namespace
     }
 
     // "96.8%" -> 96 (the stateful hull/fuel readouts)
-    int pct_of(const std::string &s) { return std::atoi(s.c_str()); }
+    int pct_of(const std::string &s)
+    {
+        return std::atoi(s.c_str());
+    }
 
     // "875 K" -> 875
-    int kelvin_of(const std::string &s) { return std::atoi(s.c_str()); }
+    int kelvin_of(const std::string &s)
+    {
+        return std::atoi(s.c_str());
+    }
 
     // ---- the published sync() formulas (mirrored from the app) ----
 
-    int coolant_of(const int r) { return std::max(28, 86 - (r * 35) / 100); }
+    int coolant_of(const int r)
+    {
+        return std::max(28, 86 - (r * 35) / 100);
+    }
 
     int temp_of(const int r, const int s, const int e, const bool damaged)
     {
@@ -192,7 +201,7 @@ int test_showcase()
     auto *hull_bar = static_cast<ProgressBar *>(root(app).find_by_id("hull_bar"));
     auto *temp_bar = static_cast<ProgressBar *>(root(app).find_by_id("temp_bar"));
     auto *fuel_bar = static_cast<ProgressBar *>(root(app).find_by_id("fuel_bar"));
-    auto *sweep = root(app).find_by_id("scope_ring"); // the pseudo host
+    auto *sweep = root(app).find_by_id("scope_ring");  // the pseudo host
     auto *toast = root(app).find_by_id("toast");
     EXPECT(react != nullptr && shield != nullptr && weapons != nullptr &&
            engine != nullptr);

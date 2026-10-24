@@ -26,7 +26,8 @@ namespace
         log_probe()
         {
             zb::Logging::set_log_handle(
-                [this](const zb::Logging_Level level, const std::string &msg) {
+                [this](const zb::Logging_Level level, const std::string &msg)
+                {
                     if (throw_on_log)
                     {
                         throw std::bad_alloc();
@@ -50,8 +51,10 @@ int test_main_guard()
     // a body that returns normally passes its value through untouched
     {
         log_probe probe;
-        EXPECT(zb::shell::guarded_main([] { return 0; }) == 0);
-        EXPECT(zb::shell::guarded_main([] { return 42; }) == 42);
+        EXPECT(zb::shell::guarded_main([]
+                                       { return 0; }) == 0);
+        EXPECT(zb::shell::guarded_main([]
+                                       { return 42; }) == 42);
         EXPECT(probe.messages.empty());
     }
 
@@ -60,7 +63,8 @@ int test_main_guard()
     {
         log_probe probe;
         const int rc = zb::shell::guarded_main(
-            []() -> int { throw zb::ui::error("no display"); });
+            []() -> int
+            { throw zb::ui::error("no display"); });
         EXPECT(rc == 1);
         EXPECT(probe.messages.size() == 1);
         if (probe.messages.size() == 1)
@@ -75,13 +79,13 @@ int test_main_guard()
     {
         log_probe probe;
         EXPECT(zb::shell::guarded_main(
-                   []() -> int { throw std::bad_alloc(); }) == 1);
+                   []() -> int
+                   { throw std::bad_alloc(); }) == 1);
         EXPECT(probe.messages.size() == 1);
 
         probe.messages.clear();
-        EXPECT(zb::shell::guarded_main([]() -> int {
-                   throw std::length_error("too long");
-               }) == 1);
+        EXPECT(zb::shell::guarded_main([]() -> int
+                                       { throw std::length_error("too long"); }) == 1);
         EXPECT(probe.messages.size() == 1);
         if (probe.messages.size() == 1)
         {
@@ -89,16 +93,16 @@ int test_main_guard()
         }
 
         probe.messages.clear();
-        EXPECT(zb::shell::guarded_main([]() -> int {
-                   throw std::runtime_error("device gone");
-               }) == 1);
+        EXPECT(zb::shell::guarded_main([]() -> int
+                                       { throw std::runtime_error("device gone"); }) == 1);
         EXPECT(probe.messages.size() == 1);
     }
 
     // a non-std throw still gets a diagnostic (what() unavailable)
     {
         log_probe probe;
-        EXPECT(zb::shell::guarded_main([]() -> int { throw 7; }) == 1);
+        EXPECT(zb::shell::guarded_main([]() -> int
+                                       { throw 7; }) == 1);
         EXPECT(probe.messages.size() == 1);
         if (probe.messages.size() == 1)
         {
@@ -113,10 +117,13 @@ int test_main_guard()
         log_probe probe;
         probe.throw_on_log = true;
         EXPECT(zb::shell::guarded_main(
-                   []() -> int { throw zb::ui::error("boom"); }) == 1);
+                   []() -> int
+                   { throw zb::ui::error("boom"); }) == 1);
         EXPECT(zb::shell::guarded_main(
-                   []() -> int { throw std::bad_alloc(); }) == 1);
-        EXPECT(zb::shell::guarded_main([]() -> int { throw 'x'; }) == 1);
+                   []() -> int
+                   { throw std::bad_alloc(); }) == 1);
+        EXPECT(zb::shell::guarded_main([]() -> int
+                                       { throw 'x'; }) == 1);
     }
 
     return test::report("main_guard");

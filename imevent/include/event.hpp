@@ -198,7 +198,8 @@ namespace zb::event
         {
             Event &event;
 
-            explicit InvokeGuard(Event &e) : event(e)
+            explicit InvokeGuard(Event &e)
+                : event(e)
             {
                 ++event.invoke_depth;
             }
@@ -339,6 +340,6 @@ namespace zb::event
 
         friend class Event<TArgs...>;
     };
-} // namespace zb::event
+}  // namespace zb::event
 
-#endif // end of EVENT_HPP
+#endif  // end of EVENT_HPP

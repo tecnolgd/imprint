@@ -87,7 +87,7 @@ int test_shell_presenter()
         c.add(25, 25, 15, 15);
         present_rect u = c.get();
         EXPECT(u.x == 10 && u.y == 10 && u.w == 30 && u.h == 30);  // union
-        c.add(0, 0, 0, 0);  // an empty frame must not drop pending regions
+        c.add(0, 0, 0, 0);                                         // an empty frame must not drop pending regions
         u = c.get();
         EXPECT(u.w == 30 && u.h == 30);
         c.clear();
@@ -142,7 +142,7 @@ int test_shell_presenter()
     {
         const zb::shell::presentation p = zb::shell::presentation_fit(400, 200, 320, 240);
         EXPECT(p.h == 200);
-        EXPECT(p.w == 266);  // floor(320 * 200 / 240) = floor(266.67)
+        EXPECT(p.w == 266);             // floor(320 * 200 / 240) = floor(266.67)
         EXPECT(p.x == 67 && p.y == 0);  // floor((400 - 266) / 2)
     }
 
@@ -174,10 +174,10 @@ int test_shell_presenter()
         EXPECT(p.w == 266 && p.x == 187 && p.y == 0);
         int bx = 0;
         int by = 0;
-        EXPECT(!p.to_buffer(100, 100, bx, by));   // left band
-        EXPECT(!p.to_buffer(500, 100, bx, by));   // right band
-        EXPECT(p.to_buffer(300, 100, bx, by));    // inside
-        EXPECT(!p.to_buffer(300, -1, bx, by));    // outside the client
+        EXPECT(!p.to_buffer(100, 100, bx, by));  // left band
+        EXPECT(!p.to_buffer(500, 100, bx, by));  // right band
+        EXPECT(p.to_buffer(300, 100, bx, by));   // inside
+        EXPECT(!p.to_buffer(300, -1, bx, by));   // outside the client
     }
 
     // inverse map: fractional scale still lands on the shown pixel
@@ -384,9 +384,7 @@ int test_shell_presenter()
         // X-15: the shells no longer hand-roll the four-iteration loop;
         // the test drives the same shared visitor they call
         zb::shell::for_each_bar(b, [&](const zb::shell::present_rect &r)
-        {
-            g.fill_rect(r.x, r.y, r.x + r.w - 1, r.y + r.h - 1, bezel);
-        });
+                                { g.fill_rect(r.x, r.y, r.x + r.w - 1, r.y + r.h - 1, bezel); });
         EXPECT(test::pixel_at(g, 20, 2) == bezel.pixel);   // top bar
         EXPECT(test::pixel_at(g, 20, 27) == bezel.pixel);  // bottom bar
         EXPECT(test::pixel_at(g, 20, 15) ==
@@ -401,9 +399,7 @@ int test_shell_presenter()
             zb::shell::presentation_fit(0, 0, 0, 0), 40, 30);
         std::vector<zb::shell::present_rect> seen;
         zb::shell::for_each_bar(empty, [&](const zb::shell::present_rect &r)
-        {
-            seen.push_back(r);
-        });
+                                { seen.push_back(r); });
         EXPECT(seen.size() == 1);
         if (seen.size() == 1)
         {
@@ -416,9 +412,7 @@ int test_shell_presenter()
             zb::shell::presentation_fit(40, 30, 40, 30), 40, 30);
         std::size_t visits = 0;
         zb::shell::for_each_bar(none, [&](const zb::shell::present_rect &)
-        {
-            ++visits;
-        });
+                                { ++visits; });
         EXPECT(visits == 0);
     }
 

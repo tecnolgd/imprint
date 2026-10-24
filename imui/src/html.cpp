@@ -98,8 +98,12 @@ namespace zb::ui
                 const char *name;
                 const char *repl;
             } kEntities[] = {
-                {"amp;", "&"}, {"lt;", "<"}, {"gt;", ">"},
-                {"quot;", "\""}, {"#39;", "'"}, {"nbsp;", " "},
+                {"amp;", "&"},
+                {"lt;", "<"},
+                {"gt;", ">"},
+                {"quot;", "\""},
+                {"#39;", "'"},
+                {"nbsp;", " "},
             };
             for (const auto &e : kEntities)
             {
@@ -238,16 +242,16 @@ namespace zb::ui
                 close,
             };
             Kind kind = Kind::eof;
-            std::string name;  // lower-cased tag name (open/close)
+            std::string name;                                        // lower-cased tag name (open/close)
             std::vector<std::pair<std::string, std::string>> attrs;  // open
-            bool self_closing = false;  // open only
-            std::string text;           // text only
-            int line = 1;               // 1-based line where it starts
+            bool self_closing = false;                               // open only
+            std::string text;                                        // text only
+            int line = 1;                                            // 1-based line where it starts
         };
 
         class Tokenizer
         {
-          public:
+        public:
             Tokenizer(const char *begin, const char *end)
                 : p_(begin), end_(end)
             {
@@ -297,7 +301,7 @@ namespace zb::ui
                 }
             }
 
-          private:
+        private:
             const char *p_;
             const char *end_;
             int line_ = 1;
@@ -658,7 +662,8 @@ namespace zb::ui
             // (html-path.md): without this a comment glues to its
             // neighbor declaration and the neighbor silently drops
             // (series7 :root lost every commented var's successor)
-            auto skip_space = [](const char *&p, const char *limit) {
+            auto skip_space = [](const char *&p, const char *limit)
+            {
                 for (;;)
                 {
                     while (p < limit && (*p == ' ' || *p == '\t' || *p == '\n' ||
@@ -684,7 +689,8 @@ namespace zb::ui
             };
             // a comment inside a shorthand value must not poison the
             // whole declaration either
-            auto strip_comments = [](std::string v) {
+            auto strip_comments = [](std::string v)
+            {
                 std::string kept;
                 for (std::size_t i = 0; i < v.size();)
                 {
@@ -889,7 +895,7 @@ namespace zb::ui
                    (c >= '0' && c <= '9') || c == '-' || c == '_';
         }
 
-        std::string ascii_lower(std::string s);  // defined with the B4 helpers below
+        std::string ascii_lower(std::string s);                    // defined with the B4 helpers below
         bool parse_svg_num(const std::string &s, long long &out);  // defined by widget_type
 
         // one compound: [tag][#id][.class]* in any order. ':'/'['/'>'
@@ -1109,9 +1115,9 @@ namespace zb::ui
         // ancestors root-first; preceding parts match in order (not
         // necessarily adjacent)
         bool selector_matches(const Selector &s, const std::string &tag,
-                               const std::string &id,
-                               const std::vector<std::string> &classes,
-                               const std::vector<Ancestor> &ancestors)
+                              const std::string &id,
+                              const std::vector<std::string> &classes,
+                              const std::vector<Ancestor> &ancestors)
         {
             if (s.vars_only || s.parts.empty())
             {
@@ -1277,8 +1283,8 @@ namespace zb::ui
                     }
                 }
                 std::string name = comma == std::string::npos
-                                       ? inner
-                                       : inner.substr(0, comma);
+                                     ? inner
+                                     : inner.substr(0, comma);
                 name.erase(0, name.find_first_not_of(" \t\n\r"));
                 const std::size_t ntail = name.find_last_not_of(" \t\n\r");
                 if (ntail == std::string::npos)
@@ -1483,7 +1489,8 @@ namespace zb::ui
                     hits.push_back({bi, bc, bt, i, &rules[i]});
                 }
             }
-            std::sort(hits.begin(), hits.end(), [](const Hit &a, const Hit &b) {
+            std::sort(hits.begin(), hits.end(), [](const Hit &a, const Hit &b)
+                      {
                 if (a.ids != b.ids)
                 {
                     return a.ids < b.ids;
@@ -1496,8 +1503,7 @@ namespace zb::ui
                 {
                     return a.tags < b.tags;
                 }
-                return a.order < b.order;
-            });
+                return a.order < b.order; });
             for (const Hit &h : hits)
             {
                 for (const Decl &d : h.rule->decls)
@@ -1585,7 +1591,8 @@ namespace zb::ui
                     hits.push_back({bi, bc, bt, i, &rules[i]});
                 }
             }
-            std::sort(hits.begin(), hits.end(), [](const Hit &a, const Hit &b) {
+            std::sort(hits.begin(), hits.end(), [](const Hit &a, const Hit &b)
+                      {
                 if (a.ids != b.ids)
                 {
                     return a.ids < b.ids;
@@ -1598,8 +1605,7 @@ namespace zb::ui
                 {
                     return a.tags < b.tags;
                 }
-                return a.order < b.order;
-            });
+                return a.order < b.order; });
             for (const Hit &h : hits)
             {
                 for (const Decl &d : h.rule->decls)
@@ -2496,8 +2502,8 @@ namespace zb::ui
             const std::size_t comma = rest.find(',');
             tx = css_trim(rest.substr(0, comma));
             ty = comma == std::string::npos
-                     ? std::string{}
-                     : css_trim(rest.substr(comma + 1));
+                   ? std::string{}
+                   : css_trim(rest.substr(comma + 1));
             return !tx.empty();
         }
 
@@ -2721,7 +2727,8 @@ namespace zb::ui
                 return false;
             }
             std::string first = css_trim(shadows.front());
-            const auto len_of = [](const std::string &tok, long long &v) {
+            const auto len_of = [](const std::string &tok, long long &v)
+            {
                 std::string t = css_trim(ascii_lower(tok));
                 if (t.size() > 2 && t.compare(t.size() - 2, 2, "px") == 0)
                 {
@@ -2762,7 +2769,8 @@ namespace zb::ui
         // "auto" and malformed values stay absent
         bool parse_aspect(const std::string &s, long long &w, long long &h)
         {
-            const auto trim = [](std::string v) {
+            const auto trim = [](std::string v)
+            {
                 v.erase(0, v.find_first_not_of(" \t\n\r"));
                 const std::size_t t = v.find_last_not_of(" \t\n\r");
                 if (t == std::string::npos)
@@ -3142,10 +3150,14 @@ namespace zb::ui
                         geo = false;
                         break;
                     }
-                    if (a.first == "x1") x1 = v;
-                    else if (a.first == "y1") y1 = v;
-                    else if (a.first == "x2") x2 = v;
-                    else y2 = v;
+                    if (a.first == "x1")
+                        x1 = v;
+                    else if (a.first == "y1")
+                        y1 = v;
+                    else if (a.first == "x2")
+                        x2 = v;
+                    else
+                        y2 = v;
                 }
             }
             if (!geo)
@@ -3201,8 +3213,10 @@ namespace zb::ui
                     {
                         return;
                     }
-                    if (a.first == "x") x = v;
-                    else y = v;
+                    if (a.first == "x")
+                        x = v;
+                    else
+                        y = v;
                 }
             }
             ui_node t;
@@ -3309,10 +3323,14 @@ namespace zb::ui
                         geo = false;
                         break;
                     }
-                    if (a.first == "x") x = v;
-                    else if (a.first == "y") y = v;
-                    else if (a.first == "width") w = v;
-                    else h = v;
+                    if (a.first == "x")
+                        x = v;
+                    else if (a.first == "y")
+                        y = v;
+                    else if (a.first == "width")
+                        w = v;
+                    else
+                        h = v;
                 }
             }
             if (!geo)
@@ -3355,11 +3373,19 @@ namespace zb::ui
                         geo = false;
                         break;
                     }
-                    if (a.first == "cx") cx = v;
-                    else if (a.first == "cy") cy = v;
-                    else if (a.first == "rx") rx = v;
-                    else if (a.first == "r") { rx = v; ry = v; }
-                    else ry = v;
+                    if (a.first == "cx")
+                        cx = v;
+                    else if (a.first == "cy")
+                        cy = v;
+                    else if (a.first == "rx")
+                        rx = v;
+                    else if (a.first == "r")
+                    {
+                        rx = v;
+                        ry = v;
+                    }
+                    else
+                        ry = v;
                 }
             }
             if (!geo)
@@ -3393,7 +3419,8 @@ namespace zb::ui
         // verbatim, no float round-trip) or false on malformed/odd data
         bool normalize_svg_points(const std::string &s, std::string &out)
         {
-            const auto is_sep = [](const char ch) {
+            const auto is_sep = [](const char ch)
+            {
                 return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' ||
                        ch == ',';
             };
@@ -3561,14 +3588,16 @@ namespace zb::ui
         {
             const char *p = d.c_str();
             const char *const end = p + d.size();
-            const auto skip_sep = [&p, end] {
+            const auto skip_sep = [&p, end]
+            {
                 while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' ||
                                    *p == '\r' || *p == ','))
                 {
                     ++p;
                 }
             };
-            const auto read_num = [&](double &v) {
+            const auto read_num = [&](double &v)
+            {
                 skip_sep();
                 const char *b = p;
                 if (p < end && (*p == '+' || *p == '-'))
@@ -3615,15 +3644,16 @@ namespace zb::ui
                 }
                 return true;
             };
-            double cx = 0, cy = 0;       // current point
-            double sx = 0, sy = 0;       // subpath start
-            double lc_x = 0, lc_y = 0;   // last cubic control (S reflection)
-            double lq_x = 0, lq_y = 0;   // last quadratic control (T)
-            char cmd = 0;                // last command letter
-            char prev = 0;               // command before it (reflection rule)
+            double cx = 0, cy = 0;      // current point
+            double sx = 0, sy = 0;      // subpath start
+            double lc_x = 0, lc_y = 0;  // last cubic control (S reflection)
+            double lq_x = 0, lq_y = 0;  // last quadratic control (T)
+            char cmd = 0;               // last command letter
+            char prev = 0;              // command before it (reflection rule)
             PathSub *cur = nullptr;
             const auto add_point = [&](PathSub &sub, const double x,
-                                       const double y) {
+                                       const double y)
+            {
                 if (!budget.add_point())
                 {
                     return false;
@@ -3631,7 +3661,8 @@ namespace zb::ui
                 sub.pts.emplace_back(x, y);
                 return true;
             };
-            const auto open_at = [&]() -> PathSub * {
+            const auto open_at = [&]() -> PathSub *
+            {
                 out.emplace_back();
                 if (!add_point(out.back(), cx, cy))
                 {
@@ -3767,9 +3798,12 @@ namespace zb::ui
                     }
                     if (rel)
                     {
-                        x1 += cx; y1 += cy;
-                        x2 += cx; y2 += cy;
-                        x += cx; y += cy;
+                        x1 += cx;
+                        y1 += cy;
+                        x2 += cx;
+                        y2 += cy;
+                        x += cx;
+                        y += cy;
                     }
                     if (!flatten_cubic_limited(cur->pts, cx, cy, x1, y1,
                                                x2, y2, x, y, budget))
@@ -3795,7 +3829,7 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    double rx = cx, ry = cy;  // reflection of the last
+                    double rx = cx, ry = cy;         // reflection of the last
                     if (prev == 'C' || prev == 'S')  // cubic control
                     {
                         rx = 2 * cx - lc_x;
@@ -3803,8 +3837,10 @@ namespace zb::ui
                     }
                     if (rel)
                     {
-                        x2 += cx; y2 += cy;
-                        x += cx; y += cy;
+                        x2 += cx;
+                        y2 += cy;
+                        x += cx;
+                        y += cy;
                     }
                     if (!flatten_cubic_limited(cur->pts, cx, cy, rx, ry,
                                                x2, y2, x, y, budget))
@@ -3832,8 +3868,10 @@ namespace zb::ui
                     }
                     if (rel)
                     {
-                        x1 += cx; y1 += cy;
-                        x += cx; y += cy;
+                        x1 += cx;
+                        y1 += cy;
+                        x += cx;
+                        y += cy;
                     }
                     // quadratic -> cubic elevation, one flattener
                     if (!flatten_quad_limited(cur->pts, cx, cy, x1, y1,
@@ -3867,7 +3905,8 @@ namespace zb::ui
                     }
                     if (rel)
                     {
-                        x += cx; y += cy;
+                        x += cx;
+                        y += cy;
                     }
                     const double c1x = cx + 2.0 / 3 * (rx - cx);
                     const double c1y = cy + 2.0 / 3 * (ry - cy);
@@ -3922,18 +3961,18 @@ namespace zb::ui
                 if (budget.overflow == PathOverflow::commands)
                 {
                     LW << "html: line " << c.line << ": <path> d exceeded the "
-                          "1024-command budget; the path was dropped";
+                                                     "1024-command budget; the path was dropped";
                 }
                 else if (budget.overflow == PathOverflow::points)
                 {
                     LW << "html: line " << c.line << ": <path> d exceeded the "
-                          "4096-point budget; the path was dropped";
+                                                     "4096-point budget; the path was dropped";
                 }
                 else
                 {
                     LW << "html: line " << c.line << ": <path> d data is not "
-                          "in the supported subset (M L H V C S Q T Z); "
-                          "dropped";
+                                                     "in the supported subset (M L H V C S Q T Z); "
+                                                     "dropped";
                 }
                 return;
             }
@@ -3962,7 +4001,8 @@ namespace zb::ui
                 ui_node pn;
                 pn.type = "svg_path";
                 std::string pts;
-                const auto fmt = [](const double v) {
+                const auto fmt = [](const double v)
+                {
                     char buf[40];
                     std::snprintf(buf, sizeof buf, "%.3f", v);
                     std::string tok = buf;
@@ -4335,7 +4375,6 @@ namespace zb::ui
                     n.prop("text", e.text);
                 }
             }
-
         }
 
         // returns styled_height (a styled height wins over the br spacer)
@@ -4374,8 +4413,7 @@ namespace zb::ui
             // ignored (code-contract §3); the node props use the shared
             // .ui names (min_width etc.)
             const std::pair<const char *, const char *> kMinMax[4] = {
-                {"min-width", "min_width"}, {"max-width", "max_width"},
-                {"min-height", "min_height"}, {"max-height", "max_height"}};
+                {"min-width", "min_width"}, {"max-width", "max_width"}, {"min-height", "min_height"}, {"max-height", "max_height"}};
             for (const auto &mm : kMinMax)
             {
                 if (const std::string *v = fold_lookup(folded, mm.first))
@@ -5072,7 +5110,6 @@ namespace zb::ui
                 // a blank-line spacer: an empty label one text line tall
                 n.prop("height", 7LL);
             }
-
         }
 
         void convert_elem_svg(ui_node &n, const Elem &e)
@@ -5263,8 +5300,8 @@ namespace zb::ui
         {
             std::string tag;
             int mode = k_build;
-            bool pushed = false;  // the elem already sits in the tree
-            Elem *elem = nullptr; // the elem being filled (k_build only)
+            bool pushed = false;          // the elem already sits in the tree
+            Elem *elem = nullptr;         // the elem being filled (k_build only)
             std::unique_ptr<Elem> owned;  // a held inline elem (merged at close)
         };
 
@@ -5273,7 +5310,7 @@ namespace zb::ui
             Rules rules;
             std::string css;  // accumulated raw <style> text
             std::string text_buf;
-            int text_line = 1;  // source line of the buffered text (B6)
+            int text_line = 1;           // source line of the buffered text (B6)
             std::unique_ptr<Elem> root;  // the body/document container
             std::vector<Frame> frames;
             bool depth_warned = false;  // the depth-cap warning: once per parse
@@ -5345,7 +5382,7 @@ namespace zb::ui
                                         tag == "circle" || tag == "ellipse" ||
                                         tag == "polyline" ||
                                         tag == "polygon") &&
-                    (p->tag == "svg" || p->tag == "vectordial");
+                                       (p->tag == "svg" || p->tag == "vectordial");
                 if (is_leaf(*p))
                 {
                     // inline context: br is pushed (the materializer drops it
@@ -5485,7 +5522,8 @@ namespace zb::ui
                 {
                     return;  // no open frame matches
                 }
-                const auto pop_one = [this] {
+                const auto pop_one = [this]
+                {
                     if (frames.back().mode == k_svg_group &&
                         !svg_stack.empty())
                     {
@@ -5598,12 +5636,7 @@ namespace zb::ui
                 // else keeps the token attributes verbatim
                 std::vector<std::pair<std::string, std::string>> resolved;
                 const std::vector<std::pair<std::string, std::string>> *attr_src = &t.attrs;
-                if (mode == k_build && (name == "line" || name == "text" ||
-                                        name == "path" || name == "rect" ||
-                                        name == "circle" ||
-                                        name == "ellipse" ||
-                                        name == "polyline" ||
-                                        name == "polygon") &&
+                if (mode == k_build && (name == "line" || name == "text" || name == "path" || name == "rect" || name == "circle" || name == "ellipse" || name == "polyline" || name == "polygon") &&
                     in_svg() && !svg_stack.empty())
                 {
                     resolved = t.attrs;
@@ -5632,7 +5665,8 @@ namespace zb::ui
                     // stored back as a decimal the converter re-parses
                     // (3 digits round-trip every alpha byte exactly)
                     const auto find_op = [](const std::vector<std::pair<std::string, std::string>> &v)
-                        -> const std::string * {
+                        -> const std::string *
+                    {
                         for (const auto &a : v)
                         {
                             if (a.first == "opacity")

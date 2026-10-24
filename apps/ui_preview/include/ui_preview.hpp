@@ -76,10 +76,10 @@ namespace zb::app::ui_preview
         int32_t _height{kDefaultScreenHeight};
 
         zb::SharedPtr<CanvasWindow> window_;
-        std::vector<std::string> files_;    // UI_PREVIEW_FILES paths
-        std::vector<std::string> used_;     // files that parsed (parallel
-                                            // to docs_/pages_/screens_)
-        std::vector<zb::ui::ui_node> docs_; // parsed documents
+        std::vector<std::string> files_;        // UI_PREVIEW_FILES paths
+        std::vector<std::string> used_;         // files that parsed (parallel
+                                                // to docs_/pages_/screens_)
+        std::vector<zb::ui::ui_node> docs_;     // parsed documents
         std::vector<zb::ui::html_page> pages_;  // page boxes, parallel
         std::vector<zb::ui::FlexPanel *> screens_;
         std::size_t current_ = 0;

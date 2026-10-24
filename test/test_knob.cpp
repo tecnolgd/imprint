@@ -9,7 +9,7 @@ int test_knob()
     using namespace zb::input;
 
     set_theme(light_theme());
-    const core::Color blue  = theme().accent;
+    const core::Color blue = theme().accent;
     const core::Color field = theme().field_bg;
     const core::Color black = theme().border;
 
@@ -25,7 +25,8 @@ int test_knob()
 
     // programmatic setters are silent
     int changed_count = 0;
-    k.changed.sub([&](int) { ++changed_count; });
+    k.changed.sub([&](int)
+                  { ++changed_count; });
     k.set_value(42);
     EXPECT(k.get_value() == 42);
     EXPECT(changed_count == 0);
@@ -115,13 +116,13 @@ int test_knob()
     std::vector<uint32_t> px(48 * 48);
     core::Graphics g(48, 48, px.data());
     k.draw(g);
-    EXPECT(test::pixel_at(g, 20, 20) == black.pixel); // hub
-    EXPECT(test::pixel_at(g, 20, 6) == field.pixel);  // plain face at -90
-    EXPECT(test::pixel_at(g, 14, 14) == blue.pixel);  // pointer diagonal
-    k.set_value(100); // pointer to +135° (lower left diagonal)
+    EXPECT(test::pixel_at(g, 20, 20) == black.pixel);  // hub
+    EXPECT(test::pixel_at(g, 20, 6) == field.pixel);   // plain face at -90
+    EXPECT(test::pixel_at(g, 14, 14) == blue.pixel);   // pointer diagonal
+    k.set_value(100);                                  // pointer to +135° (lower left diagonal)
     k.draw(g);
     EXPECT(test::pixel_at(g, 14, 26) == blue.pixel);
-    k.set_value(50); // pointer to 0° (due east)
+    k.set_value(50);  // pointer to 0° (due east)
     k.draw(g);
     EXPECT(test::pixel_at(g, 27, 20) == blue.pixel);
 

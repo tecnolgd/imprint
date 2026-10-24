@@ -43,7 +43,7 @@ namespace zb::ui
         if (nv == value)
         {
             return;  // no change: no damage (a bar pinned at its value
-                    // must not repaint when fed the same value)
+                     // must not repaint when fed the same value)
         }
         mark_dirty();
         value = nv;

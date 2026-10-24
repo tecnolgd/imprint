@@ -101,7 +101,8 @@ namespace zb::snap
         {
             throw zb::ui::error("snapshot: cannot write baseline '" + path + "'");
         }
-        f << "imprint-snapshot v1\n" << detail::hash_hex(h) << "\n";
+        f << "imprint-snapshot v1\n"
+          << detail::hash_hex(h) << "\n";
         f.close();
         if (!f)
         {

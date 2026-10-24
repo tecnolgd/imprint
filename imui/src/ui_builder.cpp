@@ -496,7 +496,7 @@ namespace zb::ui
                         prop_of(n, (pre + mk[mi]).c_str(), 0LL);
                     ps.margin[mo[mi]] =
                         static_cast<int16_t>(mv < 0 ? 0
-                                                   : (mv > 32767 ? 32767 : mv));
+                                                    : (mv > 32767 ? 32767 : mv));
                 }
                 core::Color solid;
                 const bool has_solid = parse_color(
@@ -1071,49 +1071,50 @@ namespace zb::ui
                     }
                 }
             }
-        // H-1 paragraph text (html `p`, code-contract §2): wrap at the
-        // assigned box width, optional line pitch from the sidecar
-        if (prop_of(n, "text_wrap", false))
-        {
-            w.set_text_wrap(true);
-        }
-        if (has_prop(n, "line_h"))
-        {
-            w.set_line_height(px_of(n, "line_h"));
-        }
-        if (has_prop(n, "halign"))
-        {
-            const std::string halign = prop_of(n, "halign", std::string{});
+            // H-1 paragraph text (html `p`, code-contract §2): wrap at the
+            // assigned box width, optional line pitch from the sidecar
+            if (prop_of(n, "text_wrap", false))
+            {
+                w.set_text_wrap(true);
+            }
+            if (has_prop(n, "line_h"))
+            {
+                w.set_line_height(px_of(n, "line_h"));
+            }
+            if (has_prop(n, "halign"))
+            {
+                const std::string halign = prop_of(n, "halign", std::string{});
 
-            if(halign == "left")
-            {
-                w.set_h_align(Widget::h_align::left);
+                if (halign == "left")
+                {
+                    w.set_h_align(Widget::h_align::left);
+                }
+                else if (halign == "center")
+                {
+                    w.set_h_align(Widget::h_align::center);
+                }
+                else if (halign == "right")
+                {
+                    w.set_h_align(Widget::h_align::right);
+                }
             }
-            else if(halign == "center")
+            if (has_prop(n, "valign"))
             {
-                w.set_h_align(Widget::h_align::center);
-            }
-            else if(halign == "right")
-            {
-                w.set_h_align(Widget::h_align::right);
-            }
-        }
-        if(has_prop(n, "valign"))
-        {
-            const std::string valign = prop_of(n, "valign", std::string{});
+                const std::string valign = prop_of(n, "valign", std::string{});
 
-            if(valign == "top")
-            {
-                w.set_v_align(Widget::v_align::top);
+                if (valign == "top")
+                {
+                    w.set_v_align(Widget::v_align::top);
+                }
+                else if (valign == "center")
+                {
+                    w.set_v_align(Widget::v_align::center);
+                }
+                else if (valign == "bottom")
+                {
+                    w.set_v_align(Widget::v_align::bottom);
+                }
             }
-            else if(valign == "center")
-            {
-                w.set_v_align(Widget::v_align::center);
-            }
-            else if(valign == "bottom"){
-                w.set_v_align(Widget::v_align::bottom);
-            }
-        }
         }
 
         // --- control-specific properties --------------------------------
@@ -1344,7 +1345,8 @@ namespace zb::ui
                         pth.round_caps = prop_of(c, "stroke_round", false);
                         bool ok = !pts.empty();
                         std::size_t i = 0;
-                        const auto num = [&](double &out) {
+                        const auto num = [&](double &out)
+                        {
                             while (i < pts.size() &&
                                    (pts[i] == ' ' || pts[i] == ','))
                             {
@@ -1427,8 +1429,8 @@ namespace zb::ui
                         SvgCanvas::Shape sh;
                         sh.kind = prop_of(c, "kind", std::string{}) ==
                                           "ellipse"
-                                      ? SvgCanvas::Shape::Kind::ellipse
-                                      : SvgCanvas::Shape::Kind::rect;
+                                    ? SvgCanvas::Shape::Kind::ellipse
+                                    : SvgCanvas::Shape::Kind::rect;
                         sh.cx = prop_of(c, "cx", 0.0);
                         sh.cy = prop_of(c, "cy", 0.0);
                         sh.rx = prop_of(c, "rx", 0.0);
@@ -1510,37 +1512,44 @@ namespace zb::ui
             const std::string id = n.id;
             if (t == "button")
             {
-                static_cast<Button &>(w).clicked += [sink, id]() { sink(id); };
+                static_cast<Button &>(w).clicked += [sink, id]()
+                { sink(id); };
                 ++bound;
             }
             else if (t == "checkbox")
             {
-                static_cast<Checkbox &>(w).changed += [sink, id](const bool) { sink(id); };
+                static_cast<Checkbox &>(w).changed += [sink, id](const bool)
+                { sink(id); };
                 ++bound;
             }
             else if (t == "radio")
             {
-                static_cast<RadioButton &>(w).changed += [sink, id]() { sink(id); };
+                static_cast<RadioButton &>(w).changed += [sink, id]()
+                { sink(id); };
                 ++bound;
             }
             else if (t == "toggle")
             {
-                static_cast<ToggleSwitch &>(w).changed += [sink, id](const bool) { sink(id); };
+                static_cast<ToggleSwitch &>(w).changed += [sink, id](const bool)
+                { sink(id); };
                 ++bound;
             }
             else if (t == "slider")
             {
-                static_cast<Slider &>(w).changed += [sink, id](const int) { sink(id); };
+                static_cast<Slider &>(w).changed += [sink, id](const int)
+                { sink(id); };
                 ++bound;
             }
             else if (t == "text_input")
             {
-                static_cast<TextInput &>(w).submitted += [sink, id](const std::string &) { sink(id); };
+                static_cast<TextInput &>(w).submitted += [sink, id](const std::string &)
+                { sink(id); };
                 ++bound;
             }
             else if (t == "list_box")
             {
-                static_cast<ListBox &>(w).changed += [sink, id](const std::size_t) { sink(id); };
+                static_cast<ListBox &>(w).changed += [sink, id](const std::size_t)
+                { sink(id); };
                 ++bound;
             }
         }
@@ -1655,7 +1664,8 @@ namespace zb::ui
         }
         if (s[0] == '#')
         {
-            auto hex = [](const char c) -> int {
+            auto hex = [](const char c) -> int
+            {
                 if (c >= '0' && c <= '9')
                 {
                     return c - '0';
@@ -1772,7 +1782,8 @@ namespace zb::ui
             {
                 return false;
             }
-            auto to_byte = [](const std::string &t, int &v) {
+            auto to_byte = [](const std::string &t, int &v)
+            {
                 std::size_t i = 0;
                 while (i < t.size() && (t[i] == ' ' || t[i] == '\t'))
                 {

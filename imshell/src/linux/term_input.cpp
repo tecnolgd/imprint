@@ -143,11 +143,20 @@ namespace zb::shell::term_input
         // plain CSI arrows (home/end etc. dropped in the demo target)
         switch (final_byte)
         {
-            case 'A': push_key(out, zb::input::key_code::up); break;
-            case 'B': push_key(out, zb::input::key_code::down); break;
-            case 'C': push_key(out, zb::input::key_code::right); break;
-            case 'D': push_key(out, zb::input::key_code::left); break;
-            default: break;
+        case 'A':
+            push_key(out, zb::input::key_code::up);
+            break;
+        case 'B':
+            push_key(out, zb::input::key_code::down);
+            break;
+        case 'C':
+            push_key(out, zb::input::key_code::right);
+            break;
+        case 'D':
+            push_key(out, zb::input::key_code::left);
+            break;
+        default:
+            break;
         }
     }
 
@@ -161,22 +170,22 @@ namespace zb::shell::term_input
         }
         switch (ch)
         {
-            case '\r':
-                push_key(out, zb::input::key_code::enter);
-                return;
-            case '\t':
-                push_key(out, zb::input::key_code::tab);
-                return;
-            case 0x7f:
-            case 0x08:
-                push_key(out, zb::input::key_code::backspace);
-                return;
-            case 0x03:  // Ctrl-C: the terminal's "get me out" maps to escape
-            case 0x04:
-                push_key(out, zb::input::key_code::escape);
-                return;
-            default:
-                break;
+        case '\r':
+            push_key(out, zb::input::key_code::enter);
+            return;
+        case '\t':
+            push_key(out, zb::input::key_code::tab);
+            return;
+        case 0x7f:
+        case 0x08:
+            push_key(out, zb::input::key_code::backspace);
+            return;
+        case 0x03:  // Ctrl-C: the terminal's "get me out" maps to escape
+        case 0x04:
+            push_key(out, zb::input::key_code::escape);
+            return;
+        default:
+            break;
         }
         if (ch >= 0x20 && ch <= 0x7e)
         {
@@ -208,57 +217,66 @@ namespace zb::shell::term_input
             const char ch = data[i];
             switch (state_)
             {
-                case state::ground:
-                    ground(ch, out);
-                    break;
-                case state::esc:
-                    if (ch == '[')
-                    {
-                        state_ = state::csi;
-                        csi_.clear();
-                    }
-                    else if (ch == 'O')
-                    {
-                        state_ = state::ss3;
-                    }
-                    else
-                    {
-                        state_ = state::ground;  // lone escape: dropped
-                    }
-                    break;
-                case state::csi:
-                    if (ch >= 0x40 && ch <= 0x7e)
-                    {
-                        csi_final(ch, out);
-                        state_ = state::ground;
-                    }
-                    else if (csi_.size() >= kCsiMax)
-                    {
-                        csi_.clear();
-                        state_ = state::csi_discard;
-                    }
-                    else
-                    {
-                        csi_ += ch;  // params/intermediates
-                    }
-                    break;
-                case state::csi_discard:
-                    if (ch >= 0x40 && ch <= 0x7e)
-                    {
-                        state_ = state::ground;
-                    }
-                    break;
-                case state::ss3:
-                    switch (ch)
-                    {
-                        case 'A': push_key(out, zb::input::key_code::up); break;
-                        case 'B': push_key(out, zb::input::key_code::down); break;
-                        case 'C': push_key(out, zb::input::key_code::right); break;
-                        case 'D': push_key(out, zb::input::key_code::left); break;
-                        default: break;
-                    }
+            case state::ground:
+                ground(ch, out);
+                break;
+            case state::esc:
+                if (ch == '[')
+                {
+                    state_ = state::csi;
+                    csi_.clear();
+                }
+                else if (ch == 'O')
+                {
+                    state_ = state::ss3;
+                }
+                else
+                {
+                    state_ = state::ground;  // lone escape: dropped
+                }
+                break;
+            case state::csi:
+                if (ch >= 0x40 && ch <= 0x7e)
+                {
+                    csi_final(ch, out);
                     state_ = state::ground;
+                }
+                else if (csi_.size() >= kCsiMax)
+                {
+                    csi_.clear();
+                    state_ = state::csi_discard;
+                }
+                else
+                {
+                    csi_ += ch;  // params/intermediates
+                }
+                break;
+            case state::csi_discard:
+                if (ch >= 0x40 && ch <= 0x7e)
+                {
+                    state_ = state::ground;
+                }
+                break;
+            case state::ss3:
+                switch (ch)
+                {
+                case 'A':
+                    push_key(out, zb::input::key_code::up);
                     break;
+                case 'B':
+                    push_key(out, zb::input::key_code::down);
+                    break;
+                case 'C':
+                    push_key(out, zb::input::key_code::right);
+                    break;
+                case 'D':
+                    push_key(out, zb::input::key_code::left);
+                    break;
+                default:
+                    break;
+                }
+                state_ = state::ground;
+                break;
             }
         }
     }

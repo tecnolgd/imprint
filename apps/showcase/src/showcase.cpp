@@ -13,21 +13,21 @@
 #include "text/runtime_ttf_provider.hpp"
 #endif
 
-#include "showcase_orion.gen.hpp"   // packed by html_embed at build time
-#include "showcase_font.gen.hpp" // packed by bytes_embed at build time
+#include "showcase_orion.gen.hpp"  // packed by html_embed at build time
+#include "showcase_font.gen.hpp"   // packed by bytes_embed at build time
 
 namespace zb::app::showcase
 {
     namespace
     {
         constexpr int kLogLines = 8;
-        constexpr int kToastFrames = 84;   // ~1.4 s at 60 fps
-        constexpr int kScanFrames = 54;    // DEEP SCAN link-busy window
+        constexpr int kToastFrames = 84;  // ~1.4 s at 60 fps
+        constexpr int kScanFrames = 54;   // DEEP SCAN link-busy window
 
         // ---- LONG RANGE constants ----
-        constexpr int kPirateLegFrames = 480;   // pirate closes 100 -> 0
-        constexpr int kEncounterFrames = 360;   // debris / ion-storm length
-        constexpr int kFuelWarn = 200;          // 20%: engines cap at 40
+        constexpr int kPirateLegFrames = 480;  // pirate closes 100 -> 0
+        constexpr int kEncounterFrames = 360;  // debris / ion-storm length
+        constexpr int kFuelWarn = 200;         // 20%: engines cap at 40
 
         const char *kNodes[5] = {"LYRA-09", "CASS-22", "TALOS RIFT",
                                  "VEGA GATE", "KEPLER-442B"};
@@ -98,9 +98,7 @@ namespace zb::app::showcase
     {
         // 585 + r*1.55 + e*0.55 - s*0.22 (+ fault bump), summed first so
         // the rounding lands on the design's value (736 K at boot)
-        return 585 + (react_->get_value() * 155 + engine_->get_value() * 55 -
-                      shield_->get_value() * 22 + 50) /
-                         100 +
+        return 585 + (react_->get_value() * 155 + engine_->get_value() * 55 - shield_->get_value() * 22 + 50) / 100 +
                (damaged_ ? 38 : 0);
     }
 
@@ -265,7 +263,8 @@ namespace zb::app::showcase
         {
             entries_[i] = entries_[i - 1];
         }
-        const int sev = severity[0] == 'o' ? 0 : severity[0] == 'w' ? 1 : 2;
+        const int sev = severity[0] == 'o' ? 0 : severity[0] == 'w' ? 1
+                                                                    : 2;
         entries_[0] = {mission_clock(), tag, msg, sev};
         render_log();
     }
@@ -380,7 +379,7 @@ namespace zb::app::showcase
         core_tag_ = root.find_by_id("core_tag");
         segment_label_ = root.find_by_id("segment_label");
         status_ = root.find_by_id("status");
-        sweep_ = root.find_by_id("scope_ring"); // the needle pseudo host
+        sweep_ = root.find_by_id("scope_ring");  // the needle pseudo host
         modal_ = root.find_by_id("modal");
         modal_title_ = root.find_by_id("modal_title");
         modal_text_ = root.find_by_id("modal_text");
@@ -406,7 +405,8 @@ namespace zb::app::showcase
         }
 
         // the power sliders drive every derived readout
-        auto on_slider = [this](const int) { sync_power(); };
+        auto on_slider = [this](const int)
+        { sync_power(); };
         react_->changed += on_slider;
         shield_->changed += on_slider;
         weapons_->changed += on_slider;
@@ -524,7 +524,10 @@ namespace zb::app::showcase
                  autopilot_ ? "autopilot engaged" : "manual guidance engaged");
     }
 
-    void Showcase::on_ship_map() { open_map(); }
+    void Showcase::on_ship_map()
+    {
+        open_map();
+    }
 
     void Showcase::on_fault()
     {
@@ -617,16 +620,43 @@ namespace zb::app::showcase
         log_line("ok", "DEF", "shield capacitor surge complete");
     }
 
-    void Showcase::on_yaw_l() { maneuver("YAW LEFT", -30, 0); }
-    void Showcase::on_yaw_r() { maneuver("YAW RIGHT", 30, 0); }
-    void Showcase::on_pitch_u() { maneuver("PITCH UP", 0, 2); }
-    void Showcase::on_pitch_d() { maneuver("PITCH DOWN", 0, -2); }
-    void Showcase::on_roll_l() { maneuver("ROLL LEFT", 0, 0); }
-    void Showcase::on_roll_r() { maneuver("ROLL RIGHT", 0, 0); }
-    void Showcase::on_strafe_l() { maneuver("STRAFE LEFT", 0, 0); }
-    void Showcase::on_strafe_r() { maneuver("STRAFE RIGHT", 0, 0); }
+    void Showcase::on_yaw_l()
+    {
+        maneuver("YAW LEFT", -30, 0);
+    }
+    void Showcase::on_yaw_r()
+    {
+        maneuver("YAW RIGHT", 30, 0);
+    }
+    void Showcase::on_pitch_u()
+    {
+        maneuver("PITCH UP", 0, 2);
+    }
+    void Showcase::on_pitch_d()
+    {
+        maneuver("PITCH DOWN", 0, -2);
+    }
+    void Showcase::on_roll_l()
+    {
+        maneuver("ROLL LEFT", 0, 0);
+    }
+    void Showcase::on_roll_r()
+    {
+        maneuver("ROLL RIGHT", 0, 0);
+    }
+    void Showcase::on_strafe_l()
+    {
+        maneuver("STRAFE LEFT", 0, 0);
+    }
+    void Showcase::on_strafe_r()
+    {
+        maneuver("STRAFE RIGHT", 0, 0);
+    }
 
-    void Showcase::on_close_modal() { hide_modal(); }
+    void Showcase::on_close_modal()
+    {
+        hide_modal();
+    }
 
     // ---- LONG RANGE: a deterministic voyage in four legs ----
 
@@ -986,8 +1016,8 @@ namespace zb::app::showcase
         s.count = phase_ == Phase::Encounter &&
                           (kind_ == EncounterKind::Debris ||
                            kind_ == EncounterKind::IonStorm)
-                      ? ScopeState::kMax
-                      : 0;
+                    ? ScopeState::kMax
+                    : 0;
         for (int i = 0; i < ScopeState::kMax; ++i)
         {
             s.x[i] = mk_x_[i];

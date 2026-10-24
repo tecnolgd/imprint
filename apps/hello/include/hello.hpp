@@ -45,7 +45,8 @@ namespace zb::app::hello
             button->set_text("Click me");
             button->set_size(120, 40);
             button->set_position(20, 100);
-            button->clicked += [this, counter_ptr] {
+            button->clicked += [this, counter_ptr]
+            {
                 ++clicks_;
                 char buf[32];
                 std::snprintf(buf, sizeof(buf), "Clicks: %d", clicks_);

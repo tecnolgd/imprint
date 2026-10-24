@@ -257,18 +257,18 @@ extern "C" void zb_input(zb_app_t *self, int type, int x, int y, int key, int ch
         // the native shells (win/x11).
         switch (ev.type)
         {
-            case zb::input::input_type::mouse_left_down:
-            case zb::input::input_type::mouse_left_up:
-            case zb::input::input_type::mouse_left_click:
-                ev.button = zb::input::mouse_button_t::left;
-                break;
-            case zb::input::input_type::mouse_right_down:
-            case zb::input::input_type::mouse_right_up:
-            case zb::input::input_type::mouse_right_click:
-                ev.button = zb::input::mouse_button_t::right;
-                break;
-            default:
-                break;
+        case zb::input::input_type::mouse_left_down:
+        case zb::input::input_type::mouse_left_up:
+        case zb::input::input_type::mouse_left_click:
+            ev.button = zb::input::mouse_button_t::left;
+            break;
+        case zb::input::input_type::mouse_right_down:
+        case zb::input::input_type::mouse_right_up:
+        case zb::input::input_type::mouse_right_click:
+            ev.button = zb::input::mouse_button_t::right;
+            break;
+        default:
+            break;
         }
         // the documented C-ABI contract carries the wheel delta in `key`
         // (zbapi.h); the widgets read ev.delta -- without this mapping
@@ -490,13 +490,13 @@ extern "C" zb_app_t *zb_app_create_from_ui(const char *ui_text, int is_html,
         zb_app_t *sink_app = self;
         const auto action_sink =
             [sink_app](const std::string &id)
+        {
+            const auto it = sink_app->actions.find(id);
+            if (it != sink_app->actions.end() && it->second.fn != nullptr)
             {
-                const auto it = sink_app->actions.find(id);
-                if (it != sink_app->actions.end() && it->second.fn != nullptr)
-                {
-                    it->second.fn(id.c_str(), it->second.userdata);
-                }
-            };
+                it->second.fn(id.c_str(), it->second.userdata);
+            }
+        };
         zb::ui::build(*screen, doc, action_sink);
         canvas->root().add_child(std::move(screen));
 

@@ -120,7 +120,7 @@ namespace zb::app::ui_preview
 #endif
 
     void UiPreview::make_window(uint32_t max_client_width,
-                                 uint32_t max_client_height, void *buffer)
+                                uint32_t max_client_height, void *buffer)
     {
         _width = static_cast<int32_t>(max_client_width);
         _height = static_cast<int32_t>(max_client_height);

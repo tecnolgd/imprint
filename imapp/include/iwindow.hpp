@@ -12,7 +12,7 @@ namespace zb::app
     public:
         virtual ~IWindow() noexcept = default;
 
-        [[nodiscard]] virtual void* data() const noexcept = 0;
+        [[nodiscard]] virtual void *data() const noexcept = 0;
 
         [[nodiscard]] virtual int32_t width() const noexcept = 0;
 
@@ -23,4 +23,4 @@ namespace zb::app
 
 }
 
-#endif // IWINDOW_HPP
+#endif  // IWINDOW_HPP

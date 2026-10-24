@@ -48,7 +48,8 @@ namespace
     void install_log_mirror(const char *tool)
     {
         zb::Logging::set_log_handle(
-            [tool](const zb::Logging_Level level, const std::string &message) {
+            [tool](const zb::Logging_Level level, const std::string &message)
+            {
                 if (!zb::Logging::suppressed(zb::Logging_Level::warn) &&
                     level >= zb::Logging_Level::warn)
                 {
@@ -66,8 +67,7 @@ namespace
         std::string out;
         for (const char c : name)
         {
-            const bool ident = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-                               || (c >= '0' && c <= '9') || c == '_';
+            const bool ident = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
             out.push_back(ident ? c : '_');
         }
         if (out.empty())

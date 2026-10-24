@@ -21,8 +21,8 @@ namespace zb::app::mines
      */
     constexpr int kMinCells = 9;
     constexpr int kMaxCells = 32;
-    constexpr int kCell = 14;      // classic cell size (design minimum tier)
-    constexpr int kMaxCellPx = 22; // cell size cap on large screens
+    constexpr int kCell = 14;       // classic cell size (design minimum tier)
+    constexpr int kMaxCellPx = 22;  // cell size cap on large screens
     constexpr int kGap = 1;
 
     /*
@@ -49,7 +49,7 @@ namespace zb::app::mines
         int cell_ = 0;
         int gap_ = 0;
         zb::ui::Label *tiles_[kMaxCells][kMaxCells] = {};
-        int state_[kMaxCells][kMaxCells] = {}; // the last value handed to set_cell
+        int state_[kMaxCells][kMaxCells] = {};  // the last value handed to set_cell
     };
 
     /*
@@ -78,7 +78,11 @@ namespace zb::app::mines
         zb::SharedPtr<IWindow> window() noexcept override { return window_; }
 
         void input(const zb::input::input_event &ev) noexcept override;
-        void paint() noexcept override { if (window_) window_->paint(); }
+        void paint() noexcept override
+        {
+            if (window_)
+                window_->paint();
+        }
 
         bool is_dirty() const noexcept override
         {
@@ -113,7 +117,7 @@ namespace zb::app::mines
     private:
         static constexpr uint32_t kWidth = 256;
         static constexpr uint32_t kHeight = 192;
-        static constexpr int kHeaderH = 30; // status/button row height
+        static constexpr int kHeaderH = 30;  // status/button row height
 
         enum state : int
         {
@@ -137,7 +141,7 @@ namespace zb::app::mines
         bool covered_[kMaxCells * kMaxCells] = {};
         int adjacent_[kMaxCells * kMaxCells] = {};
         state state_ = playing;
-        bool placed_ = false;   // mines placed on first reveal
+        bool placed_ = false;  // mines placed on first reveal
         int flags_ = 0;
         int moves_ = 0;
         int boom_ = -1;
@@ -171,4 +175,4 @@ namespace zb::app::mines
     };
 }  // namespace zb::app::mines
 
-#endif // !MINES_HPP
+#endif  // !MINES_HPP

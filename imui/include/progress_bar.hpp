@@ -28,8 +28,16 @@ namespace zb::ui
         [[nodiscard]] int get_min() const { return min; }
         [[nodiscard]] int get_max() const { return max; }
 
-        void set_track_color(const core::Color &c) { track_color = c; mark_dirty(); }
-        void set_fill_color(const core::Color &c) { fill_color = c; mark_dirty(); }
+        void set_track_color(const core::Color &c)
+        {
+            track_color = c;
+            mark_dirty();
+        }
+        void set_fill_color(const core::Color &c)
+        {
+            fill_color = c;
+            mark_dirty();
+        }
 
         // natural size: 100x12 (fixed; no setter feeds measure, so state
         // changes never need mark_layout_dirty)

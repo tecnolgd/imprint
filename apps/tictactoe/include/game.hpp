@@ -54,4 +54,4 @@ namespace zb::app::tictactoe
 
 }
 
-#endif // !APPGAME_HPP
+#endif  // !APPGAME_HPP

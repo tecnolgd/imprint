@@ -36,8 +36,12 @@ int test_draw_surface()
         g->fill(core::colors::Black);
 
         std::vector<core::Color> src = {
-            core::colors::Red, core::colors::White, core::colors::Green,
-            core::colors::Blue, core::colors::White, core::colors::Black,
+            core::colors::Red,
+            core::colors::White,
+            core::colors::Green,
+            core::colors::Blue,
+            core::colors::White,
+            core::colors::Black,
         };
         g->draw_surface(src.data(), 3, 2, 2, 0, 0);
 

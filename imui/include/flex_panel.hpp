@@ -69,8 +69,8 @@ namespace zb::ui
             // shrink weight (H-7c, default 0 = historical overflow
             // clips) and main-axis basis override (auto = demand)
             int flex_shrink = 0;
-            int basis_px = -1;   // >= 0 = explicit pixel basis
-            int basis_pct = 0;   // 1..100 = percent of the content box
+            int basis_px = -1;  // >= 0 = explicit pixel basis
+            int basis_pct = 0;  // 1..100 = percent of the content box
         };
 
         FlexPanel() = default;

@@ -21,11 +21,16 @@ namespace
     {
         switch (t)
         {
-        case MapCanvas::wall:  return core::Color::from(0x3A, 0x3E, 0x4A);
-        case MapCanvas::water: return core::Color::from(0x2C, 0x5A, 0x8C);
-        case MapCanvas::door:  return core::Color::from(0xB0, 0x7A, 0x38);
-        case MapCanvas::tree:  return core::Color::from(0x2A, 0x6B, 0x2F);
-        default:               return core::Color::from(0xC8, 0xC2, 0xB0);
+        case MapCanvas::wall:
+            return core::Color::from(0x3A, 0x3E, 0x4A);
+        case MapCanvas::water:
+            return core::Color::from(0x2C, 0x5A, 0x8C);
+        case MapCanvas::door:
+            return core::Color::from(0xB0, 0x7A, 0x38);
+        case MapCanvas::tree:
+            return core::Color::from(0x2A, 0x6B, 0x2F);
+        default:
+            return core::Color::from(0xC8, 0xC2, 0xB0);
         }
     }
 }
@@ -135,9 +140,9 @@ void Seedmap::generate()
         const int w = 5 + static_cast<int>(next_rand() % 7u);
         const int h = 4 + static_cast<int>(next_rand() % 5u);
         const int x = 2 + static_cast<int>(next_rand() %
-            static_cast<unsigned>(MapCanvas::kCols - w - 3));
+                                           static_cast<unsigned>(MapCanvas::kCols - w - 3));
         const int y = 2 + static_cast<int>(next_rand() %
-            static_cast<unsigned>(MapCanvas::kRows - h - 3));
+                                           static_cast<unsigned>(MapCanvas::kRows - h - 3));
         place_room(x, y, w, h);
         centers[i][0] = x + w / 2;
         centers[i][1] = y + h / 2;
@@ -211,8 +216,8 @@ void Seedmap::create_window(const uint32_t max_client_width,
     // classic 320x240 tier this is 4px tiles, canvas 256x192 at (32, 40)
     // -- byte-identical to the old hardcoded layout.
     const int fit = (w - 64) / MapCanvas::kCols < (h - header_h - 8) / MapCanvas::kRows
-                        ? (w - 64) / MapCanvas::kCols
-                        : (h - header_h - 8) / MapCanvas::kRows;
+                      ? (w - 64) / MapCanvas::kCols
+                      : (h - header_h - 8) / MapCanvas::kRows;
     scale_ = clamp_i(fit, MapCanvas::kScale, 12);
 
     auto &root = window_->root();
@@ -228,7 +233,8 @@ void Seedmap::create_window(const uint32_t max_client_width,
     seed_box->set_text_color(core::Color::from(0xe4, 0xe6, 0xeb));
     seed_box_->set_text_gap(2);
     seed_box_ = seed_box.get();
-    sub_submit_ = seed_box->submitted.subscribe([this](const std::string &) { generate(); });
+    sub_submit_ = seed_box->submitted.subscribe([this](const std::string &)
+                                                { generate(); });
     root.add_child(std::move(seed_box));
 
     auto draw_btn = std::make_unique<Button>();
@@ -237,7 +243,8 @@ void Seedmap::create_window(const uint32_t max_client_width,
     draw_btn->set_size(48 * u, 22 * u);
     draw_btn->set_position(106 * u, 8 * u);
     draw_btn->set_font_size(7 * u);
-    sub_draw_ = draw_btn->clicked.subscribe([this] { generate(); });
+    sub_draw_ = draw_btn->clicked.subscribe([this]
+                                            { generate(); });
     root.add_child(std::move(draw_btn));
 
     auto status = std::make_unique<Label>();

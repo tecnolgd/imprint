@@ -311,7 +311,7 @@ namespace zb::ui
         return state_ != nullptr ? state_->cache_bytes : 0;
     }
 
-TtfRuntimeProvider::TtfRuntimeProvider(TtfFamilyState *state, const int px)
+    TtfRuntimeProvider::TtfRuntimeProvider(TtfFamilyState *state, const int px)
         : state_(state), px_(px)
     {
         scale_ = stbtt_ScaleForPixelHeight(&state_->info, static_cast<float>(px_));

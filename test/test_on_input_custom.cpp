@@ -205,7 +205,7 @@ int test_on_input_custom()
         EXPECT(d.dispatch(root, release_at(30, 30)));
         pdecl->declining = false;
         EXPECT(d.dispatch(root, press_at(15, 15)));
-        EXPECT(d.dispatch(root, move_to(25, 15)));   // consumed: change
+        EXPECT(d.dispatch(root, move_to(25, 15)));  // consumed: change
     }
 
     // the touch pointer lock applies to custom on_input overrides: moves

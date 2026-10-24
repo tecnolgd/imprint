@@ -19,4 +19,4 @@ void initSubVideoConsole(void);
 
 void printlog(const char *message);
 
-#endif // ARM9_PACKING_H
+#endif  // ARM9_PACKING_H

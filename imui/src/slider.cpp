@@ -60,8 +60,8 @@ namespace zb::ui
         const int cx = x < 0 ? 0 : (x > s.width - 1 ? s.width - 1 : x);
         // int64 intermediates: a wide range overflows signed int
         int v = min + static_cast<int>(
-                           static_cast<int64_t>(cx - thumb_w / 2) * (max - min) /
-                           span);
+                          static_cast<int64_t>(cx - thumb_w / 2) * (max - min) /
+                          span);
         if (v < min)
         {
             v = min;
@@ -162,10 +162,10 @@ namespace zb::ui
         // thumb: center travels [thumb_w/2 .. width-1-thumb_w/2]
         const int span = s.width - thumb_w;
         const int vx = (max > min)
-                           ? thumb_w / 2 + static_cast<int>(
-                                 static_cast<int64_t>(value - min) * span /
-                                 (max - min))
-                           : thumb_w / 2;
+                         ? thumb_w / 2 + static_cast<int>(
+                                             static_cast<int64_t>(value - min) * span /
+                                             (max - min))
+                         : thumb_w / 2;
         const int half = thumb_w / 2;
         const int thumb_h = track_h + 8;
         const int ty0 = cy - thumb_h / 2;

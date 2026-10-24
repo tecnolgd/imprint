@@ -54,21 +54,21 @@ int test_graphics()
         auto g = core::Graphics::make_ptr(21, 21);
         g->fill(core::colors::Black);
         g->fill_triangle(0, 0, 10, 5, 5, 10, core::colors::White);
-        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::White.pixel);  // top vertex
-        EXPECT(test::pixel_at(*g, 3, 4) == core::colors::White.pixel);  // interior (left of the a-c edge)
-        EXPECT(test::pixel_at(*g, 7, 4) == core::colors::White.pixel);  // interior (right of the a-b edge)
-        EXPECT(test::pixel_at(*g, 2, 5) == core::colors::White.pixel);  // middle vertex row, long edge side
-        EXPECT(test::pixel_at(*g, 10, 5) == core::colors::White.pixel); // middle vertex row, short edge side
-        EXPECT(test::pixel_at(*g, 5, 10) == core::colors::White.pixel); // bottom vertex
-        EXPECT(test::pixel_at(*g, 11, 5) != core::colors::White.pixel); // outside
-        EXPECT(test::pixel_at(*g, 5, 2) != core::colors::White.pixel);  // outside (right of the a-b edge)
+        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::White.pixel);   // top vertex
+        EXPECT(test::pixel_at(*g, 3, 4) == core::colors::White.pixel);   // interior (left of the a-c edge)
+        EXPECT(test::pixel_at(*g, 7, 4) == core::colors::White.pixel);   // interior (right of the a-b edge)
+        EXPECT(test::pixel_at(*g, 2, 5) == core::colors::White.pixel);   // middle vertex row, long edge side
+        EXPECT(test::pixel_at(*g, 10, 5) == core::colors::White.pixel);  // middle vertex row, short edge side
+        EXPECT(test::pixel_at(*g, 5, 10) == core::colors::White.pixel);  // bottom vertex
+        EXPECT(test::pixel_at(*g, 11, 5) != core::colors::White.pixel);  // outside
+        EXPECT(test::pixel_at(*g, 5, 2) != core::colors::White.pixel);   // outside (right of the a-b edge)
     }
     {
         auto g = core::Graphics::make_ptr(16, 11);
         g->fill(core::colors::Black);
-        g->fill_triangle(0, 10, 5, 0, 10, 10, core::colors::White); // flat bottom, base 0..10
-        EXPECT(test::pixel_at(*g, 5, 0) == core::colors::White.pixel);  // apex
-        EXPECT(test::pixel_at(*g, 0, 10) == core::colors::White.pixel); // base row filled
+        g->fill_triangle(0, 10, 5, 0, 10, 10, core::colors::White);      // flat bottom, base 0..10
+        EXPECT(test::pixel_at(*g, 5, 0) == core::colors::White.pixel);   // apex
+        EXPECT(test::pixel_at(*g, 0, 10) == core::colors::White.pixel);  // base row filled
         EXPECT(test::pixel_at(*g, 5, 10) == core::colors::White.pixel);
         EXPECT(test::pixel_at(*g, 10, 10) == core::colors::White.pixel);
         EXPECT(test::pixel_at(*g, 4, 9) == core::colors::White.pixel);  // interior near the base
@@ -81,7 +81,7 @@ int test_graphics()
     {
         auto g = core::Graphics::make_ptr(10, 10);
         g->fill(core::colors::Black);
-        g->fill_triangle(3, 3, 4, 3, 5, 3, core::colors::White); // one row
+        g->fill_triangle(3, 3, 4, 3, 5, 3, core::colors::White);  // one row
         EXPECT(test::pixel_at(*g, 3, 3) != core::colors::White.pixel);
         EXPECT(test::pixel_at(*g, 4, 3) != core::colors::White.pixel);
     }
@@ -145,11 +145,12 @@ int test_graphics()
             const uint32_t b = (front.b() * a + back.b() * inv) / 0xFF;
             const uint32_t av = a + back.a() * inv / 0xFF;
             return core::Color::from(static_cast<uint8_t>(r), static_cast<uint8_t>(gch),
-                                     static_cast<uint8_t>(b), static_cast<uint8_t>(av)).pixel;
+                                     static_cast<uint8_t>(b), static_cast<uint8_t>(av))
+                .pixel;
         };
         const auto blend2_ref = [blend_ref](uint32_t back_pixel)
         {
-            return blend_ref(blend_ref(back_pixel)); // double blend
+            return blend_ref(blend_ref(back_pixel));  // double blend
         };
 
         // opaque checker background so every channel mixes differently
@@ -162,8 +163,8 @@ int test_graphics()
         for (int y = 3; y <= 8; ++y)
             for (int x = 4; x <= 19; ++x)
                 EXPECT(test::pixel_at(*g, x, y) == blend_ref(((x + y) % 2 ? back_a : back_b).pixel));
-        EXPECT(test::pixel_at(*g, 3, 5) == back_b.pixel);  // outside untouched
-        EXPECT(test::pixel_at(*g, 20, 5) == back_a.pixel); // outside untouched
+        EXPECT(test::pixel_at(*g, 3, 5) == back_b.pixel);   // outside untouched
+        EXPECT(test::pixel_at(*g, 20, 5) == back_a.pixel);  // outside untouched
 
         // single-column rect: the pinned double blend (x=22,y=0 sits on an
         // even checker cell -> back_b)
@@ -185,8 +186,8 @@ int test_graphics()
         gd->set_damage(6, 0, 12, 12);
         gd->fill_rect(0, 0, 23, 11, front);
         EXPECT(test::pixel_at(*gd, 6, 4) == blend_ref(back_b.pixel));
-        EXPECT(test::pixel_at(*gd, 5, 4) == back_b.pixel);  // outside damage
-        EXPECT(test::pixel_at(*gd, 12, 4) == back_b.pixel); // half-open right edge
+        EXPECT(test::pixel_at(*gd, 5, 4) == back_b.pixel);   // outside damage
+        EXPECT(test::pixel_at(*gd, 12, 4) == back_b.pixel);  // half-open right edge
     }
 
     // 16bpp: the single alpha bit is binary opacity (Z2 core half) -- a
@@ -329,9 +330,9 @@ int test_graphics()
                 // child at relative (-20, 0): requested abs x [10..59]
                 auto child = g->clip_safe(-20, 0, 50, 50);
                 EXPECT(static_cast<bool>(child));
-                g->draw_pixel(0, 0, core::colors::White);   // abs (10,10): clipped away
-                g->draw_pixel(30, 0, core::colors::White);  // abs (40,10): in place
-                g->draw_pixel(30, 10, core::colors::White); // abs (40,20): in place
+                g->draw_pixel(0, 0, core::colors::White);    // abs (10,10): clipped away
+                g->draw_pixel(30, 0, core::colors::White);   // abs (40,10): in place
+                g->draw_pixel(30, 10, core::colors::White);  // abs (40,20): in place
             }
             g->draw_pixel(0, 0, core::colors::Red);  // parent restored: abs (30,10)
         }
@@ -350,7 +351,7 @@ int test_graphics()
         EXPECT(test::pixel_at(*g, 1, 0) == core::colors::Black.pixel);
         EXPECT(test::pixel_at(*g, 1, 8) == core::colors::White.pixel);
         EXPECT(test::pixel_at(*g, 1, 4) == core::Color::from(127, 127, 127).pixel);  // (0*4 + 255*4) / 8
-        EXPECT(test::pixel_at(*g, 0, 4) == test::pixel_at(*g, 3, 4));  // constant per row
+        EXPECT(test::pixel_at(*g, 0, 4) == test::pixel_at(*g, 3, 4));                // constant per row
     }
 
     // fill_gradient (horizontal): the default direction interpolates
@@ -402,7 +403,7 @@ int test_graphics()
         auto g = core::Graphics::make_ptr(16, 16);
         g->fill(core::colors::Black);
         g->fill_round_rect(2, 2, 13, 13, 4, core::colors::White);
-        EXPECT(test::pixel_at(*g, 2, 2) != core::colors::White.pixel);   // corner cut
+        EXPECT(test::pixel_at(*g, 2, 2) != core::colors::White.pixel);  // corner cut
         EXPECT(test::pixel_at(*g, 13, 2) != core::colors::White.pixel);
         EXPECT(test::pixel_at(*g, 2, 13) != core::colors::White.pixel);
         EXPECT(test::pixel_at(*g, 13, 13) != core::colors::White.pixel);
@@ -438,16 +439,16 @@ int test_graphics()
         auto g = core::Graphics::make_ptr(16, 16);
         g->fill(core::colors::Black);
         g->draw_round_rect(2, 2, 13, 13, 4, core::colors::White);
-        EXPECT(test::pixel_at(*g, 7, 2) == core::colors::White.pixel);    // top edge
-        EXPECT(test::pixel_at(*g, 7, 13) == core::colors::White.pixel);   // bottom edge
-        EXPECT(test::pixel_at(*g, 2, 7) == core::colors::White.pixel);    // left edge
-        EXPECT(test::pixel_at(*g, 13, 7) == core::colors::White.pixel);   // right edge
-        EXPECT(test::pixel_at(*g, 3, 5) == core::colors::White.pixel);    // arc (dy=1)
+        EXPECT(test::pixel_at(*g, 7, 2) == core::colors::White.pixel);   // top edge
+        EXPECT(test::pixel_at(*g, 7, 13) == core::colors::White.pixel);  // bottom edge
+        EXPECT(test::pixel_at(*g, 2, 7) == core::colors::White.pixel);   // left edge
+        EXPECT(test::pixel_at(*g, 13, 7) == core::colors::White.pixel);  // right edge
+        EXPECT(test::pixel_at(*g, 3, 5) == core::colors::White.pixel);   // arc (dy=1)
         EXPECT(test::pixel_at(*g, 12, 5) == core::colors::White.pixel);
-        EXPECT(test::pixel_at(*g, 4, 3) == core::colors::White.pixel);    // arc (dy=3)
+        EXPECT(test::pixel_at(*g, 4, 3) == core::colors::White.pixel);  // arc (dy=3)
         EXPECT(test::pixel_at(*g, 11, 3) == core::colors::White.pixel);
-        EXPECT(test::pixel_at(*g, 7, 7) != core::colors::White.pixel);    // hollow center
-        EXPECT(test::pixel_at(*g, 2, 2) != core::colors::White.pixel);    // no corner
+        EXPECT(test::pixel_at(*g, 7, 7) != core::colors::White.pixel);  // hollow center
+        EXPECT(test::pixel_at(*g, 2, 2) != core::colors::White.pixel);  // no corner
     }
 
     // tinted draw_image: an opaque-white tint is the exact plain
@@ -507,18 +508,18 @@ int test_graphics()
         g->fill(core::colors::Black);
         g->enable_alpha(false);
         const core::Color src[10] = {
-            core::Color::from(1, 2, 3, 255),   core::Color::from(4, 5, 6, 255),
-            core::Color::from(7, 8, 9, 255),   core::Color::from(10, 11, 12, 255),
-            core::colors::Black,                                                // row-0 gap
+            core::Color::from(1, 2, 3, 255), core::Color::from(4, 5, 6, 255),
+            core::Color::from(7, 8, 9, 255), core::Color::from(10, 11, 12, 255),
+            core::colors::Black,  // row-0 gap
             core::Color::from(13, 14, 15, 255), core::Color::from(16, 17, 18, 255),
             core::Color::from(19, 20, 21, 255), core::Color::from(22, 23, 24, 255),
-            core::colors::Black                                                 // row-1 gap
+            core::colors::Black  // row-1 gap
         };
-        g->draw_image(src, 4, 2, 5, -1, 3); // dest cols -1..2 map src cols 0..3
+        g->draw_image(src, 4, 2, 5, -1, 3);  // dest cols -1..2 map src cols 0..3
         EXPECT(test::pixel_at(*g, 0, 3) == core::Color::from(4, 5, 6, 255).pixel);
         EXPECT(test::pixel_at(*g, 1, 3) == core::Color::from(7, 8, 9, 255).pixel);
         EXPECT(test::pixel_at(*g, 2, 3) == core::Color::from(10, 11, 12, 255).pixel);
-        EXPECT(test::pixel_at(*g, 0, 4) == core::Color::from(16, 17, 18, 255).pixel); // row 1 reads via stride
+        EXPECT(test::pixel_at(*g, 0, 4) == core::Color::from(16, 17, 18, 255).pixel);  // row 1 reads via stride
         EXPECT(test::pixel_at(*g, 2, 4) == core::Color::from(22, 23, 24, 255).pixel);
         EXPECT(test::pixel_at(*g, 3, 3) == core::colors::Black.pixel);  // beyond image width
         EXPECT(test::pixel_at(*g, 0, 2) == core::colors::Black.pixel);  // above the blit
@@ -551,7 +552,7 @@ int test_graphics()
                                      core::colors::White, core::colors::White,
                                      core::colors::White, core::colors::White,
                                      core::colors::White, core::colors::White};
-        g->set_damage(2, 0, 6, 4); // half-open: dest cols 2..5 blended
+        g->set_damage(2, 0, 6, 4);  // half-open: dest cols 2..5 blended
         g->draw_image(src, 6, 2, 6, 0, 1);
         EXPECT(test::pixel_at(*g, 2, 1) == core::colors::White.pixel);
         EXPECT(test::pixel_at(*g, 5, 2) == core::colors::White.pixel);
@@ -689,8 +690,8 @@ int test_graphics()
             for (int x = 0; x < 21; ++x)
             {
                 symmetric = symmetric &&
-                    (test::pixel_at(*g, x, y) == test::pixel_at(*g, 20 - x, y)) &&
-                    (test::pixel_at(*g, x, y) == test::pixel_at(*g, x, 20 - y));
+                            (test::pixel_at(*g, x, y) == test::pixel_at(*g, 20 - x, y)) &&
+                            (test::pixel_at(*g, x, y) == test::pixel_at(*g, x, 20 - y));
             }
         }
         EXPECT(symmetric);
@@ -718,9 +719,9 @@ int test_graphics()
         g->fill(core::colors::Black);
         g->fill_circle_aa(10, 10, 7, core::colors::White);
         EXPECT(test::pixel_at(*g, 10, 10) == core::colors::White.pixel);
-        EXPECT(test::pixel_at(*g, 4, 13) == core::colors::White.pixel);   // solid span
-        EXPECT(test::pixel_at(*g, 3, 13) != core::colors::White.pixel);   // fringe skipped
-        EXPECT(test::pixel_at(*g, 6, 16) == core::colors::White.pixel);   // fringe plotted
+        EXPECT(test::pixel_at(*g, 4, 13) == core::colors::White.pixel);  // solid span
+        EXPECT(test::pixel_at(*g, 3, 13) != core::colors::White.pixel);  // fringe skipped
+        EXPECT(test::pixel_at(*g, 6, 16) == core::colors::White.pixel);  // fringe plotted
     }
 
     // fill_round_rect_aa: solid middle spans and straight edges, blended
@@ -729,11 +730,11 @@ int test_graphics()
         auto g = core::Graphics::make_ptr(22, 12);
         g->fill(core::colors::Black);
         g->fill_round_rect_aa(1, 1, 20, 10, 4, core::colors::White);
-        EXPECT(test::pixel_at(*g, 11, 5) == core::colors::White.pixel);   // middle span
-        EXPECT(test::pixel_at(*g, 11, 1) == core::colors::White.pixel);   // top edge
-        EXPECT(test::pixel_at(*g, 5, 1) == core::colors::White.pixel);    // edge start
-        EXPECT(test::pixel_at(*g, 1, 1) != core::colors::White.pixel);    // corner cut
-        EXPECT(test::pixel_at(*g, 3, 2) == core::colors::White.pixel);    // corner span
+        EXPECT(test::pixel_at(*g, 11, 5) == core::colors::White.pixel);  // middle span
+        EXPECT(test::pixel_at(*g, 11, 1) == core::colors::White.pixel);  // top edge
+        EXPECT(test::pixel_at(*g, 5, 1) == core::colors::White.pixel);   // edge start
+        EXPECT(test::pixel_at(*g, 1, 1) != core::colors::White.pixel);   // corner cut
+        EXPECT(test::pixel_at(*g, 3, 2) == core::colors::White.pixel);   // corner span
         if (core::ImColor_Depth == 32)
         {
             // the corner boundary lands exactly on the pixel-center
@@ -991,9 +992,9 @@ int test_graphics()
         g->fill(core::colors::Black);
         g->fill_radial(1, 1, 20, 20, 10, 10, core::colors::White, 0,
                        core::colors::Black, 100, 5);
-        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Black.pixel);  // cut
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Black.pixel);    // cut
         EXPECT(test::pixel_at(*g, 10, 10) != core::colors::Black.pixel);  // face kept
-        EXPECT(test::pixel_at(*g, 10, 1) != core::colors::Black.pixel);  // flat edge kept
+        EXPECT(test::pixel_at(*g, 10, 1) != core::colors::Black.pixel);   // flat edge kept
     }
 
     // fill_conic (P-2b): 41x41 box, center (20,20), stops 0 black /
@@ -1008,7 +1009,7 @@ int test_graphics()
                                      core::colors::Black};
         g->fill(core::colors::Black);
         g->fill_conic(0, 0, 40, 40, 0, degs, cols, 3);
-        EXPECT(test::pixel_at(*g, 20, 0) == core::colors::Black.pixel);  // up: 0
+        EXPECT(test::pixel_at(*g, 20, 0) == core::colors::Black.pixel);   // up: 0
         EXPECT(test::pixel_at(*g, 20, 40) == core::colors::White.pixel);  // down: 180
         EXPECT(test::pixel_at(*g, 20, 20) == core::colors::Black.pixel);  // center: 0
         // left/right sit halfway down their segments: (0*90+255*90)/180
@@ -1029,7 +1030,7 @@ int test_graphics()
                                      core::colors::White};
         g->fill(core::colors::Black);
         g->fill_conic(1, 1, 40, 40, 0, degs, cols, 2, 10);
-        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Black.pixel);  // cut
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::Black.pixel);    // cut
         EXPECT(test::pixel_at(*g, 20, 20) == core::colors::White.pixel);  // face
     }
 

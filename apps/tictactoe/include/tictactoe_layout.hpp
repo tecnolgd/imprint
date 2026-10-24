@@ -36,16 +36,16 @@ namespace zb::app::tictactoe::layout
     constexpr int result_button_h = 20;
 
     // ---- derived for the default window ----
-    constexpr int board_margin = window_h / board_margin_den;         // 12
-    constexpr int board_size = window_h - 2 * board_margin;           // 216
-    constexpr int board_x = (window_w - board_size) / 2;              // 52
-    constexpr int board_y = (window_h - board_size) / 2;              // 12
-    constexpr int board_cell = board_size / 3;                        // 72
+    constexpr int board_margin = window_h / board_margin_den;  // 12
+    constexpr int board_size = window_h - 2 * board_margin;    // 216
+    constexpr int board_x = (window_w - board_size) / 2;       // 52
+    constexpr int board_y = (window_h - board_size) / 2;       // 12
+    constexpr int board_cell = board_size / 3;                 // 72
 
-    constexpr int step_frame_x = (window_w - step_frame_w) / 2;       // 60
-    constexpr int step_frame_y = (window_h - step_frame_h) / 2;       // 88
-    constexpr int result_frame_x = (window_w - result_frame_w) / 2;   // 60
-    constexpr int result_frame_y = (window_h - result_frame_h) / 2;   // 78
+    constexpr int step_frame_x = (window_w - step_frame_w) / 2;      // 60
+    constexpr int step_frame_y = (window_h - step_frame_h) / 2;      // 88
+    constexpr int result_frame_x = (window_w - result_frame_w) / 2;  // 60
+    constexpr int result_frame_y = (window_h - result_frame_h) / 2;  // 78
 
     // ---- button centers (Dialog::layout's row packing, see above) ----
     constexpr int normal_btn_x = 158;

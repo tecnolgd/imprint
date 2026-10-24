@@ -85,7 +85,8 @@ int test_slider()
         InputDispatcher d;
         int fires = 0;
         int last = -1;
-        t.slider->changed += [&](const int v) {
+        t.slider->changed += [&](const int v)
+        {
             ++fires;
             last = v;
         };
@@ -103,7 +104,8 @@ int test_slider()
         Tree t;
         InputDispatcher d;
         int last = -1;
-        t.slider->changed += [&](const int v) { last = v; };
+        t.slider->changed += [&](const int v)
+        { last = v; };
 
         EXPECT(d.dispatch(t.root, press_at(15, 20)));  // local x=5 -> value 0
         // drag right to local x=70
@@ -132,7 +134,7 @@ int test_slider()
     {
         Tree t;
         InputDispatcher d;
-        d.dispatch(t.root, press_at(15, 20));  // value 0
+        d.dispatch(t.root, press_at(15, 20));          // value 0
         EXPECT(!d.dispatch(t.root, move_to(13, 20)));  // still 0
         EXPECT(d.dispatch(t.root, move_to(60, 20)));   // moved
         d.dispatch(t.root, release_at(60, 20));
@@ -143,7 +145,8 @@ int test_slider()
         Tree t;
         InputDispatcher d;
         int last = -1;
-        t.slider->changed += [&](const int v) { last = v; };
+        t.slider->changed += [&](const int v)
+        { last = v; };
 
         EXPECT(d.dispatch(t.root, wheel_at(50, 20, 3)));  // +5
         EXPECT(t.slider->get_value() == 5);

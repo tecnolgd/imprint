@@ -111,17 +111,17 @@ namespace zb::ui
         const int cy = h / 2;
 
         const core::Color border_c = track_color.value_or(theme().border);
-        const core::Color accent   = arc_color.value_or(theme().accent);
+        const core::Color accent = arc_color.value_or(theme().accent);
         const core::Color needle_c = needle_color.value_or(accent);
-        const core::Color tick_c   = tick_color.value_or(border_c);
-        const core::Color face_c   = face_color.value_or(theme().background);
+        const core::Color tick_c = tick_color.value_or(border_c);
+        const core::Color face_c = face_color.value_or(theme().background);
 
         // face disc + rim (AA adoption: the rim blends its edge; the
         // face edge hides underneath it)
         area.fill_circle(cx, cy, radius - 1, face_c);
         area.draw_circle_aa(cx, cy, radius - 1, border_c);
 
-        const int arc_r = radius - 10; // ticks live between arc and rim
+        const int arc_r = radius - 10;  // ticks live between arc and rim
 
         // track arc (full sweep, background colour)
         area.draw_arc_aa(cx, cy, arc_r, start_deg, sweep_deg, border_c);

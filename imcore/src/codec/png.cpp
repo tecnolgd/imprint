@@ -62,14 +62,12 @@ int Image::read_png_file(
 
     auto img_width_u = static_cast<uint32_t>(img_width);
     auto img_height_u = static_cast<uint32_t>(img_height);
-    auto row_stride = img_width_u * 4; // stb always yields RGBA with req_comp=4
-    image_info iminf
-    {
+    auto row_stride = img_width_u * 4;  // stb always yields RGBA with req_comp=4
+    image_info iminf{
         img_width_u,
         img_height_u,
         row_stride,
-        4
-    };
+        4};
     if (!image_loaded(iminf))
     {
         LE << "Error occurred when set image info in image_loaded callback.";
@@ -197,7 +195,7 @@ int Image::write_png(
 {
     auto cur_row = 0;
     auto gsize = g.size();
-    auto row_bit_stride = gsize.width * 4; // rgba format
+    auto row_bit_stride = gsize.width * 4;  // rgba format
 
     std::vector<unsigned char> row(row_bit_stride);
     image_info img_inf{

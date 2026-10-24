@@ -63,7 +63,8 @@ namespace
         zb::event::Subscription<> sub;
 
         explicit Subscriber(zb::event::Event<> &ev)
-            : sub(ev.subscribe([this]() { ++calls; }))
+            : sub(ev.subscribe([this]()
+                               { ++calls; }))
         {
         }
     };
@@ -77,211 +78,214 @@ namespace
 
 int test_remove()
 {
-        // removing the pressed widget: the press is cancelled, a release
-        // issued afterwards is inert (no events, no crash)
-        {
-            // path A: coordinated through the canvas window
-            CanvasWindow w;
-            w.create(200, 150);
-            auto &root = w.root();
-            int clicks = 0;
-            auto *b = mk_button(root, "pressed", 10, 10);
-            b->clicked += [&]() { ++clicks; };
+    // removing the pressed widget: the press is cancelled, a release
+    // issued afterwards is inert (no events, no crash)
+    {
+        // path A: coordinated through the canvas window
+        CanvasWindow w;
+        w.create(200, 150);
+        auto &root = w.root();
+        int clicks = 0;
+        auto *b = mk_button(root, "pressed", 10, 10);
+        b->clicked += [&]()
+        { ++clicks; };
 
-                    w.input(press_at(30, 20));  // claimed, focused
-                    w.input(release_at(30, 20));
-            EXPECT(clicks == 1);  // a full press on the live button clicks
+        w.input(press_at(30, 20));  // claimed, focused
+        w.input(release_at(30, 20));
+        EXPECT(clicks == 1);  // a full press on the live button clicks
 
-                    w.input(press_at(30, 20));  // claimed again
-            auto out = remove_coordinated(w, root, b);
-            EXPECT(out != nullptr);
-            EXPECT(!out->is_descendant_of(&root));
+        w.input(press_at(30, 20));  // claimed again
+        auto out = remove_coordinated(w, root, b);
+        EXPECT(out != nullptr);
+        EXPECT(!out->is_descendant_of(&root));
 
-                    w.input(release_at(30, 20));  // inert, no UAF
-            EXPECT(clicks == 1);
-            out.reset();
-        }
-        {
-            // path B: direct panel access with a manual evict
-            Panel root;
-            root.set_size(200, 150);
-            InputDispatcher d;
-            int clicks = 0;
-            auto *b = mk_button(root, "pressed", 10, 10);
-            b->clicked += [&]() { ++clicks; };
+        w.input(release_at(30, 20));  // inert, no UAF
+        EXPECT(clicks == 1);
+        out.reset();
+    }
+    {
+        // path B: direct panel access with a manual evict
+        Panel root;
+        root.set_size(200, 150);
+        InputDispatcher d;
+        int clicks = 0;
+        auto *b = mk_button(root, "pressed", 10, 10);
+        b->clicked += [&]()
+        { ++clicks; };
 
-            EXPECT(d.dispatch(root, press_at(30, 20)));
-            auto out = remove_direct(d, root, b);
-            EXPECT(out != nullptr);
+        EXPECT(d.dispatch(root, press_at(30, 20)));
+        auto out = remove_direct(d, root, b);
+        EXPECT(out != nullptr);
 
-            EXPECT(!d.dispatch(root, release_at(30, 20)));
-            EXPECT(clicks == 0);
-            out.reset();
-        }
+        EXPECT(!d.dispatch(root, release_at(30, 20)));
+        EXPECT(clicks == 0);
+        out.reset();
+    }
 
-        // removing the focused widget: focus is released, Tab lands on
-        // the next valid focusable
-        {
-            // path A: coordinated
-            CanvasWindow w;
-            w.create(200, 150);
-            auto &root = w.root();
-            auto *b1 = mk_button(root, "one", 10, 10);
-            auto *b2 = mk_button(root, "two", 80, 10);
-            auto *b3 = mk_button(root, "three", 150, 10);
+    // removing the focused widget: focus is released, Tab lands on
+    // the next valid focusable
+    {
+        // path A: coordinated
+        CanvasWindow w;
+        w.create(200, 150);
+        auto &root = w.root();
+        auto *b1 = mk_button(root, "one", 10, 10);
+        auto *b2 = mk_button(root, "two", 80, 10);
+        auto *b3 = mk_button(root, "three", 150, 10);
 
-            w.input(press_at(30, 20));  // focus b1
-            auto out = w.remove_from(root, b1);
-            EXPECT(out != nullptr);
+        w.input(press_at(30, 20));  // focus b1
+        auto out = w.remove_from(root, b1);
+        EXPECT(out != nullptr);
 
-            w.input(key_down(static_cast<int>(zb::input::key_code::tab)));
-            EXPECT(b2->is_focused());
-            w.input(key_down(static_cast<int>(zb::input::key_code::tab)));
-            EXPECT(b3->is_focused());
-            out.reset();
-        }
-        {
-            // path B: direct panel access with a manual evict
-            Panel root;
-            root.set_size(200, 150);
-            InputDispatcher d;
-            auto *b1 = mk_button(root, "one", 10, 10);
-            auto *b2 = mk_button(root, "two", 80, 10);
-            auto *b3 = mk_button(root, "three", 150, 10);
+        w.input(key_down(static_cast<int>(zb::input::key_code::tab)));
+        EXPECT(b2->is_focused());
+        w.input(key_down(static_cast<int>(zb::input::key_code::tab)));
+        EXPECT(b3->is_focused());
+        out.reset();
+    }
+    {
+        // path B: direct panel access with a manual evict
+        Panel root;
+        root.set_size(200, 150);
+        InputDispatcher d;
+        auto *b1 = mk_button(root, "one", 10, 10);
+        auto *b2 = mk_button(root, "two", 80, 10);
+        auto *b3 = mk_button(root, "three", 150, 10);
 
-            EXPECT(d.dispatch(root, press_at(30, 20)));  // focus b1
-            auto out = remove_direct(d, root, b1);
-            EXPECT(out != nullptr);
+        EXPECT(d.dispatch(root, press_at(30, 20)));  // focus b1
+        auto out = remove_direct(d, root, b1);
+        EXPECT(out != nullptr);
 
-            EXPECT(d.dispatch(root, key_down(static_cast<int>(zb::input::key_code::tab))));
-            EXPECT(b2->is_focused());
-            EXPECT(!b3->is_focused());
-            out.reset();
-        }
+        EXPECT(d.dispatch(root, key_down(static_cast<int>(zb::input::key_code::tab))));
+        EXPECT(b2->is_focused());
+        EXPECT(!b3->is_focused());
+        out.reset();
+    }
 
-        // removing the modal subtree: the background becomes hittable
-        // again; removing an ancestor of the modal drops it too
-        {
-            // path A: coordinated -- modal == the removed widget
-            CanvasWindow w;
-            w.create(200, 150);
-            auto &root = w.root();
-            auto *bg = mk_button(root, "bg", 10, 60);
-            auto *dlg = mk_button(root, "dlg", 100, 100);
-            w.set_modal(dlg);
+    // removing the modal subtree: the background becomes hittable
+    // again; removing an ancestor of the modal drops it too
+    {
+        // path A: coordinated -- modal == the removed widget
+        CanvasWindow w;
+        w.create(200, 150);
+        auto &root = w.root();
+        auto *bg = mk_button(root, "bg", 10, 60);
+        auto *dlg = mk_button(root, "dlg", 100, 100);
+        w.set_modal(dlg);
 
-            w.input(press_at(20, 70));  // blocked by the modal
-            EXPECT(!dlg->is_focused());
+        w.input(press_at(20, 70));  // blocked by the modal
+        EXPECT(!dlg->is_focused());
 
-            auto out = w.remove_from(root, dlg);  // modal dropped with it
-            EXPECT(out != nullptr);
-                    w.input(press_at(20, 70));  // hittable again
-            EXPECT(bg->is_focused());
-            out.reset();
-        }
-        {
-            // path B: direct -- the modal lives inside the removed
-            // subtree, the evict must drop it through the ancestor
-            Panel root;
-            root.set_size(300, 200);
-            InputDispatcher d;
-            auto *bg = mk_button(root, "bg", 10, 60);
-            auto frame = std::make_unique<Panel>();
-            frame->set_position(100, 20);
-            frame->set_size(120, 100);
-            auto *fp = frame.get();
-            auto *dlg = mk_button(*fp, "dlg", 10, 10);
-            root.add_child(std::move(frame));
-            d.set_modal(dlg);
+        auto out = w.remove_from(root, dlg);  // modal dropped with it
+        EXPECT(out != nullptr);
+        w.input(press_at(20, 70));  // hittable again
+        EXPECT(bg->is_focused());
+        out.reset();
+    }
+    {
+        // path B: direct -- the modal lives inside the removed
+        // subtree, the evict must drop it through the ancestor
+        Panel root;
+        root.set_size(300, 200);
+        InputDispatcher d;
+        auto *bg = mk_button(root, "bg", 10, 60);
+        auto frame = std::make_unique<Panel>();
+        frame->set_position(100, 20);
+        frame->set_size(120, 100);
+        auto *fp = frame.get();
+        auto *dlg = mk_button(*fp, "dlg", 10, 10);
+        root.add_child(std::move(frame));
+        d.set_modal(dlg);
 
-            EXPECT(!d.dispatch(root, press_at(20, 70)));  // blocked
-            EXPECT(d.get_focus_target() == nullptr);
+        EXPECT(!d.dispatch(root, press_at(20, 70)));  // blocked
+        EXPECT(d.get_focus_target() == nullptr);
 
-            auto out = remove_direct(d, root, fp);  // drops modal + dialog
-            EXPECT(out != nullptr);
-            EXPECT(!dlg->is_descendant_of(&root));
+        auto out = remove_direct(d, root, fp);  // drops modal + dialog
+        EXPECT(out != nullptr);
+        EXPECT(!dlg->is_descendant_of(&root));
 
-            EXPECT(d.dispatch(root, press_at(20, 70)));  // hittable again
-            EXPECT(bg->is_focused());
-            out.reset();
-        }
+        EXPECT(d.dispatch(root, press_at(20, 70)));  // hittable again
+        EXPECT(bg->is_focused());
+        out.reset();
+    }
 
-        // state on removal: parent cleared, lookup dead, ownership
-        // transferred destructible
-        {
-            Panel root;
-            root.set_size(200, 150);
-            auto *b = mk_button(root, "victim", 10, 10);
-            EXPECT(root.find_by_id("victim") == b);
+    // state on removal: parent cleared, lookup dead, ownership
+    // transferred destructible
+    {
+        Panel root;
+        root.set_size(200, 150);
+        auto *b = mk_button(root, "victim", 10, 10);
+        EXPECT(root.find_by_id("victim") == b);
 
-            auto out = root.remove_child(b);
-            EXPECT(out != nullptr);
-            EXPECT(!out->is_descendant_of(&root));
-            EXPECT(out->get_id() == "victim");
-            EXPECT(root.find_by_id("victim") == nullptr);
-            out.reset();  // destroys fine
-        }
+        auto out = root.remove_child(b);
+        EXPECT(out != nullptr);
+        EXPECT(!out->is_descendant_of(&root));
+        EXPECT(out->get_id() == "victim");
+        EXPECT(root.find_by_id("victim") == nullptr);
+        out.reset();  // destroys fine
+    }
 
-        // removing the same pointer twice: the second call is a no-op
-        {
-            Panel root;
-            root.set_size(200, 150);
-            auto *b = mk_button(root, "again", 10, 10);
+    // removing the same pointer twice: the second call is a no-op
+    {
+        Panel root;
+        root.set_size(200, 150);
+        auto *b = mk_button(root, "again", 10, 10);
 
-            auto out = root.remove_child(b);
-            EXPECT(out != nullptr);
-            EXPECT(root.remove_child(b) == nullptr);
-            out.reset();
-        }
+        auto out = root.remove_child(b);
+        EXPECT(out != nullptr);
+        EXPECT(root.remove_child(b) == nullptr);
+        out.reset();
+    }
 
-        // a removed widget's held Subscription unsubscribes when the
-        // transferred ownership is destroyed
-        {
-            zb::event::Event<> ev;
-            int kept = 0;
-            ev += [&]() { ++kept; };
+    // a removed widget's held Subscription unsubscribes when the
+    // transferred ownership is destroyed
+    {
+        zb::event::Event<> ev;
+        int kept = 0;
+        ev += [&]()
+        { ++kept; };
 
-            Panel root;
-            root.set_size(200, 150);
-            auto *s = new Subscriber(ev);
-            root.add_child(std::unique_ptr<Widget>(s));
-            EXPECT(s->calls == 0);
+        Panel root;
+        root.set_size(200, 150);
+        auto *s = new Subscriber(ev);
+        root.add_child(std::unique_ptr<Widget>(s));
+        EXPECT(s->calls == 0);
 
-            ev();  // the live subscriber hears it
-            EXPECT(s->calls == 1);
+        ev();  // the live subscriber hears it
+        EXPECT(s->calls == 1);
 
-            auto out = root.remove_child(s);
-            EXPECT(out != nullptr);
-            // snapshot before the object dies: reading s->calls after the
-            // reset is a use-after-free (ASan caught it)
-            const int calls_at_removal = s->calls;
-            out.reset();  // destructor unsubscribes
+        auto out = root.remove_child(s);
+        EXPECT(out != nullptr);
+        // snapshot before the object dies: reading s->calls after the
+        // reset is a use-after-free (ASan caught it)
+        const int calls_at_removal = s->calls;
+        out.reset();  // destructor unsubscribes
 
-            ev();  // only the kept handler runs
-            EXPECT(calls_at_removal == 1);
-            EXPECT(kept == 2);
-        }
+        ev();  // only the kept handler runs
+        EXPECT(calls_at_removal == 1);
+        EXPECT(kept == 2);
+    }
 
-        // (IM-DMG-001) removal OUTSIDE the input path still reports the
-        // removed subtree's pixels: the rect rides the surviving
-        // container (walk_damage descends from the root, so a rect
-        // stored on the departing widget is unreachable after the
-        // detach and the pixels would stay on screen forever)
-        {
-            CanvasWindow w;
-            w.create(200, 150);
-            auto &root = w.root();
-            auto *b = mk_button(root, "vanishing", 40, 40);
-            w.paint();  // one clean frame first
+    // (IM-DMG-001) removal OUTSIDE the input path still reports the
+    // removed subtree's pixels: the rect rides the surviving
+    // container (walk_damage descends from the root, so a rect
+    // stored on the departing widget is unreachable after the
+    // detach and the pixels would stay on screen forever)
+    {
+        CanvasWindow w;
+        w.create(200, 150);
+        auto &root = w.root();
+        auto *b = mk_button(root, "vanishing", 40, 40);
+        w.paint();  // one clean frame first
 
-            auto out = remove_coordinated(w, root, b);
-            out.reset();
-            EXPECT(w.is_dirty());  // the removal itself owes a repaint
-            w.paint();
-            int x = 0, y = 0, rw = 0, rh = 0;
-            EXPECT(w.dirty_region(x, y, rw, rh));
-            EXPECT(rw > 0 && rh > 0);  // the region is not a blank frame
-        }
+        auto out = remove_coordinated(w, root, b);
+        out.reset();
+        EXPECT(w.is_dirty());  // the removal itself owes a repaint
+        w.paint();
+        int x = 0, y = 0, rw = 0, rh = 0;
+        EXPECT(w.dirty_region(x, y, rw, rh));
+        EXPECT(rw > 0 && rh > 0);  // the region is not a blank frame
+    }
 
-        return test::report("remove");
+    return test::report("remove");
 }

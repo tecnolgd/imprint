@@ -309,9 +309,10 @@ Every build in this tree compiles with the project warning set
 friends, `/W4 /permissive-` on MSVC), and an in-tree build promotes it
 to errors — `-DIMPRINT_WERROR=OFF` is the escape hatch for a compiler
 that ships a new diagnostic before the tree is cleaned (subproject
-builds default it off). `.clang-format` in the repository root is the
-style reference for new and edited code; the tree-wide reformat of
-older files is backlog X-19.
+builds default it off). The tree is also formatted: `.clang-format` in
+the repository root is the style, `tools/format-check.sh` gates it in
+CI (clang-format 18.1.3, version-pinned), and `sh
+tools/format-check.sh --write` reformats first-party code in place.
 
 ## Window & presentation
 

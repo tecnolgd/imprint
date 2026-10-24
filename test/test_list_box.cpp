@@ -88,367 +88,369 @@ namespace
 
 int test_list_box()
 {
-        // geometry: the widget height follows the visible row count
+    // geometry: the widget height follows the visible row count
+    {
+        Tree t;
+        EXPECT(t.list->get_size().height == 48);
+        EXPECT(t.list->get_top() == 0);
+        EXPECT(t.list->get_value() == ListBox::invalid);
+    }
+
+    // press a row: selection + changed; presses on the selected row
+    // are no-ops (note: += keeps the handler; a discarded
+    // subscribe() guard unsubscribes immediately by design)
+    {
+        Tree t;
+        InputDispatcher d;
+        size_t last = ListBox::invalid;
+        t.list->changed += [&](const size_t v)
+        { last = v; };
+
+        EXPECT(d.dispatch(t.root, press_at(20, 50)));  // local (10, 40): row 2
+        EXPECT(t.list->get_value() == 2);
+        EXPECT(last == 2);
+
+        last = ListBox::invalid;
+        d.dispatch(t.root, release_at(20, 50));
+        EXPECT(!d.dispatch(t.root, press_at(20, 50)));
+        EXPECT(last == ListBox::invalid);
+
+        // below the last visible row there is nothing to select
+        EXPECT(!d.dispatch(t.root, press_at(20, 70)));  // local y 60: row 3
+    }
+
+    // keyboard: up/down move the selection and reveal it
+    {
+        Tree t;
+        InputDispatcher d;
+        d.dispatch(t.root, press_at(20, 18));  // row 0, grabs focus
+        EXPECT(d.get_focus_target() == t.list);
+
+        for (int i = 0; i < 5; ++i)
         {
-            Tree t;
-            EXPECT(t.list->get_size().height == 48);
-            EXPECT(t.list->get_top() == 0);
-            EXPECT(t.list->get_value() == ListBox::invalid);
+            EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::down))));
         }
+        EXPECT(t.list->get_value() == 5);
+        EXPECT(t.list->get_top() == 3);  // window 3..5
 
-        // press a row: selection + changed; presses on the selected row
-        // are no-ops (note: += keeps the handler; a discarded
-        // subscribe() guard unsubscribes immediately by design)
+        EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
+        EXPECT(t.list->get_value() == 4);
+        EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
+        EXPECT(t.list->get_value() == 3);
+        EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
+        EXPECT(t.list->get_value() == 2);
+        EXPECT(t.list->get_top() == 2);  // revealed upward
+        EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
+        EXPECT(t.list->get_value() == 1);
+        EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
+        EXPECT(t.list->get_value() == 0);
+        EXPECT(t.list->get_top() == 0);
+
+        // at the top of the model the key is not consumed: the focus
+        // navigation takes over (single focusable: wraps to itself)
+        d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up)));
+        EXPECT(t.list->get_value() == 0);
+        EXPECT(t.list->get_top() == 0);
+    }
+
+    // wheel: scrolls the window, clamps at both ends, needs overflow
+    {
+        Tree t;
+        InputDispatcher d;
+        EXPECT(d.dispatch(t.root, wheel_at(20, 20, -1)));  // down: top 0 -> 3
+        EXPECT(t.list->get_top() == 3);
+        EXPECT(!d.dispatch(t.root, wheel_at(20, 20, -1)));  // already clamped
+        EXPECT(t.list->get_top() == 3);
+        EXPECT(d.dispatch(t.root, wheel_at(20, 20, 1)));  // up: 3 -> 0
+        EXPECT(t.list->get_top() == 0);
+        EXPECT(!d.dispatch(t.root, wheel_at(20, 20, 1)));  // at the top
+        EXPECT(!d.dispatch(t.root, wheel_at(5, 5, 1)));    // outside the list
+
+        t.list->set_item_count(3);  // fits: nothing to scroll
+        EXPECT(!d.dispatch(t.root, wheel_at(20, 20, -1)));
+    }
+
+    // thumb drag: grabs with the press offset, clamps to both ends,
+    // survives moves far outside the widget; the release ends it
+    {
+        Tree t;
+        InputDispatcher d;
+        t.list->set_item_count(20);                       // 17 rows of travel
+        EXPECT(t.list->get_value() == ListBox::invalid);  // no selection
+
+        // thumb spans local y 1..8 at top=0: press local (97, 4)
+        EXPECT(d.dispatch(t.root, press_at(107, 14)));
+        EXPECT(d.dispatch(t.root, move_to(107, 33)));  // new thumb top 20
+        EXPECT(t.list->get_top() == static_cast<size_t>(20 * 17 / 38));
+        d.dispatch(t.root, move_to(400, 300));  // far away: clamps
+        EXPECT(t.list->get_top() == 17);
+
+        EXPECT(d.dispatch(t.root, release_at(400, 300)));
+        EXPECT(!d.dispatch(t.root, move_to(107, 14)));  // no in-flight drag
+
+        // drag back up: thumb at max is local y 39..46
+        EXPECT(d.dispatch(t.root, press_at(107, 50)));  // grab = 1
+        d.dispatch(t.root, move_to(107, 30));           // new thumb top 19
+        EXPECT(t.list->get_top() == static_cast<size_t>(19 * 17 / 38));
+    }
+
+    // a cancelled thumb drag must not poison the next press: without
+    // the on_cancel reset the stale dragging flag turns a plain row
+    // press into a phantom thumb drag (Z6)
+    {
+        Tree t;
+        InputDispatcher d;
+        t.list->set_item_count(20);
+        EXPECT(d.dispatch(t.root, press_at(107, 14)));  // thumb grab
+        d.reset();                                      // e.g. focus lost
+        EXPECT(t.list->get_top() == 0);
+
+        // a row press behaves as a press, not as a drag
+        EXPECT(d.dispatch(t.root, press_at(20, 18)));  // row 0
+        EXPECT(t.list->get_value() == 0);
+        EXPECT(!d.dispatch(t.root, move_to(20, 30)));  // plain move
+        EXPECT(t.list->get_top() == 0);                // nothing scrolled
+    }
+
+    // row_height clamps to >= 1 (a zero height divided by zero on
+    // the next click) and re-derives the widget height (Z7)
+    {
+        Tree t;
+        InputDispatcher d;
+        t.list->set_row_height(0);
+        EXPECT(t.list->get_size().height == 3);        // 3 visible rows * 1
+        EXPECT(d.dispatch(t.root, press_at(20, 10)));  // local y 0: no trap
+        EXPECT(t.list->get_value() == 0);
+        t.list->set_row_height(16);
+        EXPECT(t.list->get_size().height == 48);
+    }
+
+    // the scrollbar gutter is not the row area: a click on the track
+    // below the thumb selects nothing (F12)
+    {
+        Tree t;
+        InputDispatcher d;
+        EXPECT(!d.dispatch(t.root, press_at(106, 40)));  // local (96, 30)
+        EXPECT(t.list->get_value() == ListBox::invalid);
+    }
+
+    // set_value is silent and range-checked; shrinking the model
+    // clears an out-of-range selection
+    {
+        Tree t;
+        int calls = 0;
+        t.list->changed += [&](const size_t)
+        { ++calls; };
+
+        t.list->set_value(4);
+        EXPECT(t.list->get_value() == 4);
+        t.list->set_value(999);
+        EXPECT(t.list->get_value() == 4);
+        t.list->set_value(ListBox::invalid);
+        EXPECT(t.list->get_value() == ListBox::invalid);
+        EXPECT(calls == 0);
+
+        InputDispatcher d;
+        EXPECT(d.dispatch(t.root, press_at(20, 18)));  // row 0
+        EXPECT(calls == 1);
+
+        t.list->set_value(5);
+        t.list->set_item_count(3);
+        EXPECT(t.list->get_value() == ListBox::invalid);
+    }
+
+    // drawing: row background, selection fill, scrollbar track and
+    // thumb occupy their pixels
+    {
+        Tree t;
+        InputDispatcher d;
+        core::Graphics g(140, 80, nullptr);
+        g.fill_rect(0, 0, 139, 79, core::colors::White);
+        t.root.draw(g);
+
+        EXPECT(core::Color::from(240, 240, 240).pixel == test::pixel_at(g, 60, 18));
+        EXPECT(core::Color::from(200, 200, 200).pixel == test::pixel_at(g, 104, 40));
+        EXPECT(core::Color::from(120, 120, 120).pixel == test::pixel_at(g, 104, 14));
+
+        d.dispatch(t.root, press_at(70, 34));  // local (60, 24): row 1
+        t.root.draw(g);
+        EXPECT(core::Color::from(0, 80, 200).pixel == test::pixel_at(g, 60, 30));
+        EXPECT(core::Color::from(0, 80, 200).pixel != test::pixel_at(g, 60, 13));
+    }
+
+    // row-image cache (batch J2): warm repaints are zero-allocation
+    // and pixel-identical to a cold render; selection, scroll and
+    // model changes invalidate the cache and rebuild it. The
+    // reference uses a second list instance so its paints are truly
+    // cold (the cache lives in the widget, not per surface).
+    {
+        Tree ref;
+        Tree meas;
+        InputDispatcher dref;
+        InputDispatcher dmeas;
+        core::Graphics gr(140, 80, nullptr);
+        core::Graphics gm(140, 80, nullptr);
+
+        const auto paint = [](Tree &t, core::Graphics &g)
         {
-            Tree t;
-            InputDispatcher d;
-            size_t last = ListBox::invalid;
-            t.list->changed += [&](const size_t v) { last = v; };
-
-            EXPECT(d.dispatch(t.root, press_at(20, 50)));  // local (10, 40): row 2
-            EXPECT(t.list->get_value() == 2);
-            EXPECT(last == 2);
-
-            last = ListBox::invalid;
-            d.dispatch(t.root, release_at(20, 50));
-            EXPECT(!d.dispatch(t.root, press_at(20, 50)));
-            EXPECT(last == ListBox::invalid);
-
-            // below the last visible row there is nothing to select
-            EXPECT(!d.dispatch(t.root, press_at(20, 70)));  // local y 60: row 3
-        }
-
-        // keyboard: up/down move the selection and reveal it
-        {
-            Tree t;
-            InputDispatcher d;
-            d.dispatch(t.root, press_at(20, 18));  // row 0, grabs focus
-            EXPECT(d.get_focus_target() == t.list);
-
-            for (int i = 0; i < 5; ++i)
-            {
-                EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::down))));
-            }
-            EXPECT(t.list->get_value() == 5);
-            EXPECT(t.list->get_top() == 3);  // window 3..5
-
-            EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
-            EXPECT(t.list->get_value() == 4);
-            EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
-            EXPECT(t.list->get_value() == 3);
-            EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
-            EXPECT(t.list->get_value() == 2);
-            EXPECT(t.list->get_top() == 2);  // revealed upward
-            EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
-            EXPECT(t.list->get_value() == 1);
-            EXPECT(d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up))));
-            EXPECT(t.list->get_value() == 0);
-            EXPECT(t.list->get_top() == 0);
-
-            // at the top of the model the key is not consumed: the focus
-            // navigation takes over (single focusable: wraps to itself)
-            d.dispatch(t.root, key_down(static_cast<int>(zb::input::key_code::up)));
-            EXPECT(t.list->get_value() == 0);
-            EXPECT(t.list->get_top() == 0);
-        }
-
-        // wheel: scrolls the window, clamps at both ends, needs overflow
-        {
-            Tree t;
-            InputDispatcher d;
-            EXPECT(d.dispatch(t.root, wheel_at(20, 20, -1)));  // down: top 0 -> 3
-            EXPECT(t.list->get_top() == 3);
-            EXPECT(!d.dispatch(t.root, wheel_at(20, 20, -1)));  // already clamped
-            EXPECT(t.list->get_top() == 3);
-            EXPECT(d.dispatch(t.root, wheel_at(20, 20, 1)));  // up: 3 -> 0
-            EXPECT(t.list->get_top() == 0);
-            EXPECT(!d.dispatch(t.root, wheel_at(20, 20, 1)));  // at the top
-            EXPECT(!d.dispatch(t.root, wheel_at(5, 5, 1)));    // outside the list
-
-            t.list->set_item_count(3);  // fits: nothing to scroll
-            EXPECT(!d.dispatch(t.root, wheel_at(20, 20, -1)));
-        }
-
-        // thumb drag: grabs with the press offset, clamps to both ends,
-        // survives moves far outside the widget; the release ends it
-        {
-            Tree t;
-            InputDispatcher d;
-            t.list->set_item_count(20);  // 17 rows of travel
-            EXPECT(t.list->get_value() == ListBox::invalid);  // no selection
-
-            // thumb spans local y 1..8 at top=0: press local (97, 4)
-            EXPECT(d.dispatch(t.root, press_at(107, 14)));
-            EXPECT(d.dispatch(t.root, move_to(107, 33)));  // new thumb top 20
-            EXPECT(t.list->get_top() == static_cast<size_t>(20 * 17 / 38));
-            d.dispatch(t.root, move_to(400, 300));  // far away: clamps
-            EXPECT(t.list->get_top() == 17);
-
-            EXPECT(d.dispatch(t.root, release_at(400, 300)));
-            EXPECT(!d.dispatch(t.root, move_to(107, 14)));  // no in-flight drag
-
-            // drag back up: thumb at max is local y 39..46
-            EXPECT(d.dispatch(t.root, press_at(107, 50)));  // grab = 1
-            d.dispatch(t.root, move_to(107, 30));           // new thumb top 19
-            EXPECT(t.list->get_top() == static_cast<size_t>(19 * 17 / 38));
-        }
-
-        // a cancelled thumb drag must not poison the next press: without
-        // the on_cancel reset the stale dragging flag turns a plain row
-        // press into a phantom thumb drag (Z6)
-        {
-            Tree t;
-            InputDispatcher d;
-            t.list->set_item_count(20);
-            EXPECT(d.dispatch(t.root, press_at(107, 14)));  // thumb grab
-            d.reset();                                      // e.g. focus lost
-            EXPECT(t.list->get_top() == 0);
-
-            // a row press behaves as a press, not as a drag
-            EXPECT(d.dispatch(t.root, press_at(20, 18)));  // row 0
-            EXPECT(t.list->get_value() == 0);
-            EXPECT(!d.dispatch(t.root, move_to(20, 30)));  // plain move
-            EXPECT(t.list->get_top() == 0);                // nothing scrolled
-        }
-
-        // row_height clamps to >= 1 (a zero height divided by zero on
-        // the next click) and re-derives the widget height (Z7)
-        {
-            Tree t;
-            InputDispatcher d;
-            t.list->set_row_height(0);
-            EXPECT(t.list->get_size().height == 3);  // 3 visible rows * 1
-            EXPECT(d.dispatch(t.root, press_at(20, 10)));  // local y 0: no trap
-            EXPECT(t.list->get_value() == 0);
-            t.list->set_row_height(16);
-            EXPECT(t.list->get_size().height == 48);
-        }
-
-        // the scrollbar gutter is not the row area: a click on the track
-        // below the thumb selects nothing (F12)
-        {
-            Tree t;
-            InputDispatcher d;
-            EXPECT(!d.dispatch(t.root, press_at(106, 40)));  // local (96, 30)
-            EXPECT(t.list->get_value() == ListBox::invalid);
-        }
-
-        // set_value is silent and range-checked; shrinking the model
-        // clears an out-of-range selection
-        {
-            Tree t;
-            int calls = 0;
-            t.list->changed += [&](const size_t) { ++calls; };
-
-            t.list->set_value(4);
-            EXPECT(t.list->get_value() == 4);
-            t.list->set_value(999);
-            EXPECT(t.list->get_value() == 4);
-            t.list->set_value(ListBox::invalid);
-            EXPECT(t.list->get_value() == ListBox::invalid);
-            EXPECT(calls == 0);
-
-            InputDispatcher d;
-            EXPECT(d.dispatch(t.root, press_at(20, 18)));  // row 0
-            EXPECT(calls == 1);
-
-            t.list->set_value(5);
-            t.list->set_item_count(3);
-            EXPECT(t.list->get_value() == ListBox::invalid);
-        }
-
-        // drawing: row background, selection fill, scrollbar track and
-        // thumb occupy their pixels
-        {
-            Tree t;
-            InputDispatcher d;
-            core::Graphics g(140, 80, nullptr);
             g.fill_rect(0, 0, 139, 79, core::colors::White);
             t.root.draw(g);
-
-            EXPECT(core::Color::from(240, 240, 240).pixel == test::pixel_at(g, 60, 18));
-            EXPECT(core::Color::from(200, 200, 200).pixel == test::pixel_at(g, 104, 40));
-            EXPECT(core::Color::from(120, 120, 120).pixel == test::pixel_at(g, 104, 14));
-
-            d.dispatch(t.root, press_at(70, 34));  // local (60, 24): row 1
-            t.root.draw(g);
-            EXPECT(core::Color::from(0, 80, 200).pixel == test::pixel_at(g, 60, 30));
-            EXPECT(core::Color::from(0, 80, 200).pixel != test::pixel_at(g, 60, 13));
-        }
-
-        // row-image cache (batch J2): warm repaints are zero-allocation
-        // and pixel-identical to a cold render; selection, scroll and
-        // model changes invalidate the cache and rebuild it. The
-        // reference uses a second list instance so its paints are truly
-        // cold (the cache lives in the widget, not per surface).
+        };
+        const auto same = [&]()
         {
-            Tree ref;
-            Tree meas;
-            InputDispatcher dref;
-            InputDispatcher dmeas;
-            core::Graphics gr(140, 80, nullptr);
-            core::Graphics gm(140, 80, nullptr);
+            return std::memcmp(gr.data(), gm.data(),
+                               140u * 80u * sizeof(core::Color)) == 0;
+        };
 
-            const auto paint = [](Tree &t, core::Graphics &g)
-            {
-                g.fill_rect(0, 0, 139, 79, core::colors::White);
-                t.root.draw(g);
-            };
-            const auto same = [&]()
-            {
-                return std::memcmp(gr.data(), gm.data(),
-                                   140u * 80u * sizeof(core::Color)) == 0;
-            };
+        paint(ref, gr);
+        paint(meas, gm);
+        EXPECT(same());
 
-            paint(ref, gr);
+        // warm repaint: cache hits, no row re-rasterization, no text
+        // fetch -- zero allocations and zero rasterizations
+        {
+            test::scoped_alloc_count c;
+            const long long r0 = meas.list->rasterization_count();
             paint(meas, gm);
-            EXPECT(same());
-
-            // warm repaint: cache hits, no row re-rasterization, no text
-            // fetch -- zero allocations and zero rasterizations
-            {
-                test::scoped_alloc_count c;
-                const long long r0 = meas.list->rasterization_count();
-                paint(meas, gm);
-                std::printf("warm list repaint allocations: %lld\n", c.delta());
-                EXPECT(c.delta() == 0);
-                EXPECT(meas.list->rasterization_count() == r0);
-            }
-            EXPECT(same());
-
-            // Rebuild proof is the rasterization counter, not the
-            // allocation delta: the row images are allocated inside
-            // imcore, which on Windows is a DLL the test binary's
-            // operator-new replacement cannot see (code-contract §8).
-            // A full invalidation re-rasterizes exactly the visible
-            // window (3 rows).
-
-            // selection change (value): invalidated, rebuilt on paint
-            dref.dispatch(ref.root, press_at(70, 34));  // local (60, 24): row 1
-            dmeas.dispatch(meas.root, press_at(70, 34));
-            paint(ref, gr);
-            {
-                test::scoped_alloc_count c;
-                const long long r0 = meas.list->rasterization_count();
-                paint(meas, gm);
-                std::printf("selection rebuild rasterizations: %lld (allocations %lld)\n",
-                            meas.list->rasterization_count() - r0, c.delta());
-                EXPECT(meas.list->rasterization_count() - r0 == 3);
-            }
-            EXPECT(same());
-
-            // scroll (top): same
-            dref.dispatch(ref.root, wheel_at(20, 20, -1));  // top 0 -> 3
-            dmeas.dispatch(meas.root, wheel_at(20, 20, -1));
-            paint(ref, gr);
-            {
-                test::scoped_alloc_count c;
-                const long long r0 = meas.list->rasterization_count();
-                paint(meas, gm);
-                std::printf("scroll rebuild rasterizations: %lld (allocations %lld)\n",
-                            meas.list->rasterization_count() - r0, c.delta());
-                EXPECT(meas.list->rasterization_count() - r0 == 3);
-            }
-            EXPECT(same());
-
-            // model swap (set_items): same
-            ref.list->set_items(std::vector<std::string>{"a", "b", "c", "d", "e", "f"});
-            meas.list->set_items(std::vector<std::string>{"a", "b", "c", "d", "e", "f"});
-            paint(ref, gr);
-            {
-                test::scoped_alloc_count c;
-                const long long r0 = meas.list->rasterization_count();
-                paint(meas, gm);
-                std::printf("model swap rebuild rasterizations: %lld (allocations %lld)\n",
-                            meas.list->rasterization_count() - r0, c.delta());
-                EXPECT(meas.list->rasterization_count() - r0 == 3);
-            }
-            EXPECT(same());
-
-            // ... and the rebuilt cache is warm again
-            {
-                test::scoped_alloc_count c;
-                const long long r0 = meas.list->rasterization_count();
-                paint(meas, gm);
-                std::printf("post-rebuild warm allocations: %lld\n", c.delta());
-                EXPECT(c.delta() == 0);
-                EXPECT(meas.list->rasterization_count() == r0);
-            }
-            EXPECT(same());
+            std::printf("warm list repaint allocations: %lld\n", c.delta());
+            EXPECT(c.delta() == 0);
+            EXPECT(meas.list->rasterization_count() == r0);
         }
+        EXPECT(same());
 
-        // L-3: a declarative list without a width stays measured (100
-        // wide) instead of freezing the pre-layout 0 as explicit
+        // Rebuild proof is the rasterization counter, not the
+        // allocation delta: the row images are allocated inside
+        // imcore, which on Windows is a DLL the test binary's
+        // operator-new replacement cannot see (code-contract §8).
+        // A full invalidation re-rasterizes exactly the visible
+        // window (3 rows).
+
+        // selection change (value): invalidated, rebuilt on paint
+        dref.dispatch(ref.root, press_at(70, 34));  // local (60, 24): row 1
+        dmeas.dispatch(meas.root, press_at(70, 34));
+        paint(ref, gr);
         {
-            ui_node doc;
-            doc.type = "column";
-            ui_node lb;
-            lb.type = "list_box";
-            lb.prop("rows", 3LL);
-            lb.named("l");
-            doc.children.push_back(std::move(lb));
-
-            FlexPanel host;
-            host.set_size(200, 200);
-            build(host, doc);
-            host.layout();
-            auto *l = static_cast<ListBox *>(host.find_by_id("l"));
-            EXPECT(l != nullptr);
-            EXPECT(l->get_size().width == 100);
-            EXPECT(l->get_size().height == 48);
-            EXPECT(!l->is_width_explicit());
+            test::scoped_alloc_count c;
+            const long long r0 = meas.list->rasterization_count();
+            paint(meas, gm);
+            std::printf("selection rebuild rasterizations: %lld (allocations %lld)\n",
+                        meas.list->rasterization_count() - r0, c.delta());
+            EXPECT(meas.list->rasterization_count() - r0 == 3);
         }
+        EXPECT(same());
 
-        // L-3: an explicit width survives rows changes, declarative or
-        // programmatic
+        // scroll (top): same
+        dref.dispatch(ref.root, wheel_at(20, 20, -1));  // top 0 -> 3
+        dmeas.dispatch(meas.root, wheel_at(20, 20, -1));
+        paint(ref, gr);
         {
-            ui_node doc;
-            doc.type = "column";
-            ui_node lb;
-            lb.type = "list_box";
-            lb.prop("rows", 3LL);
-            lb.prop("width", 120LL);
-            lb.named("l");
-            doc.children.push_back(std::move(lb));
-
-            FlexPanel host;
-            host.set_size(200, 200);
-            build(host, doc);
-            host.layout();
-            auto *l = static_cast<ListBox *>(host.find_by_id("l"));
-            EXPECT(l != nullptr);
-            EXPECT(l->get_size().width == 120);
-            EXPECT(l->get_size().height == 48);
-            EXPECT(l->is_width_explicit());
-
-            l->set_visible_rows(2);
-            EXPECT(l->get_size().width == 120);
-            EXPECT(l->get_size().height == 32);
-            EXPECT(l->is_width_explicit());
+            test::scoped_alloc_count c;
+            const long long r0 = meas.list->rasterization_count();
+            paint(meas, gm);
+            std::printf("scroll rebuild rasterizations: %lld (allocations %lld)\n",
+                        meas.list->rasterization_count() - r0, c.delta());
+            EXPECT(meas.list->rasterization_count() - r0 == 3);
         }
+        EXPECT(same());
 
-        // L-3: programmatic rows/row-height keep an auto width auto
+        // model swap (set_items): same
+        ref.list->set_items(std::vector<std::string>{"a", "b", "c", "d", "e", "f"});
+        meas.list->set_items(std::vector<std::string>{"a", "b", "c", "d", "e", "f"});
+        paint(ref, gr);
         {
-            ListBox l;
-            l.set_visible_rows(3);
-            EXPECT(!l.is_width_explicit());
-            EXPECT(l.is_height_explicit());
-            EXPECT(l.get_size().height == 48);
-
-            l.set_row_height(20);
-            EXPECT(!l.is_width_explicit());
-            EXPECT(l.get_size().height == 60);  // 3 rows * 20
+            test::scoped_alloc_count c;
+            const long long r0 = meas.list->rasterization_count();
+            paint(meas, gm);
+            std::printf("model swap rebuild rasterizations: %lld (allocations %lld)\n",
+                        meas.list->rasterization_count() - r0, c.delta());
+            EXPECT(meas.list->rasterization_count() - r0 == 3);
         }
+        EXPECT(same());
 
-        // F7: rows/visible clamp — zero and absurd sizes never stick
+        // ... and the rebuilt cache is warm again
         {
-            ListBox l;
-            l.set_visible_rows(0);
-            EXPECT(l.get_size().height >= 1);  // clamped to 1 row
-            l.set_visible_rows(1000000);
-            EXPECT(l.get_size().height > 0);
-            EXPECT(l.get_size().height <= 100000 * 16);
+            test::scoped_alloc_count c;
+            const long long r0 = meas.list->rasterization_count();
+            paint(meas, gm);
+            std::printf("post-rebuild warm allocations: %lld\n", c.delta());
+            EXPECT(c.delta() == 0);
+            EXPECT(meas.list->rasterization_count() == r0);
         }
+        EXPECT(same());
+    }
 
-        return test::report("list_box");
+    // L-3: a declarative list without a width stays measured (100
+    // wide) instead of freezing the pre-layout 0 as explicit
+    {
+        ui_node doc;
+        doc.type = "column";
+        ui_node lb;
+        lb.type = "list_box";
+        lb.prop("rows", 3LL);
+        lb.named("l");
+        doc.children.push_back(std::move(lb));
+
+        FlexPanel host;
+        host.set_size(200, 200);
+        build(host, doc);
+        host.layout();
+        auto *l = static_cast<ListBox *>(host.find_by_id("l"));
+        EXPECT(l != nullptr);
+        EXPECT(l->get_size().width == 100);
+        EXPECT(l->get_size().height == 48);
+        EXPECT(!l->is_width_explicit());
+    }
+
+    // L-3: an explicit width survives rows changes, declarative or
+    // programmatic
+    {
+        ui_node doc;
+        doc.type = "column";
+        ui_node lb;
+        lb.type = "list_box";
+        lb.prop("rows", 3LL);
+        lb.prop("width", 120LL);
+        lb.named("l");
+        doc.children.push_back(std::move(lb));
+
+        FlexPanel host;
+        host.set_size(200, 200);
+        build(host, doc);
+        host.layout();
+        auto *l = static_cast<ListBox *>(host.find_by_id("l"));
+        EXPECT(l != nullptr);
+        EXPECT(l->get_size().width == 120);
+        EXPECT(l->get_size().height == 48);
+        EXPECT(l->is_width_explicit());
+
+        l->set_visible_rows(2);
+        EXPECT(l->get_size().width == 120);
+        EXPECT(l->get_size().height == 32);
+        EXPECT(l->is_width_explicit());
+    }
+
+    // L-3: programmatic rows/row-height keep an auto width auto
+    {
+        ListBox l;
+        l.set_visible_rows(3);
+        EXPECT(!l.is_width_explicit());
+        EXPECT(l.is_height_explicit());
+        EXPECT(l.get_size().height == 48);
+
+        l.set_row_height(20);
+        EXPECT(!l.is_width_explicit());
+        EXPECT(l.get_size().height == 60);  // 3 rows * 20
+    }
+
+    // F7: rows/visible clamp — zero and absurd sizes never stick
+    {
+        ListBox l;
+        l.set_visible_rows(0);
+        EXPECT(l.get_size().height >= 1);  // clamped to 1 row
+        l.set_visible_rows(1000000);
+        EXPECT(l.get_size().height > 0);
+        EXPECT(l.get_size().height <= 100000 * 16);
+    }
+
+    return test::report("list_box");
 }

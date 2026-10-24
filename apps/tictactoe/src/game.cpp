@@ -62,8 +62,8 @@ bool Game::set_mark(const int row, const int col, const player_type p)
 player_type Game::get_mark(const int row, const int col) const
 {
     return (row >= 0 && row < rows && col >= 0 && col < rows)
-               ? board[row][col]
-               : player_type::none;
+             ? board[row][col]
+             : player_type::none;
 }
 
 player_type Game::check_winner() const

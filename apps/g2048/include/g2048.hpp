@@ -57,7 +57,11 @@ namespace zb::app::g2048
         zb::SharedPtr<IWindow> window() noexcept override { return window_; }
 
         void input(const zb::input::input_event &ev) noexcept override;
-        void paint() noexcept override { if (window_) window_->paint(); }
+        void paint() noexcept override
+        {
+            if (window_)
+                window_->paint();
+        }
 
         bool is_dirty() const noexcept override
         {
@@ -109,7 +113,7 @@ namespace zb::app::g2048
         int score_ = 0;
         int best_ = 0;
         unsigned seed_ = 20260101u;
-        bool won_ = false;      // a 2048 tile exists (win dialog shows once)
+        bool won_ = false;  // a 2048 tile exists (win dialog shows once)
         bool win_shown_ = false;
         bool over_ = false;
 
@@ -143,4 +147,4 @@ namespace zb::app::g2048
     };
 }  // namespace zb::app::g2048
 
-#endif // !G2048_HPP
+#endif  // !G2048_HPP

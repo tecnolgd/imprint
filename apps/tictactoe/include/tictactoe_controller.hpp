@@ -49,4 +49,4 @@ namespace zb::app::tictactoe
     };
 }
 
-#endif // TICTACTOE_CONTROLLER_HPP
+#endif  // TICTACTOE_CONTROLLER_HPP

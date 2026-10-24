@@ -16,8 +16,14 @@ namespace
     using namespace zb::app::tictactoe::layout;
 
     // absolute centers of the board cells
-    int cell_x(const int col) { return board_x + col * board_cell + board_cell / 2; }
-    int cell_y(const int row) { return board_y + row * board_cell + board_cell / 2; }
+    int cell_x(const int col)
+    {
+        return board_x + col * board_cell + board_cell / 2;
+    }
+    int cell_y(const int row)
+    {
+        return board_y + row * board_cell + board_cell / 2;
+    }
 
     const core::Color board_bg = core::Color::from(100, 190, 70);
     const core::Color frame_bg = core::Color::from(240, 240, 240);
@@ -136,7 +142,7 @@ int test_app_flow()
         app->create_window(256, 192);
         app->paint();
 
-        const int bsize = 192 - 2 * (192 / board_margin_den);   // board 174
+        const int bsize = 192 - 2 * (192 / board_margin_den);  // board 174
         const int bx = (256 - bsize) / 2;
         const int by = (192 - bsize) / 2;
         const int bcell = bsize / 3;

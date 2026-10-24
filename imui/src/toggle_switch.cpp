@@ -97,7 +97,7 @@ namespace zb::ui
         const int h = track_size_.height;
         const int r = h / 2;
 
-        const core::Color on  = track_color.value_or(theme().accent);
+        const core::Color on = track_color.value_or(theme().accent);
         const core::Color off = theme().field_bg;
         const core::Color dot = dot_color.value_or(theme().text_inverted);
 

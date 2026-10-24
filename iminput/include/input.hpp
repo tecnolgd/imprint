@@ -11,7 +11,7 @@ namespace zb::input
         left,
         right,
         middle
-    }; // enum class mouse_button_t
+    };  // enum class mouse_button_t
 
     enum class input_type
     {
@@ -152,6 +152,6 @@ namespace zb::input
     static_assert(std::is_trivially_copyable_v<input_event> &&
                       std::is_standard_layout_v<input_event>,
                   "input_event must stay memcpy-safe across the C-ABI");
-} // namespace zb::input
+}  // namespace zb::input
 
-#endif // IMINPUT_INPUT_HPP
+#endif  // IMINPUT_INPUT_HPP

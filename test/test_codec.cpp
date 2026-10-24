@@ -19,15 +19,16 @@ namespace
     [[maybe_unused]] const char *PNG_TMP = "test_codec_tmp.png";
     [[maybe_unused]] const char *JPG_TMP = "test_codec_tmp.jpg";
 
-    using zb::ui::core::Color;
-    using zb::ui::core::Graphics;
     using zb::ui::Image;
     using zb::ui::image_info;
+    using zb::ui::core::Color;
+    using zb::ui::core::Graphics;
 
     // Pixel buffer helper: 32x16, flat fill with a few marked pixels
     struct TestImage
     {
-        TestImage() : buf(32u * 16u), g(32, 16, buf.data())
+        TestImage()
+            : buf(32u * 16u), g(32, 16, buf.data())
         {
             g.fill(Color::from(10, 20, 30, 255));
             buf[5 * 32 + 3] = Color::from(200, 100, 50, 255);
@@ -45,8 +46,10 @@ namespace
         bool info_received = false;
     };
 
-    [[maybe_unused]] auto make_loaded(ReadResult &out) {
-        return [&out](image_info &im) {
+    [[maybe_unused]] auto make_loaded(ReadResult &out)
+    {
+        return [&out](image_info &im)
+        {
             out.info = im;
             out.info_received = true;
             return true;
@@ -54,8 +57,10 @@ namespace
     }
 
     // RGBA row collector (PNG)
-    [[maybe_unused]] auto make_row_rgba(ReadResult &out) {
-        return [&out](unsigned char *buf) {
+    [[maybe_unused]] auto make_row_rgba(ReadResult &out)
+    {
+        return [&out](unsigned char *buf)
+        {
             for (uint32_t i = 0; i < out.info.image_width; i++)
             {
                 out.pixels.push_back(Color::from(buf[0], buf[1], buf[2], buf[3]));
@@ -66,8 +71,10 @@ namespace
     }
 
     // RGB row collector (JPEG)
-    [[maybe_unused]] auto make_row_rgb(ReadResult &out) {
-        return [&out](unsigned char *buf) {
+    [[maybe_unused]] auto make_row_rgb(ReadResult &out)
+    {
+        return [&out](unsigned char *buf)
+        {
             for (uint32_t i = 0; i < out.info.image_width; i++)
             {
                 out.pixels.push_back(Color::from(buf[0], buf[1], buf[2]));
@@ -85,7 +92,7 @@ namespace
         b = c.b();
     }
 #endif
-} // namespace
+}  // namespace
 
 int test_codec()
 {
@@ -111,16 +118,18 @@ int test_codec()
         {
             if (src.buf[i].pixel != out.pixels[i].pixel)
             {
-                EXPECT(false); // report once with position
+                EXPECT(false);  // report once with position
                 std::printf("  pixel mismatch at %zu\n", i);
                 break;
             }
         }
 
         // callbacks may reject: info rejected (5), row rejected (6)
-        auto reject_info = [](image_info &) { return false; };
+        auto reject_info = [](image_info &)
+        { return false; };
         EXPECT(5 == img.read_png_file(PNG_TMP, reject_info, make_row_rgba(out)));
-        auto reject_row = [](unsigned char *) { return false; };
+        auto reject_row = [](unsigned char *)
+        { return false; };
         EXPECT(6 == img.read_png_file(PNG_TMP, make_loaded(out), reject_row));
 
         // error codes: missing file (1), not a PNG (2)
@@ -155,10 +164,11 @@ int test_codec()
         // global bound covers the subdivided neighbourhood.
 #if COLOR_DEPTH == 32
         {
-            const auto near_marker = [](const size_t i) {
+            const auto near_marker = [](const size_t i)
+            {
                 const int x = static_cast<int>(i % 32), y = static_cast<int>(i / 32);
-                return (x >= 0 && x <= 6 && y >= 2 && y <= 8) ||     // (3,5)
-                       (x >= 24 && x <= 30 && y >= 9 && y <= 15);   // (27,12)
+                return (x >= 0 && x <= 6 && y >= 2 && y <= 8) ||   // (3,5)
+                       (x >= 24 && x <= 30 && y >= 9 && y <= 15);  // (27,12)
             };
             int maxdrift = 0;
             for (size_t i = 0; i < src.buf.size() && out.pixels.size() == src.buf.size(); i++)
@@ -169,9 +179,12 @@ int test_codec()
                 int d = sr - dr > 0 ? sr - dr : dr - sr;
                 int dg2 = sg - dg > 0 ? sg - dg : dg - sg;
                 int db2 = sb - db > 0 ? sb - db : db - sb;
-                if (d < dg2) d = dg2;
-                if (d < db2) d = db2;
-                if (d > maxdrift) maxdrift = d;
+                if (d < dg2)
+                    d = dg2;
+                if (d < db2)
+                    d = db2;
+                if (d > maxdrift)
+                    maxdrift = d;
                 if (!near_marker(i) && d > 12)
                 {
                     EXPECT(false);

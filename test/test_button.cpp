@@ -10,7 +10,8 @@ int test_button()
     {
         Button b;
         int clicks = 0;
-        b.clicked += [&clicks]() { ++clicks; };
+        b.clicked += [&clicks]()
+        { ++clicks; };
         b.press();
         b.release();
         EXPECT(clicks == 1);
@@ -20,7 +21,8 @@ int test_button()
     {
         Button b;
         int clicks = 0;
-        b.clicked += [&clicks]() { ++clicks; };
+        b.clicked += [&clicks]()
+        { ++clicks; };
         b.press();
         b.cancel();
         b.release();
@@ -31,7 +33,8 @@ int test_button()
     {
         Button b;
         int clicks = 0;
-        b.clicked += [&clicks]() { ++clicks; };
+        b.clicked += [&clicks]()
+        { ++clicks; };
         b.release();
         EXPECT(clicks == 0);
     }
@@ -40,7 +43,8 @@ int test_button()
     {
         Button b;
         int clicks = 0;
-        b.clicked += [&clicks]() { ++clicks; };
+        b.clicked += [&clicks]()
+        { ++clicks; };
         b.press();
         b.press();
         b.release();
@@ -51,7 +55,8 @@ int test_button()
     {
         Button b;
         int clicks = 0;
-        b.clicked += [&clicks]() { ++clicks; };
+        b.clicked += [&clicks]()
+        { ++clicks; };
         b.press();
         b.cancel();
         b.press();
@@ -95,16 +100,18 @@ int test_button()
         b.set_show_border(true);
 
         b.draw(*g);
-        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::Red.pixel);   // border
-        EXPECT(test::pixel_at(*g, 3, 3) == core::colors::Red.pixel);   // border
-        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::White.pixel); // inside
+        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::Red.pixel);    // border
+        EXPECT(test::pixel_at(*g, 3, 3) == core::colors::Red.pixel);    // border
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::White.pixel);  // inside
     }
 
     // drawing: pressed image wins over the pressed color
     {
         const core::Color img_pixels[] = {
-            core::Color::from(0, 255, 0), core::Color::from(0, 255, 0),
-            core::Color::from(0, 255, 0), core::Color::from(0, 255, 0),
+            core::Color::from(0, 255, 0),
+            core::Color::from(0, 255, 0),
+            core::Color::from(0, 255, 0),
+            core::Color::from(0, 255, 0),
         };
         const core::image_t img{img_pixels, 2, 2, 0};
 
@@ -138,8 +145,8 @@ int test_button()
         b.set_size(s.width, s.height);
         auto g = core::Graphics::make_ptr(s.width, s.height);
         b.draw(*g);
-        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::Red.pixel);   // border
-        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::White.pixel); // padding ring
+        EXPECT(test::pixel_at(*g, 0, 0) == core::colors::Red.pixel);    // border
+        EXPECT(test::pixel_at(*g, 1, 1) == core::colors::White.pixel);  // padding ring
         // 'O' top bar of the centered text (5x7: advance 6/char, height 7)
         EXPECT(test::pixel_at(*g, (s.width - 12) / 2 + 1, (s.height - 7) / 2) ==
                core::colors::Black.pixel);

@@ -13,20 +13,20 @@ namespace zb::ui
      */
     struct Theme
     {
-        core::Color background;    // window base fill (CanvasWindow)
-        core::Color text;          // default text
-        core::Color text_inverted; // text drawn over `selection`
-        core::Color border;        // outlines: button frame, checkbox box,
-                                   // radio ring, text-input frame, slider track
-        core::Color accent;        // interactive fill: pressed button, check
-                                   // mark, radio dot, slider thumb, caret,
-                                   // focused border
-        core::Color selection;     // selected list-row background
-        core::Color field_bg;      // list / text-field background
+        core::Color background;     // window base fill (CanvasWindow)
+        core::Color text;           // default text
+        core::Color text_inverted;  // text drawn over `selection`
+        core::Color border;         // outlines: button frame, checkbox box,
+                                    // radio ring, text-input frame, slider track
+        core::Color accent;         // interactive fill: pressed button, check
+                                    // mark, radio dot, slider thumb, caret,
+                                    // focused border
+        core::Color selection;      // selected list-row background
+        core::Color field_bg;       // list / text-field background
         core::Color scroll_track;
         core::Color scroll_thumb;
-        core::Color focus_mark;    // keyboard-focus indicator rect
-        core::Color mask;          // modal overlay (alpha meaningful at 32bpp)
+        core::Color focus_mark;  // keyboard-focus indicator rect
+        core::Color mask;        // modal overlay (alpha meaningful at 32bpp)
     };
 
     // built-in presets; light reproduces the pre-theme look pixel-exactly

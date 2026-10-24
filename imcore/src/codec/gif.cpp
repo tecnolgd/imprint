@@ -343,8 +343,7 @@ namespace zb::ui
 
     GifWriter::GifWriter(const char *path, const std::size_t width,
                          const std::size_t height, const std::size_t delay_cs)
-        : palette_(nullptr), out_(path, std::ios::binary), width_(width),
-          height_(height), delay_cs_(delay_cs)
+        : palette_(nullptr), out_(path, std::ios::binary), width_(width), height_(height), delay_cs_(delay_cs)
     {
         check_open(width, height);
         write_header(nullptr);
@@ -353,8 +352,7 @@ namespace zb::ui
     GifWriter::GifWriter(const char *path, const std::size_t width,
                          const std::size_t height, const std::size_t delay_cs,
                          const GifPalette &palette)
-        : palette_(&palette), out_(path, std::ios::binary), width_(width),
-          height_(height), delay_cs_(delay_cs)
+        : palette_(&palette), out_(path, std::ios::binary), width_(width), height_(height), delay_cs_(delay_cs)
     {
         check_open(width, height);
         write_header(&palette);
@@ -435,8 +433,8 @@ namespace zb::ui
             // documented quantize at 16bpp; the alpha byte is ignored
             const core::Color &c = pixels[i];
             indexed[i] = palette_ != nullptr
-                             ? palette_index_of(nearest_, *palette_, c.r(), c.g(), c.b())
-                             : palette_index(c.r(), c.g(), c.b());
+                           ? palette_index_of(nearest_, *palette_, c.r(), c.g(), c.b())
+                           : palette_index(c.r(), c.g(), c.b());
         }
 
         // graphic control extension: delay, no transparency, disposal keep

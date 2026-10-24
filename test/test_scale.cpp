@@ -86,8 +86,8 @@ int test_scale()
         p.set_direction(FlexPanel::flex_direction::row);
         p.set_size(25000000, 40);
         auto child = std::make_unique<Widget>();
-        child->set_size(10, 40);       // explicit cross size (height)
-        child->set_width_percent(100); // the declaration replaces the width
+        child->set_size(10, 40);        // explicit cross size (height)
+        child->set_width_percent(100);  // the declaration replaces the width
         Widget *raw = child.get();
         p.add_child(std::move(child));
         p.layout();

@@ -222,7 +222,7 @@ namespace zb::ui
 
         const core::Color face_c = face_color.value_or(theme().field_bg);
         const core::Color ring_c = ring_color.value_or(theme().border);
-        const core::Color ptr_c  = pointer_color.value_or(theme().accent);
+        const core::Color ptr_c = pointer_color.value_or(theme().accent);
 
         // face disc + ring outline (AA adoption: the ring blends its
         // edge; the face edge hides underneath it)
