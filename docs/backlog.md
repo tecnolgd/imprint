@@ -22,7 +22,7 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-17…X-20 (the
+   order is inside the batch. What remains is X-18…X-20 (the
    hardening/bookkeeping tail, plus the two X-8 follow-ups — the
    tree-wide `clang-format` reformat and the `-Wconversion` triage).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
@@ -55,6 +55,11 @@ Dependency-driven: each tier unlocks what follows.
    **X-16 landed the same day**: the container/accessibility gaps and
    the design-file image gap are stated as boundaries in ARCHITECTURE
    §5 instead of being left for a reader to discover.
+   **X-17 landed the same day**: `subscribe()` is `[[nodiscard]`, the
+   pixel word no longer puns through a union (memcpy of the object
+   representation), the dev container's rebuildable files are committed
+   so a clone can reproduce the environment, all three READMEs carry a
+   CI badge, and CONTRIBUTING / SECURITY / CHANGELOG exist.
    Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
@@ -211,16 +216,6 @@ priority; no item reopens a ratified ruling.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 
-- **X-17. Hygiene, cheap and high-signal**: README has no CI badge; no
-  CONTRIBUTING/SECURITY/CHANGELOG; the local dev container directory
-  `docker/` (devkitARM/emsdk image, the toolchain the cross-target builds
-  were developed in) is gitignored (`.gitignore:70`), so a clone cannot
-  reproduce the development environment; `pixel_traits.hpp:95-106` puns
-  the pixel word through a union (the one load-bearing
-  implementation-defined construct — `std::bit_cast`/`memcpy` would make
-  it standard-clean); `event.hpp:131` `subscribe()` returns an RAII
-  registration guard without `[[nodiscard]]`, so discarding it unsubscribes
-  on the same statement.
 - **X-18. The SVG rasterizer walks the DECLARED geometry, not the draw
   area** (found by review while landing X-6; not a regression, not in
   X-4/X-5/X-6's acceptance). X-6 bounds every coordinate at ±16000 px,
