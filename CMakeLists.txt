@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(imprint VERSION 0.1.0)
+# X-14: the project version is what find_package(imprint <ver>) checks
+# against, so it must not trail the released tags (v0.1 / v0.1.1 are
+# already out; a 0.1.0 here made `find_package(imprint 0.1.1)` fail
+# against a package built from this tree). Keep it >= the newest release.
+project(imprint VERSION 0.1.1)
 
 # Subproject detection (CMake 3.16 has no PROJECT_IS_TOP_LEVEL): when
 # imprint is consumed via add_subdirectory/FetchContent, CMAKE_SOURCE_DIR
@@ -224,6 +228,10 @@ foreach(_imprint_module IN LISTS IMPRINT_INSTALL_INCLUDE_MODULES)
     install(DIRECTORY ${_imprint_module}/include/
             DESTINATION include/imprint/${_imprint_module}/include)
 endforeach()
+# X-14: an installed package without its license is unshippable for most
+# downstream policies (and CMake's own install rules carry no default).
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE
+        DESTINATION share/imprint)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
     cmake/imprintConfig.cmake.in
@@ -237,6 +245,17 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/imprintConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/imprintConfigVersion.cmake
     DESTINATION lib/cmake/imprint)
+# X-14: a pkg-config recipe for the C ABI. The CMake package is the
+# primary consumption path (it carries the C++ targets); the .pc file
+# serves the non-CMake consumer that links libzbapi directly. Only
+# shipped when the binding was built — the same gate as zbapi.h above.
+if (TARGET zbapi AND NOT NDS_PLATFORM)
+    configure_file(cmake/imprint.pc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/imprint.pc
+                   @ONLY)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/imprint.pc
+            DESTINATION lib/pkgconfig)
+endif()
 endif()
 
 # A-22: the one composition point (framework mode, IMPRINT_WITH_DEMOS).

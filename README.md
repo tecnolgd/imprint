@@ -257,6 +257,11 @@ Prefer an installed package? `cmake --install <build> --prefix <prefix>`,
 then `find_package(imprint CONFIG REQUIRED)` (point `CMAKE_PREFIX_PATH` at
 the prefix) and link the same `imprint::` targets — the package ships the
 C ABI too (`imprint::zbapi` + `zbapi.h`), the surface non-C++ hosts ride.
+The shared libraries carry a SOVERSION (`libimcore.so.<major>`,
+`libzbapi.so.<major>`), so an in-place upgrade cannot silently replace a
+library your binary already links against, and the package also installs
+`lib/pkgconfig/imprint.pc` for non-CMake consumers of the C ABI plus the
+license under `share/imprint/`.
 As a subproject Imprint
 configures **libraries only** — no demo apps, no binding, no host tools, no
 shell; the

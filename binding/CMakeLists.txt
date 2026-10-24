@@ -29,6 +29,15 @@ add_library(
     src/zbapi.cpp
 )
 
+# X-14: same reasoning as imcore's SOVERSION — the C ABI is loaded by
+# foreign hosts (python, wasm, C), so an in-place upgrade must not
+# silently swap the library under a running host.
+if (NOT NDS_PLATFORM)
+    set_target_properties(zbapi PROPERTIES
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR})
+endif()
+
 # X-1: zbapi is in the P1.5 install/export set, so its include directories
 # must carry INSTALL_INTERFACE (CMake rejects a raw source-dir path in
 # INTERFACE_INCLUDE_DIRECTORIES at generate time -- the same failure that

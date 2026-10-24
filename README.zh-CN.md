@@ -227,7 +227,10 @@ target_link_libraries(my_app PRIVATE imprint::imapp_canvas imprint::shell_backen
 更喜欢安装包？`cmake --install <build> --prefix <prefix>` 之后，你的项目写
 `find_package(imprint CONFIG REQUIRED)`（把 `CMAKE_PREFIX_PATH` 指向前缀），
 链同样的 `imprint::` 目标——包里同时装好了 C ABI（`imprint::zbapi` +
-`zbapi.h`），非 C++ 宿主走这条路。作为子工程时 Imprint 只配置**库**——不含 demo
+`zbapi.h`），非 C++ 宿主走这条路。共享库带 SOVERSION
+（`libimcore.so.<major>`、`libzbapi.so.<major>`），就地升级不会悄悄替换你
+二进制已经链上的库；包内还装有 `lib/pkgconfig/imprint.pc`（供非 CMake 的
+C ABI 消费方）和 `share/imprint/` 下的许可证。作为子工程时 Imprint 只配置**库**——不含 demo
 应用、binding、宿主工具、shell；`IMPRINT_WITH_TOOLS` / `IMPRINT_WITH_TESTS` /
 `IMPRINT_WITH_DEMOS` / `IMPRINT_WITH_SHELL` 逐项开启（仓库内默认构建全部保留）。
 不打开 shell 正是无头消费方不需要 `libx11-dev` 的原因。无头路径——CI

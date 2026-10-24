@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: Imprint
+Description: Deterministic UI runtime for C++17 (Imprint UI)
+URL: https://github.com/tyouhyou/imprint
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -lzbapi
+Cflags: -I${includedir}/imprint/binding/include

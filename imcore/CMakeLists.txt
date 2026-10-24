@@ -184,6 +184,18 @@ add_library(
     ${GIF_SRC}
 )
 
+# X-14: the kernel is deliberately SHARED (A-4.2: dynamic hosts load it),
+# and a shared library without a SOVERSION installs as a bare
+# libimcore.so that an in-place upgrade silently replaces for every
+# binary already linked against it. Pin the ABI version: the SONAME
+# tracks the project's major version, so an ABI break requires the major
+# bump that a package consumer's find_package(imprint <ver>) also sees.
+if (NOT NDS_PLATFORM)
+    set_target_properties(${IMCORELIB} PROPERTIES
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR})
+endif()
+
 target_include_directories(
     ${IMCORELIB}
 
