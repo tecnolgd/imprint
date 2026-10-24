@@ -283,7 +283,13 @@ satisfies. Changing any of these is an architecture change.
   and may remain `key == 0`). `key_down` additionally carries `ch` (the
   character the key produces, shift/caps applied — so `shift+w` is
   `key='w'`, `ch='W'`); `key_up` always has `ch == 0`. A host pairs
-  down/up on `key` to maintain key-state (hold-to-walk). Platform note:
+  down/up on `key` to maintain key-state (hold-to-walk). The
+  printable-character half of the rule is one shared helper,
+  `zb::input::decorate_printable_key` (`iminput/include/input.hpp`),
+  which every translator (win / x11 / mac) and every host (wasm,
+  python) applies instead of re-deriving the letter/digit
+  classification; space is excluded because it is a navigation key
+  (`key_code::space`), never a character. Platform note:
   the terminal input protocol has no key-up at all, and X11 autorepeat
   interleaves release/press pairs while the key is held — a key-state
   host tolerates or dedupes them; the framework itself never acts on
