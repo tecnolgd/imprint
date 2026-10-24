@@ -667,4 +667,19 @@ contract, not an add-on:
 - By design: no GPU acceleration (rendering stays CPU; future "GPU support"
   would be presentation-only), no animation/transition system, no runtime
   backend switching, no multi-threaded rendering, no IME, no RTL/bidi.
+- **Widget/container surface (X-16).** The container set is Panel /
+  FlexPanel / Dialog / scroller; there is **no grid layout** and no
+  table / tree / tab / menu-style container, and no accessibility
+  surface, text selection, or horizontal scroll. None of these is a
+  defect — each is a deliberate scope line, listed here so a scanning
+  reader meets the gap as a stated boundary rather than discovering it
+  as a missing feature. If any of it enters the roadmap the audit's
+  ordering is grid first, then an ABI clipboard channel (Batch G records
+  the widget-armament race as a ratified non-goal).
+- **Images in design files (X-16).** PNG and JPEG *decode* exist in
+  `imcore/codec`, but the HTML path whitelists no `<img>` element and
+  skips `url()` in CSS values, so a design file cannot reference an
+  image; the GIF codec is **encode-only** (a writer, no decoder). The
+  decoder side is therefore reachable only from C++ (`Image::read_png*`),
+  not from a declarative source.
 
