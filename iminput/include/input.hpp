@@ -106,6 +106,45 @@ namespace zb::input
         int dy = 0;
     };
 
+    /*
+     * U-1 decoration: the printable-character half of the rule every
+     * input translator applies (win/x11/mac, plus the wasm and python
+     * hosts). Given the printable ASCII a platform reported, fill the
+     * event's `key` — lowercase for letters, verbatim for digits — and
+     * set `ch` on key_down only (key_up always carries ch == 0).
+     * Punctuation and everything outside printable ASCII map to no key
+     * (key stays whatever the translator's navigation table set, which
+     * is why the rule is "fill if it is a letter/digit", not "assign").
+     *
+     * Space is deliberately excluded: it is a navigation key
+     * (key_code::space), never a character (B1). Returns true when the
+     * character was one of the mapped classes.
+     */
+    inline bool decorate_printable_key(input_event &ev, const int c)
+    {
+        if (c < 0x20 || c > 0x7e || c == ' ')
+        {
+            return false;
+        }
+        if (ev.type == input_type::key_down)
+        {
+            ev.ch = c;
+        }
+        if (c >= 'A' && c <= 'Z')
+        {
+            ev.key = c + 0x20;  // lowercase platform-independent code
+        }
+        else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
+        {
+            ev.key = c;
+        }
+        else
+        {
+            return false;  // punctuation: ch is set, key is not
+        }
+        return true;
+    }
+
     // the C-ABI copies this struct verbatim: trivially copyable +
     // standard layout is the loadable guarantee. The default member
     // initializers make the default constructor non-trivial, so the

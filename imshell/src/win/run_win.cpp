@@ -80,7 +80,12 @@ namespace
         {
             return;
         }
+        // clamp the buffer region to the surface first (negative outer-
+        // shadow damage is legitimate input, a negative blit origin is
+        // not) — same rule as every other shell's region_to_present
         int x = 0, y = 0, w = 0, h = 0;
+        // own statement: painted_region's rule (an inlined out-param read
+        // is an unspecified evaluation order that shipped as a black window)
         const bool dirty = g_app->dirty_region(x, y, w, h);
         if (!dirty)
         {
@@ -89,9 +94,6 @@ namespace
             InvalidateRect(g_hwnd, nullptr, FALSE);
             return;
         }
-        // clamp the buffer region to the surface first (negative outer-
-        // shadow damage is legitimate input, a negative blit origin is
-        // not) — same rule as every other shell's region_to_present
         const zb::shell::present_rect src =
             zb::shell::region_to_present(true, x, y, w, h,
                                          static_cast<int>(g_buffer_width),
@@ -175,15 +177,11 @@ namespace
             const zb::shell::chrome_bars bars = zb::shell::chrome_around(
                 pres, rc_client.right - rc_client.left,
                 rc_client.bottom - rc_client.top);
-            for (const zb::shell::present_rect *b :
-                 {&bars.top, &bars.bottom, &bars.left, &bars.right})
+            zb::shell::for_each_bar(bars, [hDC, black](const zb::shell::present_rect &b)
             {
-                if (b->w > 0 && b->h > 0)
-                {
-                    const RECT bar_rc{b->x, b->y, b->x + b->w, b->y + b->h};
-                    FillRect(hDC, &bar_rc, black);
-                }
-            }
+                const RECT bar_rc{b.x, b.y, b.x + b.w, b.y + b.h};
+                FillRect(hDC, &bar_rc, black);
+            });
         }
         else
         {

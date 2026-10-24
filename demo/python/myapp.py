@@ -147,6 +147,15 @@ def feed_input(lib, app, event):
         ch = 0
         if key is None and event.unicode and len(event.unicode) == 1:
             ch = ord(event.unicode)  # printable character (B1 channel)
+            # U-1: the shared decorate_printable_key rule -- a letter or
+            # digit also carries the platform-independent lowercase code
+            # on this key_down (and on its key_up), so a host can pair the
+            # edges. Punctuation stays key == 0 (layout-specific).
+            c = ch
+            if 0x41 <= c <= 0x5A:  # A-Z
+                key = c + 0x20
+            elif 0x61 <= c <= 0x7A or 0x30 <= c <= 0x39:  # a-z, 0-9
+                key = c
         lib.zb_input(app, ZB_INPUT_KEY_DOWN, 0, 0, key or 0, ch, 0)
 
 

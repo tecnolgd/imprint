@@ -58,6 +58,7 @@ add_executable(
     test_snapshot.cpp
     test_sixel.cpp
     test_term_input.cpp
+    test_key_decoration.cpp
     test_theme.cpp
     test_showcase.cpp
     test_toggle_switch.cpp

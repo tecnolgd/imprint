@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "iapp.hpp"
+
 namespace zb::shell
 {
     /*
@@ -76,6 +78,32 @@ namespace zb::shell
             return present_rect{};
         }
         return present_rect{x0, y0, x1 - x0, y1 - y0};
+    }
+
+    /*
+     * X-15: the whole "which region did the last paint() draw" read for a
+     * painted handler. Every region-based shell (win, x11, mac, fb) wrote
+     * the same three statements — the standalone dirty_region() call, the
+     * region_to_present decision, the empty check — and each copy carried
+     * the call-site rule as a comment; inlining dirty_region() into
+     * region_to_present's argument list is an unspecified evaluation
+     * order that shipped as a black window. Returning the rect here keeps
+     * that trap impossible to reintroduce: a shell that just calls this
+     * cannot inline the out-params away.
+     *
+     * An empty result (w <= 0) means nothing was drawn — the caller
+     * returns without presenting.
+     */
+    inline present_rect painted_region(zb::app::IApp &app, const int buf_w,
+                                       const int buf_h)
+    {
+        int x = 0;
+        int y = 0;
+        int w = 0;
+        int h = 0;
+        // MUST be its own statement: see the call-site rule above
+        const bool dirty = app.dirty_region(x, y, w, h);
+        return region_to_present(dirty, x, y, w, h, buf_w, buf_h);
     }
 
     /*

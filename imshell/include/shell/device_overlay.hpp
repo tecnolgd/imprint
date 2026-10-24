@@ -98,4 +98,24 @@ namespace zb::shell
         return r.w > 0 && r.h > 0 && x >= r.x && y >= r.y && x < r.x + r.w &&
                y < r.y + r.h;
     }
+
+    /*
+     * X-15: visits the non-empty bars of b in paint order. Every desktop
+     * shell wrote this same four-iteration loop over its own fill
+     * primitive (win FillRect, x11 XFillRectangle, mac NSRectFill), so
+     * the "which bars need paint" decision lived three times; only the
+     * fill itself is genuinely per-target now.
+     */
+    template <typename Fill>
+    void for_each_bar(const chrome_bars &b, Fill fill)
+    {
+        for (const present_rect *r :
+             {&b.top, &b.bottom, &b.left, &b.right})
+        {
+            if (r->w > 0 && r->h > 0)
+            {
+                fill(*r);
+            }
+        }
+    }
 }  // namespace zb::shell

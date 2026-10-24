@@ -118,18 +118,10 @@ namespace zb::shell::win_input
                     return result::swallowed;
                 }
                 out.type = zb::input::input_type::key_down;
-                out.ch = c;
                 // U-1: letters/digits also carry the platform-independent
                 // key code (lowercase), so this single event pairs with
                 // its WM_KEYUP; punctuation stays key == 0 (layout-bound)
-                if (c >= 'A' && c <= 'Z')
-                {
-                    out.key = c + 0x20;
-                }
-                else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-                {
-                    out.key = c;
-                }
+                zb::input::decorate_printable_key(out, c);
                 return result::handled;
             }
             case WM_MOUSEWHEEL:

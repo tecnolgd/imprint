@@ -95,27 +95,17 @@ namespace
         }
         // printable ASCII (layout-aware characters string): ch on key_down,
         // plus the platform-independent lowercase key code on both edges
-        // (U-1). Space keeps its navigation-key routing (B1).
+        // (U-1, through the shared decorate_printable_key). Space keeps its
+        // navigation-key routing (B1).
         if (out.key != static_cast<int>(zb::input::key_code::space))
         {
             NSString *chars = nse.characters;
             if (chars.length > 0)
             {
                 const unichar c = [chars characterAtIndex:0];
-                if (c >= 0x20 && c <= 0x7e && c != ' ')
+                if (c <= 0x7e)
                 {
-                    if (out.type == zb::input::input_type::key_down)
-                    {
-                        out.ch = c;
-                    }
-                    if (c >= 'A' && c <= 'Z')
-                    {
-                        out.key = c + 0x20;
-                    }
-                    else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-                    {
-                        out.key = c;
-                    }
+                    zb::input::decorate_printable_key(out, static_cast<int>(c));
                 }
             }
         }
@@ -288,16 +278,14 @@ namespace
     // coordinates are y-up from the bottom-left, so a bar's view y is
     // bounds.height - (y + h). A degenerate presented rect reports the
     // whole window as one bar -- the old blanket fill.
-    for (const zb::shell::present_rect *b :
-         {&bars.top, &bars.bottom, &bars.left, &bars.right})
-    {
-        if (b->w > 0 && b->h > 0)
+    const CGFloat view_h = bounds.size.height;
+    zb::shell::for_each_bar(
+        bars, [view_h](const zb::shell::present_rect &b)
         {
             NSRectFillUsingOperation(
-                NSMakeRect(b->x, bounds.size.height - b->y - b->h, b->w, b->h),
+                NSMakeRect(b.x, view_h - b.y - b.h, b.w, b.h),
                 NSCompositingOperationCopy);
-        }
-    }
+        });
     if (pres.w > 0 && pres.h > 0)
     {
         // nearest-neighbor resampling keeps the pixels identical to the
@@ -412,10 +400,8 @@ namespace zb::shell
                 {
                     return;
                 }
-                int x = 0, y = 0, w = 0, h = 0;
-                const bool dirty = g_app->dirty_region(x, y, w, h);
-                const zb::shell::present_rect r = zb::shell::region_to_present(
-                    dirty, x, y, w, h, g_buffer_width, g_buffer_height);
+                const zb::shell::present_rect r = zb::shell::painted_region(
+                    *g_app, g_buffer_width, g_buffer_height);
                 if (r.w <= 0)
                 {
                     return;  // nothing was drawn, nothing to present

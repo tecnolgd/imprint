@@ -77,7 +77,10 @@ result translate(const XEvent &event, zb::input::input_event &out)
                     if (len == 1 && static_cast<unsigned char>(buf[0]) >= 0x20 &&
                         static_cast<unsigned char>(buf[0]) <= 0x7e)
                     {
-                        out.ch = buf[0];
+                        // U-1: a mapped letter/digit carries BOTH key and
+                        // ch in the same key_down (shared decoration)
+                        zb::input::decorate_printable_key(
+                            out, static_cast<unsigned char>(buf[0]));
                     }
                 }
                 return (out.key != 0 || out.ch != 0) ? result::handled : result::swallowed;

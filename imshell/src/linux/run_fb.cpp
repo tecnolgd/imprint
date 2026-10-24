@@ -46,11 +46,9 @@ namespace zb::shell
         // The "what do I blit" decision is the shared A-2 seam.
         const auto painted_sub = app->on_painted([&fb, &app, &window](const void *)
         {
-            int x = 0, y = 0, w = 0, h = 0;
-            // own statement: see the evaluation-order note in run_x11.cpp
-            const bool dirty = app->dirty_region(x, y, w, h);
-            const zb::shell::present_rect r = zb::shell::region_to_present(
-                dirty, x, y, w, h, window->width(), window->height());
+            const zb::shell::present_rect r = zb::shell::painted_region(
+                *app, static_cast<int>(window->width()),
+                static_cast<int>(window->height()));
             if (r.w <= 0)
             {
                 return;  // nothing was drawn, nothing to present

@@ -56,6 +56,7 @@ int test_shell_presenter();
 int test_snapshot();
 int test_sixel();
 int test_term_input();
+int test_key_decoration();
 int test_theme();
 int test_showcase();
 int test_toggle_switch();
@@ -142,6 +143,7 @@ static const suite g_suites[] = {
     {"snapshot", test_snapshot},
     {"sixel", test_sixel},
     {"term_input", test_term_input},
+    {"key_decoration", test_key_decoration},
     {"theme", test_theme},
     {"showcase", test_showcase},
     {"toggle_switch", test_toggle_switch},

@@ -220,16 +220,13 @@ namespace zb::shell
             // exposure that arrives before the first present.
             const zb::shell::chrome_bars bars =
                 zb::shell::chrome_around(pres, win_w, win_h);
-            for (const zb::shell::present_rect *b :
-                 {&bars.top, &bars.bottom, &bars.left, &bars.right})
-            {
-                if (b->w > 0 && b->h > 0)
+            zb::shell::for_each_bar(
+                bars, [display, window, gc](const zb::shell::present_rect &b)
                 {
-                    XFillRectangle(display, window, gc, b->x, b->y,
-                                   static_cast<unsigned int>(b->w),
-                                   static_cast<unsigned int>(b->h));
-                }
-            }
+                    XFillRectangle(display, window, gc, b.x, b.y,
+                                   static_cast<unsigned int>(b.w),
+                                   static_cast<unsigned int>(b.h));
+                });
             present_region(0, 0, buf_w, buf_h);
         };
 
@@ -242,16 +239,8 @@ namespace zb::shell
         // library-mode host may keep the app alive past this point)
         const auto painted_sub = app->on_painted([&](const void *)
         {
-            int x = 0, y = 0, w = 0, h = 0;
-            // dirty_region fills x/y/w/h through its out-params: the call
-            // MUST be its own statement. Inline in region_to_present's
-            // argument list, the compiler may evaluate the later x/y/w/h
-            // arguments before the first argument fills them (unspecified
-            // order) -- the shell then reads 0,0 0x0 and never presents
-            // (this exact bug shipped: the X11 window stayed black)
-            const bool dirty = app->dirty_region(x, y, w, h);
-            const zb::shell::present_rect r = zb::shell::region_to_present(
-                dirty, x, y, w, h, buf_w, buf_h);
+            const zb::shell::present_rect r =
+                zb::shell::painted_region(*app, buf_w, buf_h);
             if (r.w <= 0)
             {
                 return;  // nothing was drawn, nothing to present

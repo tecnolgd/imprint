@@ -106,7 +106,10 @@
   /* navigation/editing keys fill key (ch 0); printable letters/digits
    * carry BOTH key (lowercase platform-independent code, U-1) and ch on
    * keydown, keyup pairs on the same key (ch 0); other single-char keys
-   * fill ch only (punctuation stays layout-specific) */
+   * fill ch only (punctuation stays layout-specific).
+   * This is the JS spelling of the shared decorate_printable_key rule
+   * (iminput/include/input.hpp) -- the C++ translators call that helper;
+   * a JS host cannot, so keep the two in sync when the rule changes. */
   function resolveKey(e) {
     if (KEY_MAP[e.key] !== undefined) {
       return [KEY_MAP[e.key], 0];

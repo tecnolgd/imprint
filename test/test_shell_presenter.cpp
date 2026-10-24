@@ -381,21 +381,45 @@ int test_shell_presenter()
         zb::ui::core::Graphics g(40, 30, nullptr);
         g.fill(zb::ui::core::colors::White);
         const auto bezel = zb::ui::core::Color::from(32, 32, 32);
-        const auto paint = [&](const zb::shell::present_rect &r)
+        // X-15: the shells no longer hand-roll the four-iteration loop;
+        // the test drives the same shared visitor they call
+        zb::shell::for_each_bar(b, [&](const zb::shell::present_rect &r)
         {
-            if (r.w > 0 && r.h > 0)
-            {
-                g.fill_rect(r.x, r.y, r.x + r.w - 1, r.y + r.h - 1, bezel);
-            }
-        };
-        paint(b.top);
-        paint(b.bottom);
-        paint(b.left);
-        paint(b.right);
+            g.fill_rect(r.x, r.y, r.x + r.w - 1, r.y + r.h - 1, bezel);
+        });
         EXPECT(test::pixel_at(g, 20, 2) == bezel.pixel);   // top bar
         EXPECT(test::pixel_at(g, 20, 27) == bezel.pixel);  // bottom bar
         EXPECT(test::pixel_at(g, 20, 15) ==
                zb::ui::core::colors::White.pixel);  // content untouched
+    }
+
+    // X-15: the visitor visits exactly the non-empty bars, in paint
+    // order, and a degenerate presented rect reports the whole window as
+    // one top bar (the blanket-fill fallback every shell keeps)
+    {
+        const zb::shell::chrome_bars empty = zb::shell::chrome_around(
+            zb::shell::presentation_fit(0, 0, 0, 0), 40, 30);
+        std::vector<zb::shell::present_rect> seen;
+        zb::shell::for_each_bar(empty, [&](const zb::shell::present_rect &r)
+        {
+            seen.push_back(r);
+        });
+        EXPECT(seen.size() == 1);
+        if (seen.size() == 1)
+        {
+            EXPECT(seen[0].x == 0 && seen[0].y == 0);
+            EXPECT(seen[0].w == 40 && seen[0].h == 30);
+        }
+
+        // an exact-fit presentation has no bars at all
+        const zb::shell::chrome_bars none = zb::shell::chrome_around(
+            zb::shell::presentation_fit(40, 30, 40, 30), 40, 30);
+        std::size_t visits = 0;
+        zb::shell::for_each_bar(none, [&](const zb::shell::present_rect &)
+        {
+            ++visits;
+        });
+        EXPECT(visits == 0);
     }
 
     return test::report("shell_presenter");
