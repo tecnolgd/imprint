@@ -22,7 +22,7 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-16…X-20 (the
+   order is inside the batch. What remains is X-17…X-20 (the
    hardening/bookkeeping tail, plus the two X-8 follow-ups — the
    tree-wide `clang-format` reformat and the `-Wconversion` triage).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
@@ -52,6 +52,9 @@ Dependency-driven: each tier unlocks what follows.
    has one home (`decorate_printable_key`) that every C++ translator
    calls instead of re-deriving it; the §3.1 "~100–200 lines of glue"
    claim is now backed by the seams rather than aspirational.
+   **X-16 landed the same day**: the container/accessibility gaps and
+   the design-file image gap are stated as boundaries in ARCHITECTURE
+   §5 instead of being left for a reader to discover.
    Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
@@ -208,16 +211,6 @@ priority; no item reopens a ratified ruling.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
 
-- **X-16. Feature-gap orientation — pointers, not a restatement.** The
-  declared non-goals are normative elsewhere (ARCHITECTURE §5 for the
-  runtime limits, Batch G for the widget-armament race, Batch H for the
-  layout-engine boundary); what is in none of those lists and a scanning
-  user will miss: no grid layout, no table/tree/tab/menu-style containers,
-  no accessibility, no text selection or horizontal scroll, **no `<img>`
-  and `url()` skipped** (so a design file cannot reference an image
-  although PNG/JPEG decode exists — `docs/html-path.md`), GIF encode-only.
-  Decision if any of it enters the roadmap: grid + `<img>` + an ABI
-  clipboard channel.
 - **X-17. Hygiene, cheap and high-signal**: README has no CI badge; no
   CONTRIBUTING/SECURITY/CHANGELOG; the local dev container directory
   `docker/` (devkitARM/emsdk image, the toolchain the cross-target builds
