@@ -639,7 +639,11 @@ contract, not an add-on:
   sixel frame at the cursor home (no dirty-region presents, the terminal
   scrolls if it is shorter than the buffer), and the pointer map depends
   on the terminal's cell-size reply (`CSI 16 t`; fallback 10x20 cells).
-  It needs a sixel-capable terminal (WezTerm, foot, mlterm, xterm -ti
+  A sixel band holds at most 250 palette registers; a color arriving
+  after the budget is spent has no register and drops out of that band's
+  passes (it is not remapped), and the presenter logs the event once per
+  frame rather than once per pixel. It needs a sixel-capable terminal
+  (WezTerm, foot, mlterm, xterm -ti
   vt340, iTerm2); run it over SSH and it still shows the same UI.
 - Input tracks a single active press even though the data model is
   multi-touch.

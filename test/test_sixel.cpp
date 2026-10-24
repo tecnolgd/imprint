@@ -7,7 +7,9 @@
 #include "test.hpp"
 
 #include <string>
+#include <vector>
 
+#include "logging.hpp"
 #include "shell/sixel.hpp"
 
 using namespace zb::ui;
@@ -19,6 +21,25 @@ namespace
         core::Color buf[8] = {a, b, a, b, a, b, a, b};  // 4x2
         return zb::shell::sixel::encode_frame(buf, 4, 2);
     }
+
+    // collects the LW lines one encode_frame call emits
+    struct log_probe
+    {
+        std::vector<std::string> messages;
+        log_probe()
+        {
+            zb::Logging::set_log_handle(
+                [this](const zb::Logging_Level level, const std::string &msg) {
+                    if (level == zb::Logging_Level::warn)
+                    {
+                        messages.push_back(msg);
+                    }
+                });
+        }
+        ~log_probe() { zb::Logging::set_log_handle(); }
+        log_probe(const log_probe &) = delete;
+        log_probe &operator=(const log_probe &) = delete;
+    };
 }
 
 int test_sixel()
@@ -83,6 +104,51 @@ int test_sixel()
                                             core::Color::from(4, 5, 6, 255));
         EXPECT(a == b);
         EXPECT(!a.empty());
+    }
+
+    // X-13: the register budget is spent once the band holds 250 distinct
+    // colors, and the diagnostic latches — one LW per frame, not one per
+    // dropped pixel (a photo-like frame used to write a line per pixel).
+    // A 251-color band therefore logs exactly once and still emits a
+    // complete, deterministic DCS sequence.
+    {
+        constexpr int w = 260;  // > 250 distinct colors in one band
+        constexpr int h = 6;
+        std::vector<core::Color> buf(static_cast<std::size_t>(w) * h);
+        for (int i = 0; i < w; ++i)
+        {
+            // every column a distinct color: i maps to a unique 8-bit
+            // channel triple for i < 256, then wraps
+            const auto c = static_cast<uint8_t>(i);
+            for (int y = 0; y < h; ++y)
+            {
+                buf[static_cast<std::size_t>(y) * w + i] =
+                    core::Color::from(c, c, c, 255);
+            }
+        }
+        log_probe probe;
+        const std::string s = zb::shell::sixel::encode_frame(buf.data(), w, h);
+        EXPECT(probe.messages.size() == 1);
+        if (!probe.messages.empty())
+        {
+            EXPECT(probe.messages[0].find("250") != std::string::npos);
+        }
+        // the frame is still well formed and still deterministic
+        EXPECT(s.substr(0, 3) == "\x1bPq");
+        EXPECT(s.substr(s.size() - 2) == "\x1b\\");
+        const std::string again = zb::shell::sixel::encode_frame(buf.data(), w, h);
+        EXPECT(s == again);
+        // a second frame latches again: the probe sees a second line
+        EXPECT(probe.messages.size() == 2);
+    }
+
+    // X-13: a frame within the budget logs nothing at all
+    {
+        log_probe probe;
+        const std::string s = encode_color4(core::Color::from(255, 0, 0, 255),
+                                            core::Color::from(0, 0, 255, 255));
+        EXPECT(probe.messages.empty());
+        EXPECT(s.find('$') != std::string::npos);
     }
 
     return test::report("sixel");

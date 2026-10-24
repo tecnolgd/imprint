@@ -18,6 +18,29 @@ namespace zb::shell::sixel
         constexpr int kBandRows = 6;
         constexpr std::size_t kMaxRegisters = 250;  // leave room below 256
 
+        // The register-budget diagnostic latches: one LW for the whole
+        // encode call, not one per dropped pixel (a photo-like frame used
+        // to write one line per pixel until the run log dominated). The
+        // latch is per call — encode_frame is pure and must stay
+        // reentrant/thread-agnostic, and a caller encoding many frames
+        // still gets one line per frame that overflows.
+        struct BandWarn
+        {
+            bool fired = false;
+        };
+
+        void warn_register_budget(BandWarn &warn)
+        {
+            if (warn.fired)
+            {
+                return;
+            }
+            warn.fired = true;
+            LW << "sixel: a band exceeds " << kMaxRegisters
+               << " colors; extra colors drop out of the band (further "
+                  "occurrences are silent in this frame)";
+        }
+
         void append_uint(std::string &s, const int v)
         {
             char buf[16];
@@ -62,6 +85,7 @@ namespace zb::shell::sixel
         append_uint(s, height);
 
         std::vector<zb::ui::core::Color> regs;
+        BandWarn warn;
         for (int y0 = 0; y0 < height; y0 += kBandRows)
         {
             if (y0 > 0)
@@ -97,9 +121,8 @@ namespace zb::shell::sixel
                         {
                             // the register budget is spent: pixels of this
                             // color have no register and drop out of the
-                            // band -- never silently
-                            LW << "sixel: band exceeds " << kMaxRegisters
-                               << " colors; extra colors dropped";
+                            // band -- never silently (but once, see above)
+                            warn_register_budget(warn);
                         }
                     }
                 }
