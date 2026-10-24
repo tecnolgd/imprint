@@ -1185,9 +1185,37 @@ namespace zb::ui
 
         // textual var() substitution (one nesting level through fallbacks
         // and chained variables, depth-capped); false = unknown name
-        // without fallback or unbalanced input: the declaration drops
+        // without fallback, unbalanced input, or an over-budget expansion:
+        // the declaration drops
+        constexpr std::size_t kVarExpansionMax = 64 * 1024;
+
+        struct VarBudget
+        {
+            std::size_t used = 0;
+            bool exceeded = false;
+        };
+
+        struct VarWarnState
+        {
+            bool budget_warned = false;
+        };
+
+        bool var_append(std::string &out, const char *data, const std::size_t n,
+                        VarBudget &budget)
+        {
+            if (n > kVarExpansionMax - budget.used)
+            {
+                budget.exceeded = true;
+                return false;
+            }
+            budget.used += n;
+            out.append(data, n);
+            return true;
+        }
+
         bool subst_vars(const std::string &s, const VarMap &vars,
-                        std::string &out, int depth = 0)
+                        std::string &out, VarBudget &budget,
+                        std::vector<std::string> &stack, int depth = 0)
         {
             if (depth > 8)
             {
@@ -1200,10 +1228,16 @@ namespace zb::ui
                 const std::size_t v = s.find("var(", i);
                 if (v == std::string::npos)
                 {
-                    res.append(s, i, std::string::npos);
+                    if (!var_append(res, s.data() + i, s.size() - i, budget))
+                    {
+                        return false;
+                    }
                     break;
                 }
-                res.append(s, i, v - i);
+                if (!var_append(res, s.data() + i, v - i, budget))
+                {
+                    return false;
+                }
                 std::size_t j = v + 4;
                 int nested = 1;
                 while (j < s.size() && nested > 0)
@@ -1264,10 +1298,19 @@ namespace zb::ui
                 std::string replacement;
                 if (found != nullptr)
                 {
-                    if (!subst_vars(*found, vars, replacement, depth + 1))
+                    if (std::find(stack.begin(), stack.end(), name) !=
+                        stack.end())
                     {
+                        return false;  // cycle: drop, never recurse forever
+                    }
+                    stack.push_back(name);
+                    if (!subst_vars(*found, vars, replacement, budget,
+                                    stack, depth + 1))
+                    {
+                        stack.pop_back();
                         return false;
                     }
+                    stack.pop_back();
                 }
                 else if (comma != std::string::npos)
                 {
@@ -1276,7 +1319,7 @@ namespace zb::ui
                     const std::size_t fbtail = fb.find_last_not_of(" \t\n\r");
                     if (fbtail == std::string::npos ||
                         !subst_vars(fb.erase(fbtail + 1), vars, replacement,
-                                    depth + 1))
+                                    budget, stack, depth + 1))
                     {
                         return false;
                     }
@@ -1285,11 +1328,43 @@ namespace zb::ui
                 {
                     return false;
                 }
-                res += replacement;
+                if (!var_append(res, replacement.data(), replacement.size(),
+                                budget))
+                {
+                    return false;
+                }
                 i = j;
             }
             out = res;
             return true;
+        }
+
+        void warn_var_budget(VarWarnState &state)
+        {
+            if (state.budget_warned)
+            {
+                return;
+            }
+            state.budget_warned = true;
+            LW << "html: a CSS var() expansion exceeded 64 KiB; the "
+                  "declaration was dropped (further occurrences are "
+                  "silent in this parse)";
+        }
+
+        bool substitute_decl_vars(const std::string &value, const VarMap &vars,
+                                  std::string &out, VarWarnState &warn_state)
+        {
+            VarBudget budget;
+            std::vector<std::string> stack;
+            if (subst_vars(value, vars, out, budget, stack))
+            {
+                return true;
+            }
+            if (budget.exceeded)
+            {
+                warn_var_budget(warn_state);
+            }
+            return false;
         }
 
         // parses the concatenated <style> text into selector groups
@@ -1365,7 +1440,8 @@ namespace zb::ui
         // var() first, and a failed substitution drops its declaration.
         void fold_style(const Elem &e, const Rules &rules, const VarMap &vars,
                         const std::vector<Ancestor> &ancestors,
-                        std::vector<Decl> &folded)
+                        std::vector<Decl> &folded,
+                        VarWarnState &warn_state)
         {
             const std::string &id = e.attr("id");
             const std::vector<std::string> classes = class_list(e.attr("class"));
@@ -1431,7 +1507,7 @@ namespace zb::ui
                         continue;  // custom properties live in the VarMap only
                     }
                     std::string value;
-                    if (!subst_vars(d.value, vars, value))
+                    if (!substitute_decl_vars(d.value, vars, value, warn_state))
                     {
                         continue;  // unknown var without fallback: dropped
                     }
@@ -1452,7 +1528,7 @@ namespace zb::ui
                         continue;
                     }
                     std::string value;
-                    if (!subst_vars(d.value, vars, value))
+                    if (!substitute_decl_vars(d.value, vars, value, warn_state))
                     {
                         continue;
                     }
@@ -1468,7 +1544,8 @@ namespace zb::ui
         void fold_pseudo(const Elem &e, const Rules &rules,
                          const VarMap &vars,
                          const std::vector<Ancestor> &ancestors,
-                         const int kind, std::vector<Decl> &folded)
+                         const int kind, std::vector<Decl> &folded,
+                         VarWarnState &warn_state)
         {
             const std::string &id = e.attr("id");
             const std::vector<std::string> classes = class_list(e.attr("class"));
@@ -1532,7 +1609,7 @@ namespace zb::ui
                         continue;
                     }
                     std::string value;
-                    if (!subst_vars(d.value, vars, value))
+                    if (!substitute_decl_vars(d.value, vars, value, warn_state))
                     {
                         continue;
                     }
@@ -3405,7 +3482,82 @@ namespace zb::ui
             bool closed = false;
         };
 
-        bool convert_path_d(const std::string &d, std::vector<PathSub> &out)
+        constexpr std::size_t kPathCommandMax = 1024;
+        constexpr std::size_t kPathPointMax = 4096;
+
+        // which documented cap a `d` ran past; docs/html-path.md keeps the
+        // command count and the flattened point count as separate limits,
+        // and the diagnostic names the one that actually tripped
+        enum class PathOverflow
+        {
+            none,
+            commands,
+            points
+        };
+
+        struct PathBudget
+        {
+            std::size_t commands = 0;
+            std::size_t points = 0;
+            PathOverflow overflow = PathOverflow::none;
+
+            bool add_point()
+            {
+                if (points >= kPathPointMax)
+                {
+                    overflow = PathOverflow::points;
+                    return false;
+                }
+                ++points;
+                return true;
+            }
+        };
+
+        bool flatten_cubic_limited(std::vector<std::pair<double, double>> &out,
+                                   const double x0, const double y0,
+                                   const double x1, const double y1,
+                                   const double x2, const double y2,
+                                   const double x3, const double y3,
+                                   PathBudget &budget)
+        {
+            const std::size_t before = out.size();
+            svg_flatten_cubic(out, x0, y0, x1, y1, x2, y2, x3, y3, 0);
+            const std::size_t added = out.size() - before;
+            if (added > kPathPointMax - budget.points)
+            {
+                out.resize(before);
+                budget.overflow = PathOverflow::points;
+                return false;
+            }
+            budget.points += added;
+            return true;
+        }
+
+        bool flatten_quad_limited(std::vector<std::pair<double, double>> &out,
+                                  const double x0, const double y0,
+                                  const double x1, const double y1,
+                                  const double x, const double y,
+                                  PathBudget &budget)
+        {
+            const std::size_t before = out.size();
+            svg_flatten_quad(out, x0, y0, x1, y1, x, y);
+            const std::size_t added = out.size() - before;
+            if (added > kPathPointMax - budget.points)
+            {
+                out.resize(before);
+                budget.overflow = PathOverflow::points;
+                return false;
+            }
+            budget.points += added;
+            return true;
+        }
+
+        // false = the `d` is outside the supported grammar OR over the
+        // documented budget; `budget.overflow` distinguishes the two so the
+        // caller can name the actual reason (docs/html-path.md keeps them as
+        // separate contract rows)
+        bool convert_path_d(const std::string &d, std::vector<PathSub> &out,
+                            PathBudget &budget)
         {
             const char *p = d.c_str();
             const char *const end = p + d.size();
@@ -3470,9 +3622,22 @@ namespace zb::ui
             char cmd = 0;                // last command letter
             char prev = 0;               // command before it (reflection rule)
             PathSub *cur = nullptr;
+            const auto add_point = [&](PathSub &sub, const double x,
+                                       const double y) {
+                if (!budget.add_point())
+                {
+                    return false;
+                }
+                sub.pts.emplace_back(x, y);
+                return true;
+            };
             const auto open_at = [&]() -> PathSub * {
                 out.emplace_back();
-                out.back().pts.emplace_back(cx, cy);
+                if (!add_point(out.back(), cx, cy))
+                {
+                    out.pop_back();
+                    return nullptr;
+                }
                 return &out.back();
             };
             while (true)
@@ -3496,6 +3661,12 @@ namespace zb::ui
                 {
                     return false;
                 }
+                if (budget.commands >= kPathCommandMax)
+                {
+                    budget.overflow = PathOverflow::commands;
+                    return false;
+                }
+                ++budget.commands;
                 const bool rel = cmd >= 'a' && cmd <= 'z' && cmd != 'z';
                 switch (cmd)
                 {
@@ -3513,7 +3684,10 @@ namespace zb::ui
                     sx = cx;
                     sy = cy;
                     out.emplace_back();
-                    out.back().pts.emplace_back(cx, cy);
+                    if (!add_point(out.back(), cx, cy))
+                    {
+                        return false;
+                    }
                     cur = &out.back();
                     // extra pairs are implicit line-tos (SVG rule)
                     cmd = rel ? 'l' : 'L';
@@ -3527,13 +3701,16 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    if (cur == nullptr)
+                    if (cur == nullptr && (cur = open_at()) == nullptr)
                     {
-                        cur = open_at();
+                        return false;
                     }
                     cx = rel ? cx + x : x;
                     cy = rel ? cy + y : y;
-                    cur->pts.emplace_back(cx, cy);
+                    if (!add_point(*cur, cx, cy))
+                    {
+                        return false;
+                    }
                     break;
                 }
                 case 'H':
@@ -3544,12 +3721,15 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    if (cur == nullptr)
+                    if (cur == nullptr && (cur = open_at()) == nullptr)
                     {
-                        cur = open_at();
+                        return false;
                     }
                     cx = rel ? cx + x : x;
-                    cur->pts.emplace_back(cx, cy);
+                    if (!add_point(*cur, cx, cy))
+                    {
+                        return false;
+                    }
                     break;
                 }
                 case 'V':
@@ -3560,12 +3740,15 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    if (cur == nullptr)
+                    if (cur == nullptr && (cur = open_at()) == nullptr)
                     {
-                        cur = open_at();
+                        return false;
                     }
                     cy = rel ? cy + y : y;
-                    cur->pts.emplace_back(cx, cy);
+                    if (!add_point(*cur, cx, cy))
+                    {
+                        return false;
+                    }
                     break;
                 }
                 case 'C':
@@ -3578,9 +3761,9 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    if (cur == nullptr)
+                    if (cur == nullptr && (cur = open_at()) == nullptr)
                     {
-                        cur = open_at();
+                        return false;
                     }
                     if (rel)
                     {
@@ -3588,7 +3771,11 @@ namespace zb::ui
                         x2 += cx; y2 += cy;
                         x += cx; y += cy;
                     }
-                    svg_flatten_cubic(cur->pts, cx, cy, x1, y1, x2, y2, x, y, 0);
+                    if (!flatten_cubic_limited(cur->pts, cx, cy, x1, y1,
+                                               x2, y2, x, y, budget))
+                    {
+                        return false;
+                    }
                     lc_x = x2;
                     lc_y = y2;
                     cx = x;
@@ -3604,9 +3791,9 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    if (cur == nullptr)
+                    if (cur == nullptr && (cur = open_at()) == nullptr)
                     {
-                        cur = open_at();
+                        return false;
                     }
                     double rx = cx, ry = cy;  // reflection of the last
                     if (prev == 'C' || prev == 'S')  // cubic control
@@ -3619,7 +3806,11 @@ namespace zb::ui
                         x2 += cx; y2 += cy;
                         x += cx; y += cy;
                     }
-                    svg_flatten_cubic(cur->pts, cx, cy, rx, ry, x2, y2, x, y, 0);
+                    if (!flatten_cubic_limited(cur->pts, cx, cy, rx, ry,
+                                               x2, y2, x, y, budget))
+                    {
+                        return false;
+                    }
                     lc_x = x2;
                     lc_y = y2;
                     cx = x;
@@ -3635,9 +3826,9 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    if (cur == nullptr)
+                    if (cur == nullptr && (cur = open_at()) == nullptr)
                     {
-                        cur = open_at();
+                        return false;
                     }
                     if (rel)
                     {
@@ -3645,7 +3836,11 @@ namespace zb::ui
                         x += cx; y += cy;
                     }
                     // quadratic -> cubic elevation, one flattener
-                    svg_flatten_quad(cur->pts, cx, cy, x1, y1, x, y);
+                    if (!flatten_quad_limited(cur->pts, cx, cy, x1, y1,
+                                              x, y, budget))
+                    {
+                        return false;
+                    }
                     lq_x = x1;
                     lq_y = y1;
                     cx = x;
@@ -3660,9 +3855,9 @@ namespace zb::ui
                     {
                         return false;
                     }
-                    if (cur == nullptr)
+                    if (cur == nullptr && (cur = open_at()) == nullptr)
                     {
-                        cur = open_at();
+                        return false;
                     }
                     double rx = cx, ry = cy;
                     if (prev == 'Q' || prev == 'T')
@@ -3678,8 +3873,11 @@ namespace zb::ui
                     const double c1y = cy + 2.0 / 3 * (ry - cy);
                     const double c2x = x + 2.0 / 3 * (rx - x);
                     const double c2y = y + 2.0 / 3 * (ry - y);
-                    svg_flatten_cubic(cur->pts, cx, cy, c1x, c1y, c2x, c2y,
-                                  x, y, 0);
+                    if (!flatten_cubic_limited(cur->pts, cx, cy, c1x, c1y,
+                                               c2x, c2y, x, y, budget))
+                    {
+                        return false;
+                    }
                     lq_x = rx;
                     lq_y = ry;
                     cx = x;
@@ -3707,7 +3905,8 @@ namespace zb::ui
 
         // one svg path element into per-subpath svg_path nodes
         // (silently dropped when strokeless, one warning when the data
-        // is outside the supported grammar — the shared tolerance)
+        // is outside the supported grammar or over the documented budget
+        // — the shared tolerance, with the two reasons named apart)
         void convert_svg_path(ui_node &n, const Elem &c)
         {
             const std::string &stroke = c.attr("stroke");
@@ -3717,10 +3916,25 @@ namespace zb::ui
             }
             const std::string &d = c.attr("d");
             std::vector<PathSub> subs;
-            if (d.empty() || !convert_path_d(d, subs))
+            PathBudget budget;
+            if (d.empty() || !convert_path_d(d, subs, budget))
             {
-                LW << "html: line " << c.line << ": <path> d data is not in "
-                      "the supported subset (M L H V C S Q T Z); dropped";
+                if (budget.overflow == PathOverflow::commands)
+                {
+                    LW << "html: line " << c.line << ": <path> d exceeded the "
+                          "1024-command budget; the path was dropped";
+                }
+                else if (budget.overflow == PathOverflow::points)
+                {
+                    LW << "html: line " << c.line << ": <path> d exceeded the "
+                          "4096-point budget; the path was dropped";
+                }
+                else
+                {
+                    LW << "html: line " << c.line << ": <path> d data is not "
+                          "in the supported subset (M L H V C S Q T Z); "
+                          "dropped";
+                }
                 return;
             }
             double width = 1.0;
@@ -3812,10 +4026,10 @@ namespace zb::ui
         bool convert_pseudo(const int line, const int kind, const Elem &e,
                             const Rules &rules, const VarMap &vars,
                             const std::vector<Ancestor> &ancestors,
-                            ui_node &n)
+                            ui_node &n, VarWarnState &warn_state)
         {
             std::vector<Decl> folded;
-            fold_pseudo(e, rules, vars, ancestors, kind, folded);
+            fold_pseudo(e, rules, vars, ancestors, kind, folded, warn_state);
             if (folded.empty())
             {
                 return false;
@@ -4928,11 +5142,12 @@ namespace zb::ui
 
         ui_node convert_elem(const Elem &e, const Rules &rules,
                              const VarMap &vars,
-                             const std::vector<Ancestor> &ancestors)
+                             const std::vector<Ancestor> &ancestors,
+                             VarWarnState &warn_state)
         {
             ui_node n;
             std::vector<Decl> folded;
-            fold_style(e, rules, vars, ancestors, folded);
+            fold_style(e, rules, vars, ancestors, folded, warn_state);
             n.type = widget_type(e, folded);
 
             convert_elem_attrs(n, e);
@@ -4954,12 +5169,13 @@ namespace zb::ui
             below.push_back(std::move(self));
             for (const auto &c : e.children)
             {
-                n.children.push_back(convert_elem(*c, rules, vars, below));
+                n.children.push_back(
+                    convert_elem(*c, rules, vars, below, warn_state));
             }
             // H-10 generated boxes land on the originating node
             // (::before paints first, ::after last — see paint order)
-            convert_pseudo(e.line, 1, e, rules, vars, ancestors, n);
-            convert_pseudo(e.line, 2, e, rules, vars, ancestors, n);
+            convert_pseudo(e.line, 1, e, rules, vars, ancestors, n, warn_state);
+            convert_pseudo(e.line, 2, e, rules, vars, ancestors, n, warn_state);
             return n;
         }
 
@@ -5684,6 +5900,7 @@ namespace zb::ui
         }
         VarMap vars;
         collect_vars(ps.rules, vars);
+        VarWarnState var_warn_state;
         // the body joins every ancestor chain (html-path.md), so
         // body-anchored descendant selectors match uniformly in kept
         // and hoisted documents alike
@@ -5698,12 +5915,13 @@ namespace zb::ui
         {
             std::vector<Decl> body_folded;
             const std::vector<Ancestor> no_ancestors;
-            fold_style(*ps.root, ps.rules, vars, no_ancestors, body_folded);
+            fold_style(*ps.root, ps.rules, vars, no_ancestors, body_folded,
+                       var_warn_state);
             const std::string *body_display = fold_lookup(body_folded, "display");
             if (body_display != nullptr && ascii_lower(*body_display) == "flex")
             {
-                ui_node kept =
-                    convert_elem(*ps.root, ps.rules, vars, no_ancestors);
+                ui_node kept = convert_elem(*ps.root, ps.rules, vars,
+                                            no_ancestors, var_warn_state);
                 inherit_text_props(kept, nullptr, nullptr, nullptr, nullptr);
                 if (ok != nullptr)
                 {
@@ -5714,7 +5932,8 @@ namespace zb::ui
         }
         for (const auto &c : ps.root->children)
         {
-            doc.children.push_back(convert_elem(*c, ps.rules, vars, top_chain));
+            doc.children.push_back(
+                convert_elem(*c, ps.rules, vars, top_chain, var_warn_state));
         }
         inherit_text_props(doc, nullptr, nullptr, nullptr, nullptr);
 

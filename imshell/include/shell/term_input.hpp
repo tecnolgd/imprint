@@ -54,6 +54,7 @@ namespace zb::shell::term_input
             ground,
             esc,
             csi,
+            csi_discard,
             ss3
         } state_ = state::ground;
         std::string csi_;

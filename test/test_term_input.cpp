@@ -97,5 +97,50 @@ int test_term_input()
         EXPECT(ev.empty());
     }
 
+    // X-12: CSI accumulation is bounded at 64 parameter/intermediate
+    // bytes. A longer sequence is swallowed through its final byte and
+    // the parser returns to ground, so hostile stdin cannot grow state
+    // and the *next* sequence still maps.
+    {
+        // the bound itself is accepted: 64 param bytes + final still maps
+        zb::shell::term_input::parser p(320, 240);
+        auto ev = feed(p, "\x1b[" + std::string(64, '1') + "A");
+        EXPECT(ev.size() == 1 && ev[0].key == static_cast<int>(key_code::up));
+
+        // one byte past it: the whole sequence is dropped, no event
+        ev = feed(p, "\x1b[" + std::string(65, '1') + "A");
+        EXPECT(ev.empty());
+
+        // ... and the parser recovered: a normal sequence right after maps
+        ev = feed(p, "\x1b[B");
+        EXPECT(ev.size() == 1 && ev[0].key == static_cast<int>(key_code::down));
+
+        // ground is unaffected by the discard: a plain letter still works
+        ev = feed(p, "q");
+        EXPECT(ev.size() == 1 && ev[0].ch == 'q');
+    }
+
+    // X-12: an over-long sequence split across feed() calls is still
+    // discarded, and reset() clears an in-progress discard (the shell
+    // calls it on teardown/re-init)
+    {
+        zb::shell::term_input::parser p(320, 240);
+        EXPECT(feed(p, "\x1b[" + std::string(40, '1')).empty());
+        // the overflow lands in the second chunk, then the final byte
+        EXPECT(feed(p, std::string(40, '1') + "A").empty());
+        auto ev = feed(p, "\x1b[C");
+        EXPECT(ev.size() == 1 && ev[0].key == static_cast<int>(key_code::right));
+
+        // mid-discard reset returns to ground without waiting for a final
+        // byte: the next byte parses as ordinary ground input
+        EXPECT(feed(p, "\x1b[" + std::string(80, '1')).empty());
+        p.reset();
+        ev = feed(p, "z");
+        EXPECT(ev.size() == 1 && ev[0].ch == 'z');
+        // and a following escape sequence starts clean (no stale csi_)
+        ev = feed(p, "\x1b[A");
+        EXPECT(ev.size() == 1 && ev[0].key == static_cast<int>(key_code::up));
+    }
+
     return test::report("term_input");
 }

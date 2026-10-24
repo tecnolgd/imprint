@@ -678,6 +678,100 @@ int test_html()
                "#112233");
     }
 
+    // X-12: var() expansion has a 64 KiB budget per declaration, charged
+    // against every intermediate expansion as well as the final value.
+    // An over-budget declaration drops whole with ONE warning per parse
+    // (the amplification row of docs/html-path.md), so a small stylesheet
+    // cannot buy a huge expansion through repeated references.
+    {
+        std::vector<std::string> warns;
+        zb::Logging::set_log_handle(
+            [&](zb::Logging_Level, const std::string &m)
+            { warns.push_back(m); });
+
+        // a single 70 KiB variable exceeds the budget by itself
+        const std::string big(70 * 1024, 'a');
+        ui_node r1 = parse_html(
+            ("<style>:root { --big: " + big +
+             "; } label { color: var(--big); }</style><label>x</label>\n")
+                .c_str(),
+            nullptr);
+        // nine references to an 8 KiB variable is the same 72 KiB: the
+        // budget counts the substitution tree, not the source text
+        std::string refs;
+        for (int i = 0; i < 9; ++i)
+        {
+            refs += "var(--mid) ";
+        }
+        ui_node r2 = parse_html(
+            ("<style>:root { --mid: " + std::string(8 * 1024, 'b') +
+             "; } label { color: " + refs +
+             "; }</style><label>y</label>\n")
+                .c_str(),
+            nullptr);
+        // the warn-once latch is per parse, so a second parse of an
+        // over-budget declaration warns again (docs/html-path.md's
+        // "first occurrence per parse")
+        ui_node r3 = parse_html(
+            ("<style>:root { --big: " + big +
+             "; } label { color: var(--big); }</style><label>w</label>\n")
+                .c_str(),
+            nullptr);
+        // the other half of the contract row: within ONE parse, several
+        // over-budget declarations still produce a single diagnostic
+        std::string many;
+        for (int i = 0; i < 4; ++i)
+        {
+            many += "label { color: var(--big); }";
+        }
+        ui_node r4 = parse_html(
+            ("<style>:root { --big: " + big + "; } " + many +
+             "</style><label>v</label>\n")
+                .c_str(),
+            nullptr);
+        zb::Logging::set_log_handle();
+
+        // both declarations dropped: the label carries no color at all
+        EXPECT(find_prop(r1.children[0], "color") < 0);
+        EXPECT(find_prop(r2.children[0], "color") < 0);
+        EXPECT(find_prop(r3.children[0], "color") < 0);
+        EXPECT(find_prop(r4.children[0], "color") < 0);
+        // ... and the latch held per parse: r1 and r2 each warned once,
+        // the second parse warned again, and the four declarations inside
+        // r4's single parse warned once between them
+        EXPECT(warns.size() == 4);
+        for (const std::string &w : warns)
+        {
+            EXPECT(w.find("64 KiB") != std::string::npos);
+        }
+    }
+
+    // X-12: a var() cycle (self or mutual) drops its declaration instead
+    // of recursing, and an under-budget expansion still lands normally
+    {
+        std::vector<std::string> warns;
+        zb::Logging::set_log_handle(
+            [&](zb::Logging_Level, const std::string &m)
+            { warns.push_back(m); });
+        ui_node r = parse_html(
+            "<style>:root { --self: var(--self); --a: var(--b);"
+            " --b: var(--a); --ok: #112233; }"
+            " label { color: var(--self); }"
+            " span { color: var(--a); }"
+            " small { color: var(--ok); }</style>"
+            "<label>x</label><span>y</span><small>z</small>\n",
+            nullptr);
+        zb::Logging::set_log_handle();
+        // cycles terminate and drop silently (the malformed-value
+        // tolerance, same as an unknown name without fallback)
+        EXPECT(find_prop(r.children[0], "color") < 0);
+        EXPECT(find_prop(r.children[1], "color") < 0);
+        EXPECT(warns.empty());
+        // the non-cyclic variable in the same map is unaffected
+        EXPECT(test::vget<std::string>(node_prop_v(r.children[2], "color")) ==
+               "#112233");
+    }
+
     // <style> is a raw-text element: its body never tokenizes, so tags
     // inside a style block build nothing and warn nothing, and a '<'
     // inside a CSS value stays CSS
@@ -1559,6 +1653,79 @@ int test_html()
         ui_node r8 = parse_html("<path d=\"M 0 0 L 1 1\"/>\n", &ok8);
         EXPECT(!ok8);
         EXPECT(r8.children.empty());
+    }
+
+    // X-12: a `d` is limited to 1024 commands and 4096 flattened points.
+    // Exceeding either drops the whole path with its own warning — no
+    // partial geometry survives, and the diagnostic is not the grammar
+    // one (the two rows are separate in docs/html-path.md).
+    {
+        // 1024 commands = the bound, accepted (M + 1023 L)
+        std::string at = "M 0 0";
+        for (int i = 0; i < 1023; ++i)
+        {
+            at += " L 1 1";
+        }
+        ui_node rat = parse_html(
+            ("<div><svg><path d=\"" + at + "\" stroke=\"red\"/></svg></div>\n")
+                .c_str(),
+            nullptr);
+        EXPECT(rat.children[0].children.size() == 1);
+
+        // 1025 commands: the whole path is gone (not a truncated one)
+        std::vector<std::string> warns;
+        zb::Logging::set_log_handle(
+            [&](zb::Logging_Level, const std::string &m)
+            { warns.push_back(m); });
+        std::string over = at + " L 1 1 L 1 1";
+        ui_node rover = parse_html(
+            ("<div><svg><path d=\"" + over + "\" stroke=\"red\"/></svg></div>\n")
+                .c_str(),
+            nullptr);
+        zb::Logging::set_log_handle();
+        EXPECT(rover.children[0].children.empty());
+        EXPECT(warns.size() == 1);
+        EXPECT(!warns.empty() && warns[0].find("1024-command") !=
+                                      std::string::npos);
+
+        // the grammar diagnostic still says "supported subset", so the
+        // two failure reasons stay distinguishable in a log
+        warns.clear();
+        zb::Logging::set_log_handle(
+            [&](zb::Logging_Level, const std::string &m)
+            { warns.push_back(m); });
+        ui_node rgram = parse_html(
+            "<div><svg><path d=\"M 0 0 A 5 5 0 0 1 10 10\" stroke=\"red\"/>"
+            "</svg></div>\n",
+            nullptr);
+        zb::Logging::set_log_handle();
+        EXPECT(rgram.children[0].children.empty());
+        EXPECT(warns.size() == 1);
+        EXPECT(!warns.empty() &&
+               warns[0].find("supported subset") != std::string::npos);
+    }
+
+    // X-12: the point budget is separate from the command budget — one
+    // curve flattens to up to 4096 points, so a handful of them hits the
+    // point cap long before 1024 commands.
+    {
+        // four curves at max flattening stay inside 4096 points only if
+        // each stays under 1024; a 1e9-sized cubic is not flat, so it
+        // reaches the depth cap and emits its full 4096 points
+        std::vector<std::string> warns;
+        zb::Logging::set_log_handle(
+            [&](zb::Logging_Level, const std::string &m)
+            { warns.push_back(m); });
+        ui_node rpt = parse_html(
+            "<div><svg><path d=\"M 0 0 C 1000000000 1000000000 0 1000000000 "
+            "1000000000 0 C 0 0 1000000000 0 0 1000000000\" "
+            "stroke=\"red\"/></svg></div>\n",
+            nullptr);
+        zb::Logging::set_log_handle();
+        EXPECT(rpt.children[0].children.empty());
+        EXPECT(warns.size() == 1);
+        EXPECT(!warns.empty() && warns[0].find("4096-point") !=
+                                      std::string::npos);
     }
 
     // svg static geometry (H-6): rect/circle/ellipse/polyline/polygon,

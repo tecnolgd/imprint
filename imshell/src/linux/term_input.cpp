@@ -8,6 +8,8 @@ namespace zb::shell::term_input
 {
     namespace
     {
+        constexpr std::size_t kCsiMax = 64;
+
         void push_key(std::vector<zb::input::input_event> &out,
                       const zb::input::key_code key)
         {
@@ -230,9 +232,20 @@ namespace zb::shell::term_input
                         csi_final(ch, out);
                         state_ = state::ground;
                     }
+                    else if (csi_.size() >= kCsiMax)
+                    {
+                        csi_.clear();
+                        state_ = state::csi_discard;
+                    }
                     else
                     {
                         csi_ += ch;  // params/intermediates
+                    }
+                    break;
+                case state::csi_discard:
+                    if (ch >= 0x40 && ch <= 0x7e)
+                    {
+                        state_ = state::ground;
                     }
                     break;
                 case state::ss3:
