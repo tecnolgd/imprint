@@ -22,9 +22,8 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-19…X-20 (the
-   hardening/bookkeeping tail, plus the two X-8 follow-ups — the
-   tree-wide `clang-format` reformat and the `-Wconversion` triage).
+   order is inside the batch. What remains is X-20 (the `-Wconversion`
+   triage, the last X-8 follow-up).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
    one shared 64-bit geometry helper); **X-8 landed the same day** (a
    per-compiler warning set with `-Werror` in-tree, clean across the
@@ -64,7 +63,12 @@ Dependency-driven: each tier unlocks what follows.
    intersected with the draw area at the entry, so a design file
    declaring a huge stroke width or radius walks the surface, not the
    declared geometry; `walk_pixel_count()` is the deterministic cost
-   bound the battery asserts on. Nothing in the batch reopens a
+   bound the battery asserts on. **X-19 landed the same day**: the
+   whole first-party tree is formatted to `.clang-format`
+   (clang-format 18.1.3, one mechanical commit, renders byte-identical
+   before and after), and `tools/format-check.sh` gates it with the
+   version pinned so a runner shipping a newer clang-format cannot
+   rewrite the tree on its own. Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
 ### Batch V — Visual Presentation (open remainder only)
@@ -204,21 +208,12 @@ priority; no item reopens a ratified ruling.
 
 **Build and test coverage gaps:**
 
-- **X-19. Tree-wide `clang-format` reformat.** `.clang-format` landed
-  with X-8 (2026-10-19) as the style reference for new and edited code;
-  the measured reformat of the whole tree (clang-format 18.1.3: 137 of
-  240 first-party files drift, ~6.3k diff lines) was deliberately
-  deferred so it does not bury unrelated history. Do it as one mechanical
-  commit on a pinned clang-format version, then add a version-pinned
-  format gate so the drift cannot come back.
 - **X-20. `-Wconversion` / `-Wsign-conversion` triage.** Measured
   2026-10-19 against the X-8 baseline: 308 findings, dominated by benign
   sign/index conversions (`imui/include/widget.hpp` clamp `:703`,
   `e->text_flags &= ~1` `:966`). Not adopted with X-8 — the two flags
   would have to be clean first or the real findings drown. Triage by
   fixing (or proving) the sites, then add both to the X-8 set.
-
-**Hardening (latent, evidence-backed) and bookkeeping:**
 
 ### Batch F — Event Loop Extension & Frame Automation (Long-term)
 
