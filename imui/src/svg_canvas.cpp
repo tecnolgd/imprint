@@ -155,6 +155,52 @@ namespace zb::ui
         constexpr int kPathMaxDepth = 12;     // <= 4096 emits per curve
         constexpr double kDegToRad = 0.017453292519943295;
 
+        /*
+         * X-18: the rasterizer entry clamp. Every walk below is sized from
+         * the DECLARED geometry before any clip — a stroke band expanded by
+         * `dev_w`, a shape's Q10 radius box, a path's point bbox — and a
+         * design file can declare any magnitude there (X-6 bounds each
+         * coordinate at +-16000 px, which is still 32000 px of band on a
+         * 64 px surface). The measured case: one `stroke-width:999999999px`
+         * line on a 2^20 px canvas added ~330 s to the html suite.
+         *
+         * The surface is the only bound the walk can be intersected with
+         * (a widget clips to its own box, and everything outside the box is
+         * undrawable anyway), and intersecting here is exact rather than a
+         * heuristic: the walk visits exactly the pixels the clip would let
+         * through. The bounds arrive in Q10 device pixels, so the
+         * intersection happens in Q10 and the loop bounds convert back.
+         *
+         * Returns false when the intersection is empty — the caller
+         * returns without walking at all.
+         */
+        bool clamp_walk_to_surface(const core::Graphics &area, int64_t &x0,
+                                   int64_t &y0, int64_t &x1, int64_t &y1)
+        {
+            const auto s = area.size();
+            // the surface in Q10 device pixels; the -1 keeps the loop's
+            // inclusive upper bound inside the last pixel row/column
+            const int64_t sw = static_cast<int64_t>(s.width) * kQ10;
+            const int64_t sh = static_cast<int64_t>(s.height) * kQ10;
+            if (x0 < 0)
+            {
+                x0 = 0;
+            }
+            if (y0 < 0)
+            {
+                y0 = 0;
+            }
+            if (x1 > sw - kQ10)
+            {
+                x1 = sw - kQ10;
+            }
+            if (y1 > sh - kQ10)
+            {
+                y1 = sh - kQ10;
+            }
+            return x1 >= x0 && y1 >= y0;
+        }
+
         // sin/cos of degrees, libm-free: integer range reduction to
         // [0, 90) then a Taylor series (truncation <= ~3e-5 at the 90
         // degree boundary — sub-pixel at any realistic radius). Set-time
@@ -603,6 +649,14 @@ namespace zb::ui
         const int64_t x1 = (ax < bx ? bx : ax) + dev_w;
         const int64_t y0 = (ay < by ? ay : by) - dev_w;
         const int64_t y1 = (ay < by ? by : ay) + dev_w;
+        // X-18: intersect the declared band with the draw area before
+        // walking it — the band is `dev_w`-inflated geometry that can
+        // span 32000 px on a 64 px surface
+        int64_t cx0 = x0, cy0 = y0, cx1 = x1, cy1 = y1;
+        if (!clamp_walk_to_surface(area, cx0, cy0, cx1, cy1))
+        {
+            return;
+        }
         const bool blend = l.color.a() < 255;
         const bool bak = area.is_alpha_enabled();
         if (blend)
@@ -610,9 +664,13 @@ namespace zb::ui
             area.enable_alpha(true);
         }
         core::Color c = l.color;
-        for (int64_t py = (y0 / kQ10) - 1; py <= (y1 / kQ10) + 1; ++py)
+        // X-18: the walk is bounded by the draw area, so the visited
+        // pixel count is bounded by the surface — count it (the battery
+        // asserts the bound instead of a wall-clock)
+        walk_pixels_ += ((cy1 - cy0) / kQ10 + 3) * ((cx1 - cx0) / kQ10 + 3);
+        for (int64_t py = (cy0 / kQ10) - 1; py <= (cy1 / kQ10) + 1; ++py)
         {
-            for (int64_t px = (x0 / kQ10) - 1; px <= (x1 / kQ10) + 1; ++px)
+            for (int64_t px = (cx0 / kQ10) - 1; px <= (cx1 / kQ10) + 1; ++px)
             {
                 int in = 0;
                 for (const int64_t off_y : {kQ10 / 4, 3 * kQ10 / 4})
@@ -838,6 +896,13 @@ namespace zb::ui
         const int64_t x1 = maxx + dev_w;
         const int64_t y0 = miny - dev_w;
         const int64_t y1 = maxy + dev_w;
+        // X-18: the declared point bbox, inflated by the stroke width,
+        // intersected with the draw area (see clamp_walk_to_surface)
+        int64_t cx0 = x0, cy0 = y0, cx1 = x1, cy1 = y1;
+        if (!clamp_walk_to_surface(area, cx0, cy0, cx1, cy1))
+        {
+            return;
+        }
 
         const bool blend = color.a() < 255;
         const bool bak = area.is_alpha_enabled();
@@ -846,9 +911,11 @@ namespace zb::ui
             area.enable_alpha(true);
         }
         core::Color c = color;
-        for (int64_t py = (y0 / kQ10) - 1; py <= (y1 / kQ10) + 1; ++py)
+        // X-18: see the count note in draw_line_stroke
+        walk_pixels_ += ((cy1 - cy0) / kQ10 + 3) * ((cx1 - cx0) / kQ10 + 3);
+        for (int64_t py = (cy0 / kQ10) - 1; py <= (cy1 / kQ10) + 1; ++py)
         {
-            for (int64_t px = (x0 / kQ10) - 1; px <= (x1 / kQ10) + 1; ++px)
+            for (int64_t px = (cx0 / kQ10) - 1; px <= (cx1 / kQ10) + 1; ++px)
             {
                 int in = 0;
                 for (const int64_t off_y : {kQ10 / 4, 3 * kQ10 / 4})
@@ -1048,15 +1115,25 @@ namespace zb::ui
         const int64_t x1 = cx + rxd + kQ10;
         const int64_t y0 = cy - ryd - kQ10;
         const int64_t y1 = cy + ryd + kQ10;
+        // X-18: the Q10 radius box intersected with the draw area — a
+        // 16000 px radius spans 32000 px on any real surface (see
+        // clamp_walk_to_surface)
+        int64_t cx0 = x0, cy0 = y0, cx1 = x1, cy1 = y1;
+        if (!clamp_walk_to_surface(area, cx0, cy0, cx1, cy1))
+        {
+            return;
+        }
         const bool blend = s.fill.a() < 255;
         const bool bak = area.is_alpha_enabled();
         if (blend)
         {
             area.enable_alpha(true);
         }
-        for (int64_t py = (y0 / kQ10) - 1; py <= (y1 / kQ10) + 1; ++py)
+        // X-18: see the count note in draw_line_stroke
+        walk_pixels_ += ((cy1 - cy0) / kQ10 + 3) * ((cx1 - cx0) / kQ10 + 3);
+        for (int64_t py = (cy0 / kQ10) - 1; py <= (cy1 / kQ10) + 1; ++py)
         {
-            for (int64_t px = (x0 / kQ10) - 1; px <= (x1 / kQ10) + 1; ++px)
+            for (int64_t px = (cx0 / kQ10) - 1; px <= (cx1 / kQ10) + 1; ++px)
             {
                 int in = 0;
                 for (const int64_t off_y : {kQ10 / 4, 3 * kQ10 / 4})
@@ -1125,15 +1202,24 @@ namespace zb::ui
             miny = std::min(miny, qy[i]);
             maxy = std::max(maxy, qy[i]);
         }
+        // X-18: the point bbox intersected with the draw area (see
+        // clamp_walk_to_surface) — the declared bbox is not the draw area
+        int64_t cx0 = minx, cy0 = miny, cx1 = maxx, cy1 = maxy;
+        if (!clamp_walk_to_surface(area, cx0, cy0, cx1, cy1))
+        {
+            return;
+        }
         const bool blend = color.a() < 255;
         const bool bak = area.is_alpha_enabled();
         if (blend)
         {
             area.enable_alpha(true);
         }
-        for (int64_t py = (miny / kQ10) - 1; py <= (maxy / kQ10) + 1; ++py)
+        // X-18: see the count note in draw_line_stroke
+        walk_pixels_ += ((cy1 - cy0) / kQ10 + 3) * ((cx1 - cx0) / kQ10 + 3);
+        for (int64_t py = (cy0 / kQ10) - 1; py <= (cy1 / kQ10) + 1; ++py)
         {
-            for (int64_t px = (minx / kQ10) - 1; px <= (maxx / kQ10) + 1;
+            for (int64_t px = (cx0 / kQ10) - 1; px <= (cx1 / kQ10) + 1;
                  ++px)
             {
                 int in = 0;

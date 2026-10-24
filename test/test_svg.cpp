@@ -807,5 +807,100 @@ int test_svg()
         EXPECT(painted == 0);
     }
 
+    // X-18: the rasterizer walks the DRAW AREA, not the declared geometry.
+    // Each walk below is sized from declared coordinates that a design file
+    // controls — a stroke band, a shape's radius box, a path's point bbox —
+    // and the audit measured ~330 s added to the html suite by one
+    // stroke-width:999999999px line on a 2^20 px canvas. The walks are now
+    // intersected with the surface at the rasterizer entry, and the visited
+    // pixel count is observable (walk_pixel_count), so the bound is
+    // asserted rather than timed (a wall-clock test would be flaky).
+    {
+        // a line whose band spans the whole 16000 px coordinate range:
+        // the walk must cover the 64x64 surface, not 32000x32000
+        SvgCanvas v;
+        v.set_view_box(0, 0, 100, 100);
+        v.set_size(64, 64);
+        SvgCanvas::Line far{-8000, -8000, 8000, 8000, core::colors::Black};
+        far.width = 32000.0;  // the coordinate bound, in viewBox units
+        v.add_line(far);
+        core::Graphics g(64, 64, nullptr);
+        g.fill(core::colors::White);
+        const long long before = v.walk_pixel_count();
+        v.draw(g);
+        const long long walked = v.walk_pixel_count() - before;
+        // 64*64 surface, plus the walk's one-pixel margin on each side
+        EXPECT(walked <= (64 + 2) * (64 + 2));
+        EXPECT(walked > 0);
+    }
+
+    // a huge radius on a tiny surface: same bound, through the shape fill
+    {
+        SvgCanvas v;
+        v.set_view_box(0, 0, 100, 100);
+        v.set_size(32, 32);
+        SvgCanvas::Shape s;
+        s.kind = SvgCanvas::Shape::Kind::ellipse;
+        s.cx = 50;
+        s.cy = 50;
+        s.rx = 16000.0;  // the X-6 coordinate bound
+        s.ry = 16000.0;
+        s.has_fill = true;
+        s.fill = core::colors::Black;
+        v.add_shape(s);
+        core::Graphics g(32, 32, nullptr);
+        g.fill(core::colors::White);
+        const long long before = v.walk_pixel_count();
+        v.draw(g);
+        EXPECT(v.walk_pixel_count() - before <= (32 + 2) * (32 + 2));
+        // the ellipse still paints: the clamp is a clip, not a cull
+        int painted = 0;
+        for (int y = 0; y < 32; ++y)
+        {
+            for (int x = 0; x < 32; ++x)
+            {
+                painted += test::pixel_at(g, x, y) != core::colors::White.pixel;
+            }
+        }
+        EXPECT(painted == 32 * 32);
+    }
+
+    // geometry entirely outside the surface: no walk at all (the clamp
+    // reports an empty intersection and the walker returns)
+    {
+        SvgCanvas v;
+        v.set_view_box(0, 0, 100, 100);
+        v.set_size(32, 32);
+        SvgCanvas::Line away{10000, 10000, 12000, 12000, core::colors::Black};
+        v.add_line(away);
+        core::Graphics g(32, 32, nullptr);
+        g.fill(core::colors::White);
+        const long long before = v.walk_pixel_count();
+        v.draw(g);
+        EXPECT(v.walk_pixel_count() == before);
+    }
+
+    // a normal draw still walks its own geometry: the clamp must not
+    // shrink an in-surface walk (the golden renders depend on this).
+    // A 3-unit stroke on a 100-unit viewBox is ~2 device px — above the
+    // 1.5px hairline threshold, so it takes the banded walk
+    {
+        SvgCanvas v;
+        v.set_view_box(0, 0, 100, 100);
+        v.set_size(64, 64);
+        SvgCanvas::Line mid{10, 10, 90, 90, core::colors::Black};
+        mid.width = 3.0;
+        v.add_line(mid);
+        core::Graphics g(64, 64, nullptr);
+        g.fill(core::colors::White);
+        const long long before = v.walk_pixel_count();
+        v.draw(g);
+        const long long walked = v.walk_pixel_count() - before;
+        // an 80x80 viewBox-unit diagonal band on a 64x64 surface, with
+        // the walk's margin — a couple hundred pixels, not thousands
+        EXPECT(walked > 0);
+        EXPECT(walked < 64 * 64);
+    }
+
     return test::report("svg");
 }

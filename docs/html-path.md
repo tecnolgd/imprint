@@ -275,7 +275,10 @@ out of scope:
   accepted but only `none` is honored — any other value warns and
   still stretches). Coordinates accept decimals, rounded half away
   from zero (SVG authors write `2.5`); malformed numbers drop their
-  line/text.
+  line/text. Declared geometry outside the widget bounds still costs
+  only surface work (X-18): each rasterizer walk is intersected with
+  the draw area, so a huge `stroke-width` or radius cannot stall the
+  frame.
 - `line x1 y1 x2 y2`: drawn as its device-space stroke geometry
   (per-pixel capsule coverage, 2x2 supersampled — solid band, no
   double-blend seams). `stroke` takes the shared color forms (absent =

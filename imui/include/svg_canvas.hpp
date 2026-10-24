@@ -159,6 +159,23 @@ namespace zb::ui
         void clear_transform();
         [[nodiscard]] bool transform_active() const { return tf_active_; }
 
+        /*
+         * X-18: the number of pixels the rasterizer's walks visited in the
+         * last draw, summed over every walk. It exists so the battery can
+         * assert the walk is bounded by the draw area: a hostile design
+         * file declaring a huge stroke width or radius used to size the
+         * walk from the declared geometry, and the only observable was
+         * wall-clock (flaky as a test). A counter is deterministic proof.
+         *
+         * Monotonic and cumulative across draws (the ListBox
+         * `rasterization_count()` pattern, code-contract §8: deltas are
+         * asserted, because a per-draw reset would hide an accumulation).
+         */
+        [[nodiscard]] long long walk_pixel_count() const
+        {
+            return walk_pixels_;
+        }
+
         // natural size: the viewBox in pixels, 64x64 without one
         [[nodiscard]] core::imsize_t measure() const override;
 
@@ -218,5 +235,8 @@ namespace zb::ui
         std::vector<Path> paths_;
         std::vector<Shape> shapes_;
         std::vector<Text> texts_;
+        // X-18: cumulative walk pixels (see walk_pixel_count); mutable so
+        // the const draw paths can count
+        mutable long long walk_pixels_ = 0;
     };
 }  // namespace zb::ui

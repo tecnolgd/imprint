@@ -586,6 +586,23 @@ whitelist is the boundary):
   The set-time trig range reduction folds a non-finite or absurd angle
   (`set_transform` is host-facing input) to the identity rotation rather
   than leaving its integer turn count.
+- **Draw-area clamp (X-18):** every walk — the line-stroke band, the
+  path/shape stroke, the static-shape fill and the even-odd fill — is
+  intersected with the draw area at the rasterizer entry, so the walk is
+  sized from the surface and never from the declared geometry. X-6
+  bounds each coordinate at ±16000 px, which caps a value but not the
+  work: a 16000 px stroke band or radius on a 64 px surface stepped
+  ~1e9 cells per shape, and a hostile design file (one
+  `stroke-width:999999999px` line on a 2^20 px canvas) stalled a frame.
+  The clamp is the X-5 inset-ring rule applied at the entry: the skipped
+  cells were unreachable, because `plot_aa` clips to the draw area, so
+  the pixels that still plot are bit-identical and an empty clip
+  (geometry the surface cannot reach at all) paints nothing.
+  **`walk_pixel_count()`** (cumulative, monotonic, `long long`) is the
+  observable cost bound — a counter is deterministic proof where a
+  wall-clock assertion is flaky, and the battery asserts on it (the
+  `rasterization_count()` delta convention, §8). Declared geometry
+  outside the surface costs surface-area work, never its own.
 
 ### 3.3 Character event contract
 

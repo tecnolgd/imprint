@@ -22,7 +22,7 @@ Dependency-driven: each tier unlocks what follows.
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
 3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-18…X-20 (the
+   order is inside the batch. What remains is X-19…X-20 (the
    hardening/bookkeeping tail, plus the two X-8 follow-ups — the
    tree-wide `clang-format` reformat and the `-Wconversion` triage).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
@@ -60,7 +60,11 @@ Dependency-driven: each tier unlocks what follows.
    representation), the dev container's rebuildable files are committed
    so a clone can reproduce the environment, all three READMEs carry a
    CI badge, and CONTRIBUTING / SECURITY / CHANGELOG exist.
-   Nothing in the batch reopens a
+   **X-18 landed the same day**: every SVG rasterizer walk is
+   intersected with the draw area at the entry, so a design file
+   declaring a huge stroke width or radius walks the surface, not the
+   declared geometry; `walk_pixel_count()` is the deterministic cost
+   bound the battery asserts on. Nothing in the batch reopens a
    ratified ruling; sequencing stays the operator's call.
 
 ### Batch V — Visual Presentation (open remainder only)
@@ -215,23 +219,6 @@ priority; no item reopens a ratified ruling.
   fixing (or proving) the sites, then add both to the X-8 set.
 
 **Hardening (latent, evidence-backed) and bookkeeping:**
-
-- **X-18. The SVG rasterizer walks the DECLARED geometry, not the draw
-  area** (found by review while landing X-6; not a regression, not in
-  X-4/X-5/X-6's acceptance). X-6 bounds every coordinate at ±16000 px,
-  but the walks are still sized before any clip: `draw_line_stroke` steps
-  the segment's bbox expanded by `dev_w` (`svg_canvas.cpp:602-615`), the
-  shape fill the box its Q10 radii span (`:1047-1059`), and
-  `stroke_points` / the path fill do the same (`:849`, `:1134`) — a
-  16000 px stroke band or radius on a 64 px surface is ~1e9 plot calls
-  per shape. Measured: one `stroke-width:999999999px`
-  line on a 2^20 px canvas (a 1x1 viewBox multiplies the width into the
-  coordinate bound) added ~330 s to the html suite. Bounded, but a
-  stalled frame from a hostile design file. Fix shape: intersect each
-  walk with the draw area (surface-clamped by construction, the X-5
-  inset-ring precedent) at the rasterizer entry; needs a cost mechanism
-  the battery can assert on (wall-clock tests are flaky), so it is not a
-  silent edit.
 
 ### Batch F — Event Loop Extension & Frame Automation (Long-term)
 
