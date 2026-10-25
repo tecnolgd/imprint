@@ -249,7 +249,7 @@ namespace
     // ever saw. A per-frame image keeps every present current.
     const size_t bytes_per_row = static_cast<size_t>(g_buffer_width) * sizeof(zb::ui::core::Color);
     CGDataProviderRef provider = CGDataProviderCreateWithData(
-        nullptr, window->data(), bytes_per_row * g_buffer_height, nullptr);
+        nullptr, window->data(), bytes_per_row * static_cast<size_t>(g_buffer_height), nullptr);
     CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
     CGImageRef frame = CGImageCreate(
         static_cast<size_t>(g_buffer_width), static_cast<size_t>(g_buffer_height),
