@@ -1134,8 +1134,8 @@ namespace zb::ui
             // half-extents (mirroring folds into the magnitude).
             // cx/cy are Q10 device px, the affine translate is in px:
             // push it into Q10 here
-            const double ncx = tf_a_ * cx + tf_c_ * cy + tf_e_ * kQ10;
-            const double ncy = tf_b_ * cx + tf_d_ * cy + tf_f_ * kQ10;
+            const double ncx = tf_a_ * static_cast<double>(cx) + tf_c_ * static_cast<double>(cy) + tf_e_ * static_cast<double>(kQ10);
+            const double ncy = tf_b_ * static_cast<double>(cx) + tf_d_ * static_cast<double>(cy) + tf_f_ * static_cast<double>(kQ10);
             cx = q10_of_clamped(ncx + (ncx >= 0 ? 0.5 : -0.5));
             cy = q10_of_clamped(ncy + (ncy >= 0 ? 0.5 : -0.5));
             const double ax = tf_a_ < 0 ? -tf_a_ : tf_a_;
@@ -1496,7 +1496,7 @@ namespace zb::ui
                 bool all_covered = true;
                 for (int i = 0; i < len; ++i)
                 {
-                    if (!provider->covers(t.text[i]))
+                    if (!provider->covers(t.text[static_cast<std::size_t>(i)]))
                     {
                         all_covered = false;
                         break;
@@ -1531,7 +1531,7 @@ namespace zb::ui
                 int adv = 0;
                 for (int i = 0; i < len; ++i)
                 {
-                    if (const GlyphProvider *p = pick(t.text[i]))
+                    if (const GlyphProvider *p = pick(t.text[static_cast<std::size_t>(i)]))
                     {
                         adv += p->measure(t.text.data() + i, 1).width;
                     }
@@ -1547,7 +1547,7 @@ namespace zb::ui
                 const core::Color col = t.has_color ? t.color : theme().text;
                 for (int i = 0; i < len; ++i)
                 {
-                    if (const GlyphProvider *p = pick(t.text[i]))
+                    if (const GlyphProvider *p = pick(t.text[static_cast<std::size_t>(i)]))
                     {
                         p->write(area, t.text.data() + i, 1, pen, baseline, col);
                         pen += p->measure(t.text.data() + i, 1).width;

@@ -138,7 +138,7 @@ int test_graphics()
         const auto blend_ref = [front](uint32_t back_pixel)
         {
             core::Color back{};
-            back.pixel = back_pixel;
+            back.pixel = static_cast<decltype(back.pixel)>(back_pixel);
             const uint32_t a = front.a(), inv = 0xFF - a;
             const uint32_t r = (front.r() * a + back.r() * inv) / 0xFF;
             const uint32_t gch = (front.g() * a + back.g() * inv) / 0xFF;

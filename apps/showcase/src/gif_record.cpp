@@ -212,11 +212,11 @@ int main(int argc, char **argv)
                                out.resize(static_cast<std::size_t>(w) * 4u);
                                for (int x = 0; x < w; ++x)
                                {
-                                   const auto c = pixels[row * w + x];
-                                   out[x * 4 + 0] = c.b();
-                                   out[x * 4 + 1] = c.g();
-                                   out[x * 4 + 2] = c.r();
-                                   out[x * 4 + 3] = 255;
+                                   const auto c = pixels[row * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)];
+                                   out[static_cast<std::size_t>(x) * 4 + 0] = c.b();
+                                   out[static_cast<std::size_t>(x) * 4 + 1] = c.g();
+                                   out[static_cast<std::size_t>(x) * 4 + 2] = c.r();
+                                   out[static_cast<std::size_t>(x) * 4 + 3] = 255;
                                }
                                ++row;
                                return true;

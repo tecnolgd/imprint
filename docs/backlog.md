@@ -21,9 +21,11 @@ Dependency-driven: each tier unlocks what follows.
    Batch W (audit follow-ups, decision-gated). Condition-triggered
    items stay trigger-gated. Batch G's P1–P4 roadmap is landed
    (2026-09-26 through 2026-10-01; history in `git log`).
-3. **Batch X** (2026-10-15 independent audit): the audit's recommended
-   order is inside the batch. What remains is X-20 (the `-Wconversion`
-   triage, the last X-8 follow-up).
+3. **Batch X** (2026-10-15 independent audit): all items landed
+   (X-20 2026-10-25: `-Wconversion` / `-Wsign-conversion` triage —
+   308 findings fixed or proven benign and both flags added to the X-8
+   set in `cmake/imprint-warnings.cmake`; the MSVC `/wd4244` family
+   suppression removed).
    X-7 and X-9 landed (2026-10-19: a real X11 loop under Xvfb in CI, and
    one shared 64-bit geometry helper); **X-8 landed the same day** (a
    per-compiler warning set with `-Werror` in-tree, clean across the
@@ -205,15 +207,6 @@ sits outside what the current battery covers or exercises. Detail ledger:
 which also carries the audit's strengths list, the positioning/demo
 proposals and one *withdrawn* finding. Ordered by the audit's recommended
 priority; no item reopens a ratified ruling.
-
-**Build and test coverage gaps:**
-
-- **X-20. `-Wconversion` / `-Wsign-conversion` triage.** Measured
-  2026-10-19 against the X-8 baseline: 308 findings, dominated by benign
-  sign/index conversions (`imui/include/widget.hpp` clamp `:703`,
-  `e->text_flags &= ~1` `:966`). Not adopted with X-8 — the two flags
-  would have to be clean first or the real findings drown. Triage by
-  fixing (or proving) the sites, then add both to the X-8 set.
 
 ### Batch F — Event Loop Extension & Frame Automation (Long-term)
 

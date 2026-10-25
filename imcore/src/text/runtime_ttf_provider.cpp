@@ -374,7 +374,7 @@ namespace zb::ui
                 {
                     for (int c = 0; c < e.w; ++c)
                     {
-                        const uint8_t cov = e.cov[static_cast<size_t>(r) * e.w + c];
+                        const uint8_t cov = e.cov[static_cast<size_t>(r) * static_cast<size_t>(e.w) + static_cast<size_t>(c)];
                         if (cov != 0)
                         {
                             g.draw_pixel(left + c, top + r,

@@ -701,8 +701,8 @@ namespace zb::ui
         // (border-box); only solid is honored
         void set_border(const int width_px, const core::Color &c)
         {
-            dress_.border_w =
-                width_px < 0 ? 0 : (width_px > 255 ? 255 : width_px);
+            dress_.border_w = static_cast<uint8_t>(
+                width_px < 0 ? 0 : (width_px > 255 ? 255 : width_px));
             dress_.border_color = c;
             mark_dirty();
         }
@@ -965,7 +965,7 @@ namespace zb::ui
             }
             else
             {
-                e->text_flags &= ~1;
+                e->text_flags = static_cast<uint8_t>(e->text_flags & ~1u);
             }
             reset_wrap_cache();
             mark_dirty();

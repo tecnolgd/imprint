@@ -100,7 +100,7 @@ namespace zb::shell
         swa.colormap = colormap;
         const Window window = XCreateWindow(
             display, RootWindow(display, screen),
-            0, 0, width, height, 1,
+            0, 0, static_cast<unsigned int>(width), static_cast<unsigned int>(height), 1,
             vi.depth, InputOutput, vi.visual,
             CWBackPixel | CWBorderPixel | CWColormap, &swa);
 
@@ -125,9 +125,9 @@ namespace zb::shell
 
         // XImage directly maps the framework framebuffer (BGRA little-endian == X 32bit TrueColor on x86)
         XImage *xi = XCreateImage(
-            display, vi.visual, vi.depth, ZPixmap, 0,
+            display, vi.visual, static_cast<unsigned int>(vi.depth), ZPixmap, 0,
             static_cast<char *>(win->data()),
-            width, height, 32, 0);
+            static_cast<unsigned int>(width), static_cast<unsigned int>(height), 32, 0);
         if (xi == nullptr)
         {
             throw zb::ui::error("X11 shell: XCreateImage failed");
@@ -155,7 +155,8 @@ namespace zb::shell
         {
             if (is_one_to_one())
             {
-                XPutImage(display, window, gc, xi, x, y, x, y, w, h);
+                XPutImage(display, window, gc, xi, x, y, x, y,
+                          static_cast<unsigned int>(w), static_cast<unsigned int>(h));
                 XFlush(display);
                 return;
             }
@@ -169,7 +170,8 @@ namespace zb::shell
             // the scratch image covers only the presented rect, so the
             // source coords into it are presented-rect-local
             XPutImage(display, window, gc, sx, d.x - pres.x, d.y - pres.y,
-                      d.x, d.y, d.w, d.h);
+                      d.x, d.y,
+                      static_cast<unsigned int>(d.w), static_cast<unsigned int>(d.h));
             XFlush(display);
         };
 
@@ -195,15 +197,15 @@ namespace zb::shell
             }
             else
             {
-                scratch.assign(static_cast<size_t>(pres.w) * pres.h, {});
+                scratch.assign(static_cast<size_t>(pres.w) * static_cast<size_t>(pres.h), {});
                 if (sx != nullptr)
                 {
                     sx->data = nullptr;
                     XDestroyImage(sx);
                 }
-                sx = XCreateImage(display, vi.visual, vi.depth, ZPixmap, 0,
+                sx = XCreateImage(display, vi.visual, static_cast<unsigned int>(vi.depth), ZPixmap, 0,
                                   reinterpret_cast<char *>(scratch.data()),
-                                  pres.w, pres.h, 32, 0);
+                                  static_cast<unsigned int>(pres.w), static_cast<unsigned int>(pres.h), 32, 0);
                 if (sx == nullptr)
                 {
                     LE << "XCreateImage failed for the scaled presentation";

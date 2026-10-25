@@ -182,10 +182,10 @@ namespace zb::snap
                 out.resize(static_cast<std::size_t>(w) * 3u);
                 for (int32_t x = 0; x < w; ++x)
                 {
-                    const zb::ui::core::Color &c = pixels[row * w + x];
-                    out[x * 3 + 0] = c.r();
-                    out[x * 3 + 1] = c.g();
-                    out[x * 3 + 2] = c.b();
+                    const zb::ui::core::Color &c = pixels[row * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)];
+                    out[static_cast<std::size_t>(x) * 3 + 0] = c.r();
+                    out[static_cast<std::size_t>(x) * 3 + 1] = c.g();
+                    out[static_cast<std::size_t>(x) * 3 + 2] = c.b();
                 }
                 ++row;
                 return true;

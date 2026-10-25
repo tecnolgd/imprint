@@ -128,7 +128,7 @@ int test_sixel()
             const auto b = static_cast<uint8_t>((i * 9) & 0xFF);
             for (int y = 0; y < h; ++y)
             {
-                buf[static_cast<std::size_t>(y) * w + i] =
+                buf[static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(i)] =
                     core::Color::from(r, g, b, 255);
             }
         }

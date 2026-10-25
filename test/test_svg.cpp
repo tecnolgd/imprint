@@ -531,7 +531,7 @@ int test_svg()
             {
                 for (int x = 0; x < 100; ++x)
                 {
-                    out[static_cast<size_t>(y) * 100 + x] =
+                    out[static_cast<size_t>(y) * 100 + static_cast<size_t>(x)] =
                         test::pixel_at(g, x, y);
                 }
             }
@@ -540,7 +540,7 @@ int test_svg()
         const auto at = [](const std::vector<uint32_t> &px, const int x,
                            const int y)
         {
-            return px[static_cast<size_t>(y) * 100 + x];
+            return px[static_cast<size_t>(y) * 100 + static_cast<size_t>(x)];
         };
         const auto make = []
         {

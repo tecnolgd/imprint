@@ -107,13 +107,13 @@ namespace
         const int w = win.width();
         const int h = win.height();
         auto *pixels = static_cast<const zb::ui::core::Color *>(win.data());
-        std::vector<unsigned char> rgb(static_cast<std::size_t>(w) * h * 3u);
+        std::vector<unsigned char> rgb(static_cast<std::size_t>(w) * static_cast<std::size_t>(h) * 3u);
         for (int y = 0; y < h; ++y)
         {
             for (int x = 0; x < w; ++x)
             {
                 const zb::ui::core::Color &c = pixels[y * w + x];
-                auto *px = &rgb[(static_cast<std::size_t>(y) * w + x) * 3u];
+                auto *px = &rgb[(static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)) * 3u];
                 px[0] = c.r();
                 px[1] = c.g();
                 px[2] = c.b();

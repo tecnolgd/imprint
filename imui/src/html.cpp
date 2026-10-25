@@ -3018,7 +3018,7 @@ namespace zb::ui
             {
                 return false;
             }
-            out = static_cast<double>(ip) + static_cast<double>(fp) / scale;
+            out = static_cast<double>(ip) + static_cast<double>(fp) / static_cast<double>(scale);
             out = neg ? -out : out;
             return true;
         }

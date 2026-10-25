@@ -316,7 +316,7 @@ namespace zb::ui
             return;
         }
         const int track_h = s.height - 2;
-        const int travel = count - visible;
+        const int travel = static_cast<int>(count - visible);
         const int th = track_h * static_cast<int>(visible) / static_cast<int>(count);
         const int thumb = th < 8 ? 8 : th;
         *x0 = s.width - gutter;

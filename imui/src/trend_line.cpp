@@ -10,7 +10,8 @@ namespace zb::ui
         if (static_cast<int>(samples_.size()) > max_points_)
         {
             samples_.erase(samples_.begin(),
-                           samples_.begin() + (samples_.size() - max_points_));
+                           samples_.begin() + static_cast<std::ptrdiff_t>(
+                                                  samples_.size() - static_cast<std::size_t>(max_points_)));
         }
         mark_dirty();
     }
@@ -41,7 +42,8 @@ namespace zb::ui
         if (static_cast<int>(samples_.size()) > max_points_)
         {
             samples_.erase(samples_.begin(),
-                           samples_.begin() + (samples_.size() - max_points_));
+                           samples_.begin() + static_cast<std::ptrdiff_t>(
+                                                  samples_.size() - static_cast<std::size_t>(max_points_)));
             mark_dirty();
         }
     }

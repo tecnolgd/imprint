@@ -222,8 +222,9 @@ int test_shell_presenter()
             for (int x = 0; x < 32; ++x)
             {
                 // each buffer pixel carries its coordinates in the word
-                src[static_cast<size_t>(y) * 32 + x] =
-                    zb::ui::core::Color::from(x, y, 0, 255);
+                src[static_cast<size_t>(y) * 32 + static_cast<size_t>(x)] =
+                    zb::ui::core::Color::from(static_cast<uint8_t>(x),
+                                              static_cast<uint8_t>(y), 0, 255);
             }
         }
         zb::shell::resample_presentation(p, present_rect{0, 0, 64, 48},
@@ -235,8 +236,8 @@ int test_shell_presenter()
             for (int dx = 0; dx < 64; ++dx)
             {
                 EXPECT(p.to_buffer(dx, dy, bx, by));
-                EXPECT(dst[static_cast<size_t>(dy) * 64 + dx].pixel ==
-                       src[static_cast<size_t>(by) * 32 + bx].pixel);
+                EXPECT(dst[static_cast<size_t>(dy) * 64 + static_cast<size_t>(dx)].pixel ==
+                       src[static_cast<size_t>(by) * 32 + static_cast<size_t>(bx)].pixel);
             }
         }
     }
@@ -254,8 +255,9 @@ int test_shell_presenter()
         {
             for (int x = 0; x < 100; ++x)
             {
-                src[static_cast<size_t>(y) * 100 + x] =
-                    zb::ui::core::Color::from(x, y, 0, 255);
+                src[static_cast<size_t>(y) * 100 + static_cast<size_t>(x)] =
+                    zb::ui::core::Color::from(static_cast<uint8_t>(x),
+                                              static_cast<uint8_t>(y), 0, 255);
             }
         }
         // the whole buffer, window-absolute: rows 25..74 of the window
@@ -268,8 +270,8 @@ int test_shell_presenter()
             for (int dx = 0; dx < 100; ++dx)
             {
                 EXPECT(p.to_buffer(dx, dy + p.y, bx, by));
-                EXPECT(dst[static_cast<size_t>(dy) * 100 + dx].pixel ==
-                       src[static_cast<size_t>(by) * 100 + bx].pixel);
+                EXPECT(dst[static_cast<size_t>(dy) * 100 + static_cast<size_t>(dx)].pixel ==
+                       src[static_cast<size_t>(by) * 100 + static_cast<size_t>(bx)].pixel);
             }
         }
         // a clamped dest (rows reaching above the presented rect) stays

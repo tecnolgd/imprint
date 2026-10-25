@@ -34,7 +34,7 @@ int Image::write_jpeg(
         static_cast<uint32_t>(row_bit_stride),
         3};
 
-    std::vector<unsigned char> row(row_bit_stride);
+    std::vector<unsigned char> row(static_cast<std::size_t>(row_bit_stride));
 
     auto dat = static_cast<const Color *>(g.data());
     auto write_row = [&](std::vector<unsigned char> &row_out)
@@ -157,7 +157,7 @@ int Image::read_jpg(Graphics &g, const std::string &file_name, int start_x, int 
         return rst;
     }
 
-    g.draw_image(jpg_img.data(), jpg_inf.image_width, jpg_inf.image_height, jpg_inf.image_width, start_x, start_y);
+    g.draw_image(jpg_img.data(), static_cast<int>(jpg_inf.image_width), static_cast<int>(jpg_inf.image_height), static_cast<int>(jpg_inf.image_width), start_x, start_y);
     return 0;
 }
 

@@ -78,7 +78,7 @@ void TictactoeView::build_board(uint32_t max_client_width, uint32_t max_client_h
 void TictactoeView::build_difficulty_dialog(uint32_t max_client_width, uint32_t max_client_height)
 {
     auto dlg = std::make_unique<Dialog>();
-    dlg->set_size(max_client_width, max_client_height);
+    dlg->set_size(static_cast<int>(max_client_width), static_cast<int>(max_client_height));
     dlg->set_frame_size(step_frame_w, step_frame_h);
     dlg->set_frame_padding(dialog_padding);
     dlg->set_frame_background_color(frame_bg);
@@ -119,7 +119,7 @@ void TictactoeView::build_difficulty_dialog(uint32_t max_client_width, uint32_t 
 void TictactoeView::build_side_dialog(uint32_t max_client_width, uint32_t max_client_height)
 {
     auto dlg = std::make_unique<Dialog>();
-    dlg->set_size(max_client_width, max_client_height);
+    dlg->set_size(static_cast<int>(max_client_width), static_cast<int>(max_client_height));
     dlg->set_frame_size(step_frame_w, step_frame_h);
     dlg->set_frame_padding(dialog_padding);
     dlg->set_frame_background_color(frame_bg);
@@ -152,7 +152,7 @@ void TictactoeView::build_side_dialog(uint32_t max_client_width, uint32_t max_cl
 void TictactoeView::build_result_dialog(uint32_t max_client_width, uint32_t max_client_height)
 {
     auto dlg = std::make_unique<Dialog>();
-    dlg->set_size(max_client_width, max_client_height);
+    dlg->set_size(static_cast<int>(max_client_width), static_cast<int>(max_client_height));
     dlg->set_frame_size(result_frame_w, result_frame_h);
     dlg->set_frame_padding(dialog_padding);
     dlg->set_frame_background_color(frame_bg);

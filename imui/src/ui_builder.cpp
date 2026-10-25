@@ -1690,7 +1690,9 @@ namespace zb::ui
                 {
                     return false;
                 }
-                out = core::Color::from(r * 17, g * 17, b * 17);
+                out = core::Color::from(static_cast<uint8_t>(r * 17),
+                                        static_cast<uint8_t>(g * 17),
+                                        static_cast<uint8_t>(b * 17));
                 return true;
             }
             if (len == 6)
@@ -1706,8 +1708,9 @@ namespace zb::ui
                 {
                     return false;
                 }
-                out = core::Color::from(r0 * 16 + r1, g0 * 16 + g1,
-                                        b0 * 16 + b1);
+                out = core::Color::from(static_cast<uint8_t>(r0 * 16 + r1),
+                                        static_cast<uint8_t>(g0 * 16 + g1),
+                                        static_cast<uint8_t>(b0 * 16 + b1));
                 return true;
             }
             return false;
@@ -1822,7 +1825,9 @@ namespace zb::ui
                     return false;
                 }
             }
-            out = core::Color::from(comp[0], comp[1], comp[2]);
+            out = core::Color::from(static_cast<uint8_t>(comp[0]),
+                                    static_cast<uint8_t>(comp[1]),
+                                    static_cast<uint8_t>(comp[2]));
             if (has_alpha)
             {
                 const std::string &a = parts[3];

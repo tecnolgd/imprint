@@ -154,7 +154,7 @@ namespace zb::ui
             static std::vector<int64_t> wtab;
             if (static_cast<int>(wtab.size()) < support + 1)
             {
-                wtab.resize(support + 1);
+                wtab.resize(static_cast<std::size_t>(support) + 1);
             }
             for (int d = 0; d <= support; ++d)
             {
@@ -180,14 +180,14 @@ namespace zb::ui
             fy0 = btop - support;
             fw = bright - bleft + 2 * support + 1;
             fh = bbottom - btop + 2 * support + 1;
-            const size_t need = static_cast<size_t>(fw) * fh;
+            const size_t need = static_cast<size_t>(fw) * static_cast<size_t>(fh);
 
             static std::vector<uint8_t> mask;
             if (mask.size() < need)
             {
                 mask.resize(need);
             }
-            std::fill(mask.begin(), mask.begin() + need, 0);
+            std::fill(mask.begin(), mask.begin() + static_cast<std::ptrdiff_t>(need), 0);
             // the CLIPPED box's rows carry the ORIGINAL box's exact
             // coverage: a clipped edge is by construction >= support
             // outside the surface, so re-rounding it there (the box
@@ -197,7 +197,7 @@ namespace zb::ui
                 mright - mleft + 1, mbottom - mtop + 1, mradius);
             for (int y = btop; y <= bbottom; ++y)
             {
-                uint8_t *rowp = &mask[static_cast<size_t>(y - fy0) * fw];
+                uint8_t *rowp = &mask[static_cast<size_t>(y - fy0) * static_cast<size_t>(fw)];
                 std::fill(rowp + (bleft - fx0), rowp + (bright - fx0) + 1, 255);
                 if (rc <= 0 || (y >= mtop + rc && y <= mbottom - rc))
                 {
@@ -230,18 +230,18 @@ namespace zb::ui
             static std::vector<int64_t> pfx;
             if (static_cast<int>(pfx.size()) < fw + 1)
             {
-                pfx.resize(fw + 1);
+                pfx.resize(static_cast<size_t>(fw) + 1);
             }
             for (int y = 0; y < fh; ++y)
             {
-                const uint8_t *mp = &mask[static_cast<size_t>(y) * fw];
+                const uint8_t *mp = &mask[static_cast<size_t>(y) * static_cast<size_t>(fw)];
                 pfx[0] = 0;
                 int64_t acc = 0;
                 for (int x = 0; x < fw; ++x)
                 {
-                    pfx[x + 1] = acc += mp[x];
+                    pfx[static_cast<size_t>(x) + 1] = acc += mp[x];
                 }
-                int64_t *hp = &hbuf[static_cast<size_t>(y) * fw];
+                int64_t *hp = &hbuf[static_cast<size_t>(y) * static_cast<size_t>(fw)];
                 for (int x = 0; x < fw; ++x)
                 {
                     int64_t h = 0;
@@ -265,15 +265,15 @@ namespace zb::ui
                         const int hi_m = x - d + 1;
                         const int lo_m = x + d;
                         const int64_t p =
-                            pfx[hi_p < 0 ? 0 : hi_p > fw ? fw
-                                                         : hi_p] -
-                            pfx[lo_p < 0 ? 0 : lo_p > fw ? fw
-                                                         : lo_p];
+                            pfx[static_cast<size_t>(hi_p < 0 ? 0 : hi_p > fw ? fw
+                                                                             : hi_p)] -
+                            pfx[static_cast<size_t>(lo_p < 0 ? 0 : lo_p > fw ? fw
+                                                                             : lo_p)];
                         const int64_t m =
-                            d > 0 ? pfx[hi_m < 0 ? 0 : hi_m > fw ? fw
-                                                                 : hi_m] -
-                                        pfx[lo_m < 0 ? 0 : lo_m > fw ? fw
-                                                                     : lo_m]
+                            d > 0 ? pfx[static_cast<size_t>(hi_m < 0 ? 0 : hi_m > fw ? fw
+                                                                                     : hi_m)] -
+                                        pfx[static_cast<size_t>(lo_m < 0 ? 0 : lo_m > fw ? fw
+                                                                                         : lo_m)]
                                   : 0;
                         h += w * (p + m);
                     }
@@ -291,7 +291,7 @@ namespace zb::ui
             static std::vector<int64_t> colp;
             if (static_cast<int>(colp.size()) < fh + 1)
             {
-                colp.resize(fh + 1);
+                colp.resize(static_cast<size_t>(fh) + 1);
             }
             for (int x = 0; x < fw; ++x)
             {
@@ -299,7 +299,7 @@ namespace zb::ui
                 int64_t acc = 0;
                 for (int y = 0; y < fh; ++y)
                 {
-                    colp[y + 1] = acc += hbuf[static_cast<size_t>(y) * fw + x];
+                    colp[static_cast<size_t>(y) + 1] = acc += hbuf[static_cast<size_t>(y) * static_cast<size_t>(fw) + static_cast<size_t>(x)];
                 }
                 for (int y = 0; y < fh; ++y)
                 {
@@ -313,19 +313,19 @@ namespace zb::ui
                         const int hi_m = y - d + 1;
                         const int lo_m = y + d;
                         const int64_t p =
-                            colp[hi_p < 0 ? 0 : hi_p > fh ? fh
-                                                          : hi_p] -
-                            colp[lo_p < 0 ? 0 : lo_p > fh ? fh
-                                                          : lo_p];
+                            colp[static_cast<size_t>(hi_p < 0 ? 0 : hi_p > fh ? fh
+                                                                              : hi_p)] -
+                            colp[static_cast<size_t>(lo_p < 0 ? 0 : lo_p > fh ? fh
+                                                                              : lo_p)];
                         const int64_t m =
-                            d > 0 ? colp[hi_m < 0 ? 0 : hi_m > fh ? fh
-                                                                  : hi_m] -
-                                        colp[lo_m < 0 ? 0 : lo_m > fh ? fh
-                                                                      : lo_m]
+                            d > 0 ? colp[static_cast<size_t>(hi_m < 0 ? 0 : hi_m > fh ? fh
+                                                                                      : hi_m)] -
+                                        colp[static_cast<size_t>(lo_m < 0 ? 0 : lo_m > fh ? fh
+                                                                                          : lo_m)]
                                   : 0;
                         v += w * (p + m);
                     }
-                    cov[static_cast<size_t>(y) * fw + x] =
+                    cov[static_cast<size_t>(y) * static_cast<size_t>(fw) + static_cast<size_t>(x)] =
                         static_cast<uint8_t>((v + wsum2 / 2) / wsum2);
                 }
             }
@@ -398,8 +398,8 @@ namespace zb::ui
                     int hole = 0;
                     if (x >= fx0 && x < fx0 + fw && y >= fy0 && y < fy0 + fh)
                     {
-                        hole = field[static_cast<size_t>(y - fy0) * fw +
-                                     (x - fx0)];
+                        hole = field[static_cast<size_t>(y - fy0) * static_cast<size_t>(fw) +
+                                     static_cast<size_t>(x - fx0)];
                     }
                     const int shadow = 255 - hole;
                     area.plot_aa(x, y, (shadow * coverage + 127) / 255, color);
@@ -438,8 +438,8 @@ namespace zb::ui
             {
                 for (int x = fx0; x < fx0 + fw; ++x)
                 {
-                    const int c = field[static_cast<size_t>(y - fy0) * fw +
-                                        (x - fx0)];
+                    const int c = field[static_cast<size_t>(y - fy0) * static_cast<size_t>(fw) +
+                                        static_cast<size_t>(x - fx0)];
                     if (c > 0)
                     {
                         area.plot_aa(x, y, c, color);
@@ -1144,8 +1144,8 @@ namespace zb::ui
             y += text_offset_.y;
             for (int i = 0; i < lines; ++i)
             {
-                const int off = spans[i].first;
-                const int l = spans[i].second;
+                const int off = spans[static_cast<size_t>(i)].first;
+                const int l = spans[static_cast<size_t>(i)].second;
                 int x = 0;
                 const int w = advance_of(data + off, l);
                 switch (halign)
@@ -1235,14 +1235,14 @@ namespace zb::ui
         const int n = static_cast<int>(text.size());
         const auto w_of = [&](const int i) -> int
         {
-            const GlyphProvider *const p = pick(text[i]);
+            const GlyphProvider *const p = pick(text[static_cast<std::size_t>(i)]);
             return p != nullptr
                      ? p->measure(text.data() + i, 1).width + letter
                      : 0;
         };
         const auto emit_line = [&](const int start, int end)
         {
-            while (end > start && text[end - 1] == ' ')
+            while (end > start && text[static_cast<std::size_t>(end) - 1] == ' ')
             {
                 --end;
             }
@@ -1255,7 +1255,7 @@ namespace zb::ui
         int break_before = -1;
         while (p < n)
         {
-            const char16_t ch = text[p];
+            const char16_t ch = text[static_cast<std::size_t>(p)];
             if (p == line_top && ch == ' ')
             {
                 // leading whitespace collapses off a fresh line
@@ -1294,7 +1294,7 @@ namespace zb::ui
                 {
                     // an over-wide word: it sits alone on its own line
                     int next = line_top;
-                    while (next < n && text[next] != ' ' && text[next] != '\n')
+                    while (next < n && text[static_cast<std::size_t>(next)] != ' ' && text[static_cast<std::size_t>(next)] != '\n')
                     {
                         ++next;
                     }

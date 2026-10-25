@@ -195,8 +195,8 @@ namespace zb::ui
                 // save the insertion offset first: colors_.insert may
                 // reallocate and invalidate the iterator
                 const std::size_t pos = static_cast<std::size_t>(it - colors_.begin());
-                colors_.insert(colors_.begin() + pos, key);
-                counts_.insert(counts_.begin() + pos, 1);
+                colors_.insert(colors_.begin() + static_cast<std::ptrdiff_t>(pos), key);
+                counts_.insert(counts_.begin() + static_cast<std::ptrdiff_t>(pos), 1);
             }
         }
     }

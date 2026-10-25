@@ -143,7 +143,7 @@ int test_button()
         b.set_border_color(core::colors::Red);
         const auto s = b.measure();
         b.set_size(s.width, s.height);
-        auto g = core::Graphics::make_ptr(s.width, s.height);
+        auto g = core::Graphics::make_ptr(static_cast<uint32_t>(s.width), static_cast<uint32_t>(s.height));
         b.draw(*g);
         EXPECT(test::pixel_at(*g, 0, 0) == core::colors::Red.pixel);    // border
         EXPECT(test::pixel_at(*g, 1, 1) == core::colors::White.pixel);  // padding ring

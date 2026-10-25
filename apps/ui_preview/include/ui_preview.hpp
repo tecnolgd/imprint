@@ -49,7 +49,7 @@ namespace zb::app::ui_preview
         UiPreview();
         ~UiPreview() override = default;
 
-        void create_window() override { create_window(_width, _height); }
+        void create_window() override { create_window(static_cast<uint32_t>(_width), static_cast<uint32_t>(_height)); }
         void create_window(uint32_t max_client_width,
                            uint32_t max_client_height) override;
         void create_window(uint32_t max_client_width,

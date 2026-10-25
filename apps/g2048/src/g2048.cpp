@@ -204,7 +204,7 @@ void G2048::create_window(const uint32_t max_client_width,
     root.add_child(std::move(board_w));
 
     auto dlg = std::make_unique<Dialog>();
-    dlg->set_size(max_client_width, max_client_height);
+    dlg->set_size(static_cast<int>(max_client_width), static_cast<int>(max_client_height));
     const int frame_w = clamp_i(w / 2, 160 * u, 300 * u);
     dlg->set_frame_size(frame_w, 92 * u);
     dlg->get_title().set_size(frame_w - 20, 20 * u);

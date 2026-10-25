@@ -169,10 +169,10 @@ int test_label()
         if (sp.size() == 4)
         {
             const std::u16string &t = br.get_text();
-            EXPECT(t.substr(sp[0].first, sp[0].second) == u"aa");
-            EXPECT(t.substr(sp[1].first, sp[1].second) == u"bb");
-            EXPECT(t.substr(sp[2].first, sp[2].second).empty());
-            EXPECT(t.substr(sp[3].first, sp[3].second) == u"cc");
+            EXPECT(t.substr(static_cast<std::size_t>(sp[0].first), static_cast<std::size_t>(sp[0].second)) == u"aa");
+            EXPECT(t.substr(static_cast<std::size_t>(sp[1].first), static_cast<std::size_t>(sp[1].second)) == u"bb");
+            EXPECT(t.substr(static_cast<std::size_t>(sp[2].first), static_cast<std::size_t>(sp[2].second)).empty());
+            EXPECT(t.substr(static_cast<std::size_t>(sp[3].first), static_cast<std::size_t>(sp[3].second)) == u"cc");
         }
     }
 

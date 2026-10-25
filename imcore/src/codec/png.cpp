@@ -125,7 +125,7 @@ int Image::read_png(
         LE << "Error in reading png file. error code : " << rst;
         return rst;
     }
-    g.draw_image(png_img.data(), png_inf.image_width, png_inf.image_height, png_inf.image_width, start_x, start_y);
+    g.draw_image(png_img.data(), static_cast<int>(png_inf.image_width), static_cast<int>(png_inf.image_height), static_cast<int>(png_inf.image_width), start_x, start_y);
 
     return 0;
 }
@@ -197,7 +197,7 @@ int Image::write_png(
     auto gsize = g.size();
     auto row_bit_stride = gsize.width * 4;  // rgba format
 
-    std::vector<unsigned char> row(row_bit_stride);
+    std::vector<unsigned char> row(static_cast<std::size_t>(row_bit_stride));
     image_info img_inf{
         static_cast<uint32_t>(gsize.width),
         static_cast<uint32_t>(gsize.height),

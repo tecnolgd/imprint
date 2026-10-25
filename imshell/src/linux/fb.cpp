@@ -95,7 +95,7 @@ void FB::draw(char *b, int w, int h, int rx, int ry, int rw, int rh)
         for (int row = ry; row < ry + rh; row++)
         {
             std::memcpy(buf + row * screen_line_len + rx * bytes_per_pixel,
-                        b + row * w * bytes_per_pixel + rx * bytes_per_pixel, copy_bytes);
+                        b + row * w * bytes_per_pixel + rx * bytes_per_pixel, static_cast<std::size_t>(copy_bytes));
         }
     }
 
@@ -109,10 +109,10 @@ void FB::draw(char *b, int w, int h, int rx, int ry, int rw, int rh)
     if (page > 0)
     {
         const uintptr_t addr = reinterpret_cast<uintptr_t>(buf) +
-                               static_cast<size_t>(ry) * screen_line_len;
+                               static_cast<size_t>(ry) * static_cast<size_t>(screen_line_len);
         const uintptr_t aligned = addr & ~static_cast<uintptr_t>(page - 1);
         if (msync(reinterpret_cast<void *>(aligned),
-                  static_cast<size_t>(rh) * screen_line_len + (addr - aligned),
+                  static_cast<size_t>(rh) * static_cast<size_t>(screen_line_len) + (addr - aligned),
                   MS_SYNC) != 0)
         {
             LW << "fb: msync failed (errno " << errno << ")";
@@ -145,7 +145,7 @@ int FB::init()
     }
 
     //memcpy(&bk_vinfo, &vinfo, sizeof(struct fb_var_screeninfo));
-    bits_per_pixel = vinfo.bits_per_pixel;
+    bits_per_pixel = static_cast<int>(vinfo.bits_per_pixel);
     bytes_per_pixel = bits_per_pixel / 8;
     LD << "bits_per_pixel : " << bits_per_pixel;
     LD << "bytes_per_pixel : " << bytes_per_pixel;
@@ -202,10 +202,10 @@ int FB::init()
         return 5;
     }
 
-    screen_width = vinfo.xres;                         // in pixels
-    screen_height = vinfo.yres;                        // in pixels
-    screen_line_len = finfo.line_length;               // in bytes
-    screen_mem_len = screen_line_len * screen_height;  // in bytes
+    screen_width = static_cast<int>(vinfo.xres);                                                 // in pixels
+    screen_height = static_cast<int>(vinfo.yres);                                                // in pixels
+    screen_line_len = static_cast<int>(finfo.line_length);                                       // in bytes
+    screen_mem_len = static_cast<size_t>(screen_line_len) * static_cast<size_t>(screen_height);  // in bytes
 
     LD << "screen_width : " << screen_width;
     LD << "screen_height : " << screen_height;

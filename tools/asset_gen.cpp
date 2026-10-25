@@ -43,14 +43,14 @@ namespace
     asset make_ball()
     {
         asset a{"logo_ball", "kLogoBall", 32, 32, {}};
-        a.pixels.resize(static_cast<std::size_t>(a.width) * a.height);
+        a.pixels.resize(static_cast<std::size_t>(a.width) * static_cast<std::size_t>(a.height));
         const double cx = (a.width - 1) / 2.0, cy = (a.height - 1) / 2.0;
         const double radius = a.width / 2.0 - 1.5;
         for (int y = 0; y < a.height; ++y)
         {
             for (int x = 0; x < a.width; ++x)
             {
-                rgba &p = a.pixels[static_cast<std::size_t>(y) * a.width + x];
+                rgba &p = a.pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(a.width) + static_cast<std::size_t>(x)];
                 const double d = std::sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
                 if (d >= radius)
                 {
@@ -86,7 +86,7 @@ namespace
     // separable integer box blur on one channel, radius r, two passes
     void blur(std::vector<int> &ch, const int w, const int h, const int r)
     {
-        std::vector<int> tmp(static_cast<std::size_t>(w) * h, 0);
+        std::vector<int> tmp(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), 0);
         for (int pass = 0; pass < 2; ++pass)
         {
             // horizontal
@@ -100,11 +100,11 @@ namespace
                         const int xx = x + k;
                         if (xx >= 0 && xx < w)
                         {
-                            sum += ch[static_cast<std::size_t>(y) * w + xx];
+                            sum += ch[static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(xx)];
                             ++n;
                         }
                     }
-                    tmp[static_cast<std::size_t>(y) * w + x] = sum / n;
+                    tmp[static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)] = sum / n;
                 }
             }
             // vertical
@@ -118,11 +118,11 @@ namespace
                         const int yy = y + k;
                         if (yy >= 0 && yy < h)
                         {
-                            sum += tmp[static_cast<std::size_t>(yy) * w + x];
+                            sum += tmp[static_cast<std::size_t>(yy) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)];
                             ++n;
                         }
                     }
-                    ch[static_cast<std::size_t>(y) * w + x] = sum / n;
+                    ch[static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)] = sum / n;
                 }
             }
         }
@@ -132,11 +132,11 @@ namespace
     asset make_shadow()
     {
         asset a{"card_shadow", "kCardShadow", 48, 48, {}};
-        a.pixels.resize(static_cast<std::size_t>(a.width) * a.height);
+        a.pixels.resize(static_cast<std::size_t>(a.width) * static_cast<std::size_t>(a.height));
         const int m = 10;      // the solid rect inset (blur tail lives outside)
         const int solid = 28;  // [m, m+solid) — the 9-slice center tile
         const int radius = 6;
-        std::vector<int> alpha(static_cast<std::size_t>(a.width) * a.height, 0);
+        std::vector<int> alpha(static_cast<std::size_t>(a.width) * static_cast<std::size_t>(a.height), 0);
         for (int y = 0; y < a.height; ++y)
         {
             for (int x = 0; x < a.width; ++x)
@@ -163,7 +163,7 @@ namespace
                                  static_cast<double>(radius) * radius;
                     }
                 }
-                alpha[static_cast<std::size_t>(y) * a.width + x] = inside ? 255 : 0;
+                alpha[static_cast<std::size_t>(y) * static_cast<std::size_t>(a.width) + static_cast<std::size_t>(x)] = inside ? 255 : 0;
             }
         }
         blur(alpha, a.width, a.height, 3);

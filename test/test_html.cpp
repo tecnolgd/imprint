@@ -29,7 +29,7 @@ namespace
         const int i = find_prop(n, name);
         if (i >= 0)
         {
-            return n.props[i].second;
+            return n.props[static_cast<std::size_t>(i)].second;
         }
         ++test::failures;
         std::printf("FAIL (node_prop_v): missing prop '%s'\n", name);
