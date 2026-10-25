@@ -187,7 +187,7 @@ namespace zb::ui
             {
                 mask.resize(need);
             }
-            std::fill(mask.begin(), mask.begin() + static_cast<std::ptrdiff_t>(need), 0);
+            std::fill(mask.begin(), mask.begin() + static_cast<std::ptrdiff_t>(need), static_cast<uint8_t>(0));
             // the CLIPPED box's rows carry the ORIGINAL box's exact
             // coverage: a clipped edge is by construction >= support
             // outside the surface, so re-rounding it there (the box
@@ -198,7 +198,7 @@ namespace zb::ui
             for (int y = btop; y <= bbottom; ++y)
             {
                 uint8_t *rowp = &mask[static_cast<size_t>(y - fy0) * static_cast<size_t>(fw)];
-                std::fill(rowp + (bleft - fx0), rowp + (bright - fx0) + 1, 255);
+                std::fill(rowp + (bleft - fx0), rowp + (bright - fx0) + 1, static_cast<uint8_t>(255));
                 if (rc <= 0 || (y >= mtop + rc && y <= mbottom - rc))
                 {
                     continue;  // straight-section row: all 255
