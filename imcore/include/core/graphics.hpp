@@ -133,6 +133,25 @@ namespace zb::ui::core
             return imsize;
         }
 
+        // X-18: expose the active clip (draw area + offset) so rasterizers
+        // can bound walks to the actual clip rather than the whole surface.
+        // The draw area is in surface coordinates; the offset is the local
+        // origin in surface coordinates (see clip_safe()).
+        [[nodiscard]] inline imarea_t draw_area_bounds() const
+        {
+            return draw_area;
+        }
+
+        [[nodiscard]] inline bool draw_area_has_offset() const
+        {
+            return draw_area_offset_enabled;
+        }
+
+        [[nodiscard]] inline impoint_t draw_area_offset_origin() const
+        {
+            return draw_area_offset;
+        }
+
         inline void enable_alpha(bool enabled)
         {
             alpha_enabled = enabled;

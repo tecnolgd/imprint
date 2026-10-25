@@ -177,26 +177,44 @@ namespace zb::ui
         bool clamp_walk_to_surface(const core::Graphics &area, int64_t &x0,
                                    int64_t &y0, int64_t &x1, int64_t &y1)
         {
-            const auto s = area.size();
-            // the surface in Q10 device pixels; the -1 keeps the loop's
-            // inclusive upper bound inside the last pixel row/column
-            const int64_t sw = static_cast<int64_t>(s.width) * kQ10;
-            const int64_t sh = static_cast<int64_t>(s.height) * kQ10;
-            if (x0 < 0)
+            // X-18: bound the walk to the ACTIVE CLIP (draw area), not the
+            // whole surface. The walk coordinates are in the widget's local
+            // space; the draw area is in surface space with an offset that
+            // maps the local origin onto the surface (see clip_safe()). Using
+            // the surface size here was the original bug: a scrolled or nested
+            // widget's walk got clipped to the surface bounds instead of its
+            // own clip, dropping the rows/columns that live outside the
+            // surface's origin but inside the clip (and, conversely, walking
+            // surface pixels the widget cannot even reach).
+            const auto da = area.draw_area_bounds();
+            const core::impoint_t off = area.draw_area_has_offset()
+                                          ? area.draw_area_offset_origin()
+                                          : core::impoint_t{0, 0};
+            const int64_t lsx = static_cast<int64_t>(da.start_x) - off.x;
+            const int64_t lsy = static_cast<int64_t>(da.start_y) - off.y;
+            const int64_t lex = static_cast<int64_t>(da.end_x) - off.x;
+            const int64_t ley = static_cast<int64_t>(da.end_y) - off.y;
+            // the draw area in Q10 device pixels; the walk's inclusive
+            // upper bound lands on the last pixel row/column
+            const int64_t lx0 = lsx * kQ10;
+            const int64_t ly0 = lsy * kQ10;
+            const int64_t lx1 = lex * kQ10;
+            const int64_t ly1 = ley * kQ10;
+            if (x0 < lx0)
             {
-                x0 = 0;
+                x0 = lx0;
             }
-            if (y0 < 0)
+            if (y0 < ly0)
             {
-                y0 = 0;
+                y0 = ly0;
             }
-            if (x1 > sw - kQ10)
+            if (x1 > lx1)
             {
-                x1 = sw - kQ10;
+                x1 = lx1;
             }
-            if (y1 > sh - kQ10)
+            if (y1 > ly1)
             {
-                y1 = sh - kQ10;
+                y1 = ly1;
             }
             return x1 >= x0 && y1 >= y0;
         }
